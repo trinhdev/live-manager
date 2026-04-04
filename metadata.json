@@ -1,0 +1,5 @@
+{
+  "name": "LiveStream Manager",
+  "description": "A comprehensive dashboard for managing live stream staff schedules, availability, and automatic rostering based on revenue rank.",
+  "requestFramePermissions": []
+}
