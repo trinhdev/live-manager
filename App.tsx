@@ -176,6 +176,7 @@ export default function App() {
   const currentWeekId = useMemo(() => getWeekId(currentDate, currentWeek), [currentDate, currentWeek]);
 
   // Data State
+  const [currentBrand, setCurrentBrand] = useState<Brand | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [schedule, setSchedule] = useState<ScheduleItem[]>([]);
@@ -263,15 +264,16 @@ export default function App() {
     if (!activeBrandSlug) { setIsLoading(false); return; }
     setIsLoading(true);
     try {
-      const uData = await api.getUsers(activeBrandSlug);
-      setUsers(uData);
-
-      const [sData, schData, avData, reqData] = await Promise.all([
+      const [brandData, uData, sData, schData, avData, reqData] = await Promise.all([
+        api.getBrand(activeBrandSlug),
+        api.getUsers(activeBrandSlug),
         api.getShifts(activeBrandSlug),
         api.getSchedule(currentWeekId, activeBrandSlug),
         api.getAvailabilities(currentWeekId, activeBrandSlug),
         api.getRequests(currentWeekId, activeBrandSlug)
       ]);
+      setCurrentBrand(brandData);
+      setUsers(uData);
       setShifts(sData);
       setSchedule(schData);
       setAvailabilities(avData);
@@ -717,8 +719,12 @@ export default function App() {
             <button onClick={() => setIsMobileMenuOpen(true)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#F5F5F5] transition-colors" style={{color:'#737373'}}>
               <Menu size={18} />
             </button>
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-[11px] font-black" style={{background:'#171717'}}>LS</div>
-            <span className="text-[15px] font-bold tracking-tight" style={{color:'#171717'}}>LiveSync</span>
+            {currentBrand?.logoUrl ? (
+              <img src={currentBrand.logoUrl} className="w-7 h-7 rounded-lg object-cover bg-white" alt="" />
+            ) : (
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-[11px] font-black" style={{background: currentBrand?.color || '#171717'}}>{currentBrand ? currentBrand.name.substring(0, 2).toUpperCase() : 'LS'}</div>
+            )}
+            <span className="text-[15px] font-bold tracking-tight truncate max-w-[140px]" style={{color:'#171717'}}>{currentBrand ? currentBrand.name : 'LiveSync'}</span>
           </div>
           <button onClick={() => !currentUser && setIsLoginPageOpen(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-full transition-colors" style={{background:'#F5F5F5',border:'1px solid #E5E5E5'}}>
             {currentUser ? (
@@ -737,8 +743,12 @@ export default function App() {
           <div className="relative w-72 bg-white h-full p-5 animate-slide-in" style={{borderRight:'1px solid #E5E5E5',boxShadow:'4px 0 24px rgba(0,0,0,0.08)'}}>
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-[11px] font-black" style={{background:'#171717'}}>LS</div>
-                <span className="text-[16px] font-bold tracking-tight" style={{color:'#171717'}}>LiveSync</span>
+                {currentBrand?.logoUrl ? (
+                  <img src={currentBrand.logoUrl} className="w-7 h-7 rounded-lg object-cover bg-white" alt="" />
+                ) : (
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-[11px] font-black" style={{background: currentBrand?.color || '#171717'}}>{currentBrand ? currentBrand.name.substring(0, 2).toUpperCase() : 'LS'}</div>
+                )}
+                <span className="text-[16px] font-bold tracking-tight truncate max-w-[160px]" style={{color:'#171717'}}>{currentBrand ? currentBrand.name : 'LiveSync'}</span>
               </div>
               <button onClick={() => setIsMobileMenuOpen(false)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[#F5F5F5]" style={{color:'#A3A3A3'}}><X size={15}/></button>
             </div>
@@ -780,8 +790,12 @@ export default function App() {
         {/* Logo */}
         <div className="px-5 pt-6 pb-4" style={{borderBottom:'1px solid #F5F5F5'}}>
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-[11px] font-black" style={{background:'#171717'}}>LS</div>
-            <span className="text-[16px] font-bold tracking-tight" style={{color:'#171717'}}>LiveSync</span>
+            {currentBrand?.logoUrl ? (
+              <img src={currentBrand.logoUrl} className="w-7 h-7 rounded-lg object-cover bg-white shadow-sm" alt="" />
+            ) : (
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-[11px] font-black" style={{background: currentBrand?.color || '#171717'}}>{currentBrand ? currentBrand.name.substring(0, 2).toUpperCase() : 'LS'}</div>
+            )}
+            <span className="text-[16px] font-bold tracking-tight truncate" style={{color:'#171717'}}>{currentBrand ? currentBrand.name : 'LiveSync'}</span>
           </div>
         </div>
 

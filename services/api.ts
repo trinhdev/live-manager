@@ -44,6 +44,12 @@ export const api = {
     return (data || []).map(mapBrand);
   },
 
+  async getBrand(brandId: string): Promise<Brand> {
+    const { data, error } = await supabase.from('brands').select('*').eq('id', brandId).single();
+    if (error) throw error;
+    return mapBrand(data);
+  },
+
   async saveBrand(brand: Brand): Promise<Brand> {
     const payload = {
       id: brand.id,
