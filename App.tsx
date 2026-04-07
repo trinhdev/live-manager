@@ -263,12 +263,12 @@ export default function App() {
 
   const myNotifications = useMemo(() => {
     if (!currentUser) return [];
-    return notifications.filter(n => 
-      !n.targetUserIds || 
-      n.targetUserIds.length === 0 || 
-      n.targetUserIds.includes(currentUser.id) || 
-      n.createdBy === currentUser.id
-    );
+    return notifications.filter(n => {
+      const isGlobal = !n.targetUserIds || n.targetUserIds.length === 0 || (n.targetUserIds as any) === "{}" || (n.targetUserIds as any) === "[]";
+      return isGlobal || 
+             (n.targetUserIds && (n.targetUserIds as any).includes(currentUser.id)) || 
+             n.createdBy === currentUser.id;
+    });
   }, [notifications, currentUser]);
 
   // Request notification permission on mount
@@ -481,7 +481,8 @@ export default function App() {
            // We use the JSON stored currentUser instead of state directly if dependencies become stale
            const lsUser = localStorage.getItem('ls_user');
            const userObj = lsUser ? JSON.parse(lsUser) : currentUser;
-           const isForMe = !newNotif.targetUserIds || newNotif.targetUserIds.length === 0 || newNotif.targetUserIds.includes(userObj?.id || '');
+           const isGlobal = !newNotif.targetUserIds || newNotif.targetUserIds.length === 0 || (newNotif.targetUserIds as any) === "{}" || (newNotif.targetUserIds as any) === "[]";
+           const isForMe = isGlobal || (newNotif.targetUserIds && (newNotif.targetUserIds as any).includes(userObj?.id || ''));
            if (isForMe) {
                const appName = currentBrand ? currentBrand.name : 'LiveSync';
                new Notification(`${appName} — ${newNotif.title}`, { body: newNotif.message, icon: '/icon.jpg', tag: newNotif.id });
