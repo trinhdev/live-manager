@@ -1077,12 +1077,17 @@ export default function App() {
       <div className="min-h-screen flex flex-col md:flex-row font-sans pb-20 md:pb-0 relative z-10 text-[#262626]">
       {/* ── MOBILE TOP BAR ── */}
       <header className="md:hidden sticky top-0 z-40 px-6 pt-10 pb-4 bg-gradient-to-b from-white/70 to-transparent backdrop-blur-[2px]">
-        <div className="flex justify-between items-center">
-            <div>
-                <h1 className="text-[19px] font-medium tracking-tight text-app-text">{currentBrand ? currentBrand.name : 'LiveSync'}</h1>
-                <p className="text-[11px] font-normal text-app-gray mt-0.5">{currentUser ? `Xin chào, ${currentUser.name}` : 'Phiên khách'}</p>
+        <div className="flex justify-between items-center gap-2">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+                <button onClick={() => setIsMobileMenuOpen(true)} className="w-10 h-10 flex items-center justify-center flex-shrink-0 btn-surface border-none shadow-soft text-[#262626]">
+                  <Menu size={20} strokeWidth={1.5} />
+                </button>
+                <div className="min-w-0">
+                    <h1 className="text-[19px] font-medium tracking-tight text-[#262626] truncate">{currentBrand ? currentBrand.name : 'LiveSync'}</h1>
+                    <p className="text-[11px] font-normal text-[#A3A3A3] mt-0.5 truncate">{currentUser ? `Xin chào, ${currentUser.name}` : 'Phiên khách'}</p>
+                </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-shrink-0">
               {currentUser && (
                 <button onClick={() => setIsNotifPanelOpen(true)} className="relative w-10 h-10 flex items-center justify-center btn-surface border-none shadow-soft text-app-text z-50">
                   <Bell size={18} strokeWidth={1.5} />
@@ -1097,6 +1102,67 @@ export default function App() {
             </div>
         </div>
       </header>
+
+      {/* ── MOBILE SLIDEOVER MENU ── */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden fixed inset-0 z-50 flex">
+          <div className="absolute inset-0 bg-black/20 backdrop-blur-sm transition-opacity" onClick={() => setIsMobileMenuOpen(false)} />
+          <div className="relative w-[280px] bg-white/95 backdrop-blur-3xl h-full shadow-2xl flex flex-col" style={{animation:'slideInLeft 0.2s ease-out'}}>
+            <div className="p-6 border-b border-black/5 flex justify-between items-center bg-white/50">
+              <div className="flex items-center gap-2">
+                {currentBrand?.logoUrl ? (
+                  <img src={currentBrand.logoUrl} className="w-6 h-6 rounded object-cover" alt="" />
+                ) : (
+                  <div className="w-6 h-6 rounded flex items-center justify-center text-white text-[10px] font-bold" style={{background: currentBrand?.color || '#171717'}}>{currentBrand ? currentBrand.name.substring(0, 2).toUpperCase() : 'LS'}</div>
+                )}
+                <span className="text-[16px] font-semibold text-[#262626]">{currentBrand ? currentBrand.name : 'LiveSync'}</span>
+              </div>
+              <button onClick={() => setIsMobileMenuOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400"><X size={18} strokeWidth={1.5}/></button>
+            </div>
+
+            <div className="px-5 py-5 border-b border-black/5">
+              {currentUser ? (
+                <div className="flex items-center gap-3 p-3 btn-surface border border-slate-100">
+                  <img src={currentUser.avatar} className="w-9 h-9 rounded-full object-cover shadow-sm" alt="" />
+                  <div>
+                    <p className="text-[13px] font-medium text-[#262626]">{currentUser.name}</p>
+                    <p className="text-[10px] text-[#A3A3A3]">{currentUser.role === 'SUPER_ADMIN' ? 'Super Admin' : currentUser.role === 'MANAGER' ? 'Quản lý' : 'Nhân sự'}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-2 text-[13px] text-[#737373]">Chưa đăng nhập</div>
+              )}
+            </div>
+
+            <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
+              <SidebarItem icon={<Calendar size={18}/>} label="Lịch trực" active={viewMode === 'DASHBOARD'} onClick={() => { setViewMode('DASHBOARD'); setIsMobileMenuOpen(false); }} />
+              <SidebarItem icon={<CheckCircle2 size={18}/>} label="Đăng ký ca" active={viewMode === 'MY_AVAILABILITY'} onClick={() => { setViewMode('MY_AVAILABILITY'); setIsMobileMenuOpen(false); }} />
+              <SidebarItem icon={<Inbox size={18}/>} label="Ca cần hỗ trợ" active={viewMode === 'REQUESTS'} onClick={() => { setViewMode('REQUESTS'); setIsMobileMenuOpen(false); }} badge={pendingCount > 0 ? pendingCount : undefined} />
+              
+              {(currentUser?.role === 'MANAGER' || currentUser?.role === 'SUPER_ADMIN') && (
+                <>
+                  <div className="px-3 pt-6 pb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400">Hệ thống</div>
+                  <SidebarItem icon={<BarChart3 size={18}/>} label="Báo cáo" active={viewMode === 'REPORTS'} onClick={() => { setViewMode('REPORTS'); setIsMobileMenuOpen(false); }} />
+                  <SidebarItem icon={<Users size={18}/>} label="Nhân sự" active={viewMode === 'STAFF_MANAGEMENT'} onClick={() => { setViewMode('STAFF_MANAGEMENT'); setIsMobileMenuOpen(false); }} />
+                  <SidebarItem icon={<Settings size={18}/>} label="Cấu hình" active={viewMode === 'SETTINGS'} onClick={() => { setViewMode('SETTINGS'); setIsMobileMenuOpen(false); }} />
+                </>
+              )}
+            </nav>
+            
+            <div className="p-6 border-t border-black/5 bg-white/50">
+              {currentUser ? (
+                <button onClick={handleLogout} className="flex items-center gap-2 text-red-500 font-medium text-[13px] px-3">
+                  <LogOut size={16} strokeWidth={1.5}/> {currentUser.role === 'SUPER_ADMIN' ? 'Về Panel Quản Trị' : 'Đăng xuất'}
+                </button>
+              ) : (
+                <button onClick={() => { setIsLoginPageOpen(true); setIsMobileMenuOpen(false); }} className="flex items-center gap-2 text-indigo-500 font-medium text-[13px] px-3">
+                  <LogIn size={16} strokeWidth={1.5}/> Đăng nhập
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Desktop Sidebar — minimal strip */}
       <aside className="hidden md:flex w-64 h-screen sticky top-0 flex-col z-30 bg-white/60 backdrop-blur-3xl overflow-y-auto shadow-soft border-r border-[#FFFFFF]">
@@ -1113,55 +1179,54 @@ export default function App() {
         </div>
 
         {/* User pill */}
-        <div className="px-4 py-4">
+        <div className="px-5 py-5">
           {currentUser ? (
-            <div className="flex items-center gap-2.5 p-2 rounded-lg" style={{background:'#F5F5F5'}}>
-              <img src={currentUser.avatar} className="w-7 h-7 rounded-full object-cover flex-shrink-0" alt="" />
+            <div className="flex items-center gap-3 p-3 btn-surface border border-white/50">
+              <img src={currentUser.avatar} className="w-9 h-9 rounded-full object-cover flex-shrink-0 shadow-sm" alt="" />
               <div className="min-w-0">
-                <p className="text-[13px] font-semibold truncate" style={{color:'#171717'}}>{currentUser.name}</p>
-                <p className="text-[10px]" style={{color:'#A3A3A3'}}>{currentUser.role === 'SUPER_ADMIN' ? 'Super Admin' : currentUser.role === 'MANAGER' ? 'Quản lý' : 'Nhân sự'}</p>
+                <p className="text-[13px] font-medium text-[#262626] truncate">{currentUser.name}</p>
+                <p className="text-[11px] font-light text-[#A3A3A3]">{currentUser.role === 'SUPER_ADMIN' ? 'System Admin' : currentUser.role === 'MANAGER' ? 'Quản lý' : 'Nhân sự'}</p>
               </div>
             </div>
           ) : (
-            <div className="flex items-center gap-2.5 p-2 rounded-lg" style={{background:'#F5F5F5'}}>
-              <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{background:'#E5E5E5',color:'#A3A3A3'}}><Users size={14}/></div>
-              <p className="text-[13px] font-medium" style={{color:'#737373'}}>Khách</p>
-            </div>
+            <button onClick={() => setIsLoginPageOpen(true)} className="w-full flex items-center gap-2 px-3 py-3 btn-surface border border-white/50 text-indigo-500">
+              <LogIn size={15} strokeWidth={2}/> <span className="text-[13px] font-medium">Đăng nhập</span>
+            </button>
           )}
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 px-3 space-y-0.5">
-          <SidebarItem icon={<Calendar size={15}/>} label="Lịch làm việc" active={viewMode === 'DASHBOARD'} onClick={() => setViewMode('DASHBOARD')} />
+        <nav className="flex-1 px-4 py-2 space-y-1 overflow-y-auto">
+          <SidebarItem icon={<Calendar size={17}/>} label="Lịch trực" active={viewMode === 'DASHBOARD'} onClick={() => setViewMode('DASHBOARD')} />
           {currentUser && (currentUser.role === 'STAFF' || currentUser.role === 'OPERATIONS') && (
-            <SidebarItem icon={<Clock size={15}/>} label="Đăng ký rảnh" active={viewMode === 'MY_AVAILABILITY'} onClick={() => setViewMode('MY_AVAILABILITY')} />
+            <SidebarItem icon={<CheckCircle2 size={17}/>} label="Đăng ký ca" active={viewMode === 'MY_AVAILABILITY'} onClick={() => setViewMode('MY_AVAILABILITY')} />
           )}
           {currentUser && (
-            <SidebarItem icon={<MessageSquare size={15}/>} label="Yêu cầu" active={viewMode === 'REQUESTS'} onClick={() => setViewMode('REQUESTS')} badge={(currentUser.role === 'MANAGER' || currentUser.role === 'SUPER_ADMIN') && pendingCount > 0 ? pendingCount : undefined}/>
+            <SidebarItem icon={<Inbox size={17}/>} label="Ca cần hỗ trợ" active={viewMode === 'REQUESTS'} onClick={() => setViewMode('REQUESTS')} badge={(currentUser.role === 'MANAGER' || currentUser.role === 'SUPER_ADMIN') && pendingCount > 0 ? pendingCount : undefined}/>
           )}
           {currentUser && (
-            <SidebarItem icon={<Bell size={15}/>} label="Thông báo" active={isNotifPanelOpen} onClick={() => setIsNotifPanelOpen(!isNotifPanelOpen)} badge={unreadCount > 0 ? unreadCount : undefined} />
+            <SidebarItem icon={<Bell size={17}/>} label="Thông báo" active={isNotifPanelOpen} onClick={() => setIsNotifPanelOpen(!isNotifPanelOpen)} badge={unreadCount > 0 ? unreadCount : undefined} />
           )}
           {(currentUser?.role === 'MANAGER' || currentUser?.role === 'SUPER_ADMIN') && (
-            <SidebarItem icon={<BarChart3 size={15}/>} label="Báo cáo" active={viewMode === 'REPORTS'} onClick={() => setViewMode('REPORTS')} />
+            <SidebarItem icon={<BarChart3 size={17}/>} label="Báo cáo" active={viewMode === 'REPORTS'} onClick={() => setViewMode('REPORTS')} />
           )}
           {(currentUser?.role === 'MANAGER' || currentUser?.role === 'SUPER_ADMIN') && (
             <>
-              <div className="px-3 pt-5 pb-1 text-[10px] font-semibold uppercase tracking-widest" style={{color:'#A3A3A3'}}>Hệ thống</div>
-              <SidebarItem icon={<Users size={15}/>} label="Nhân sự" active={viewMode === 'STAFF_MANAGEMENT'} onClick={() => setViewMode('STAFF_MANAGEMENT')} />
-              <SidebarItem icon={<Settings size={15}/>} label="Cấu hình" active={viewMode === 'SETTINGS'} onClick={() => setViewMode('SETTINGS')} />
+              <div className="px-3 pt-6 pb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400">Hệ thống</div>
+              <SidebarItem icon={<Users size={17}/>} label="Nhân sự" active={viewMode === 'STAFF_MANAGEMENT'} onClick={() => setViewMode('STAFF_MANAGEMENT')} />
+              <SidebarItem icon={<Settings size={17}/>} label="Cấu hình" active={viewMode === 'SETTINGS'} onClick={() => setViewMode('SETTINGS')} />
             </>
           )}
         </nav>
 
         {/* Bottom actions */}
-        <div className="p-3" style={{borderTop:'1px solid #F5F5F5'}}>
+        <div className="p-5 mt-auto border-t border-black/5">
           {currentUser ? (
-            <button onClick={handleLogout} className="sidebar-link" style={{color:'#EF4444'}}>
-              <LogOut size={14}/> {currentUser.role === 'SUPER_ADMIN' ? 'Về Panel Quản Trị' : 'Đăng xuất'}
+            <button onClick={handleLogout} className="flex items-center gap-2 text-red-500 font-medium text-[13px] px-2 py-2 w-full rounded-xl hover:bg-red-50 transition-colors">
+              <LogOut size={15} strokeWidth={1.5}/> {currentUser.role === 'SUPER_ADMIN' ? 'Về Panel Quản Trị' : 'Đăng xuất'}
             </button>
           ) : (
-            <button onClick={() => setIsLoginPageOpen(true)} className="sidebar-link" style={{color:'#2563EB'}}><LogIn size={14}/> Đăng nhập</button>
+            <button onClick={() => setIsLoginPageOpen(true)} className="flex items-center gap-2 text-indigo-500 font-medium text-[13px] px-2 py-2 w-full rounded-xl hover:bg-indigo-50 transition-colors"><LogIn size={15} strokeWidth={1.5}/> Đăng nhập</button>
           )}
         </div>
       </aside>
@@ -2368,9 +2433,9 @@ export default function App() {
               )}
              <textarea rows={3} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium resize-none" value={requestForm.reason} onChange={e => setRequestForm({...requestForm, reason: e.target.value})} placeholder="Lý do..."></textarea>
           </div>
-          <div className="pt-2 flex gap-2">
-            <Button variant="secondary" size="sm" className="flex-1 font-medium" onClick={() => setIsRequestModalOpen(false)}>Hủy</Button>
-            <Button size="sm" className="flex-1 font-semibold" onClick={createRequest} icon={<Send size={14}/>}>Gửi yêu cầu</Button>
+          <div className="pt-4 flex gap-2">
+              <Button variant="secondary" size="md" className="flex-1 font-medium" onClick={() => setIsRequestModalOpen(false)}>Hủy</Button>
+              <Button size="md" className="flex-1 font-semibold" onClick={createRequest} icon={<Send size={16}/>}>Gửi Yêu Cầu</Button>
           </div>
         </div>
       </Modal>
@@ -2397,8 +2462,8 @@ export default function App() {
                   <button onClick={markAllNotifsRead} className="flex-1 sm:flex-none text-[12px] font-medium text-center py-2.5 sm:py-0 text-blue-600 bg-blue-50 sm:bg-transparent rounded-lg sm:rounded-none">Đọc tất cả</button>
                 )}
                 {(currentUser?.role === 'MANAGER' || currentUser?.role === 'SUPER_ADMIN') && (
-                  <button onClick={() => setIsNotifModalOpen(true)} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2.5 sm:py-2.5 rounded-xl text-[12px] font-medium transition-all hover:bg-slate-800" style={{background:'#171717', color:'#fff'}}>
-                    <Plus size={14} /> Gửi TB
+                  <button onClick={() => setIsNotifModalOpen(true)} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2.5 sm:py-2.5 rounded-xl text-[12px] font-semibold transition-all hover:bg-slate-800" style={{background:'#171717', color:'#fff'}}>
+                    <Plus size={14} /> Gửi Thông báo
                   </button>
                 )}
                 <div className="w-px h-6 bg-slate-200 mx-1 hidden sm:block"></div>
