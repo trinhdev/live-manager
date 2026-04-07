@@ -2,7 +2,6 @@
   "name": "LiveSync",
   "short_name": "LiveSync",
   "description": "Hệ thống quản lý lịch livestream chuyên nghiệp",
-  "start_url": "/",
   "display": "standalone",
   "background_color": "#FAFAFA",
   "theme_color": "#171717",
