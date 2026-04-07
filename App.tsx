@@ -2524,77 +2524,88 @@ export default function App() {
       {/* ── MOBILE BOTTOM NAVIGATION ── */}
       {currentUser && (
         <>
-          {/* More menu popup sheet */}
+          {/* More popup sheet - slide up animation */}
           {isMoreMenuOpen && (
             <div className="md:hidden fixed inset-0 z-[60]" onClick={() => setIsMoreMenuOpen(false)}>
-              <div className="absolute bottom-24 left-4 right-4 bg-white/95 backdrop-blur-3xl rounded-2xl shadow-2xl border border-white/80 p-4 grid grid-cols-3 gap-3">
-                <button onClick={() => { setViewMode('REPORTS'); setIsMoreMenuOpen(false); }} className={`flex flex-col items-center gap-2 py-4 rounded-xl transition-colors ${viewMode === 'REPORTS' ? 'bg-indigo-50 text-indigo-500' : 'text-slate-500 hover:bg-slate-50'}`}>
-                  <BarChart3 size={22} strokeWidth={1.5}/>
-                  <span className="text-[11px] font-medium">Báo cáo</span>
-                </button>
-                <button onClick={() => { setViewMode('STAFF_MANAGEMENT'); setIsMoreMenuOpen(false); }} className={`flex flex-col items-center gap-2 py-4 rounded-xl transition-colors ${viewMode === 'STAFF_MANAGEMENT' ? 'bg-indigo-50 text-indigo-500' : 'text-slate-500 hover:bg-slate-50'}`}>
-                  <Users size={22} strokeWidth={1.5}/>
-                  <span className="text-[11px] font-medium">Nhân sự</span>
-                </button>
-                <button onClick={() => { setViewMode('SETTINGS'); setIsMoreMenuOpen(false); }} className={`flex flex-col items-center gap-2 py-4 rounded-xl transition-colors ${viewMode === 'SETTINGS' ? 'bg-indigo-50 text-indigo-500' : 'text-slate-500 hover:bg-slate-50'}`}>
-                  <Settings size={22} strokeWidth={1.5}/>
-                  <span className="text-[11px] font-medium">Cấu hình</span>
-                </button>
-                {(currentUser.role === 'MANAGER' || currentUser.role === 'SUPER_ADMIN') && (
-                  <button onClick={() => { setIsNotifModalOpen(true); setIsMoreMenuOpen(false); }} className="flex flex-col items-center gap-2 py-4 rounded-xl text-slate-500 hover:bg-slate-50 transition-colors">
-                    <Bell size={22} strokeWidth={1.5}/>
-                    <span className="text-[11px] font-medium">Gửi TB</span>
+              <div className="more-popup absolute bottom-[72px] left-3 right-3 bg-white/96 backdrop-blur-3xl rounded-2xl border border-slate-100 p-4" style={{boxShadow:'0 -4px 40px rgba(0,0,0,0.08)'}}>
+                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-3 px-1">Thêm</p>
+                <div className="grid grid-cols-4 gap-2">
+                  {(currentUser.role === 'MANAGER' || currentUser.role === 'SUPER_ADMIN') && (
+                    <button onClick={() => { setViewMode('REPORTS'); setIsMoreMenuOpen(false); }} className={`flex flex-col items-center gap-2 py-3 rounded-xl transition-colors ${viewMode === 'REPORTS' ? 'bg-indigo-50 text-indigo-500' : 'text-slate-500'}`}>
+                      <BarChart3 size={20} strokeWidth={1.5}/>
+                      <span className="text-[10px] font-medium">Báo cáo</span>
+                    </button>
+                  )}
+                  {(currentUser.role === 'MANAGER' || currentUser.role === 'SUPER_ADMIN') && (
+                    <button onClick={() => { setViewMode('SETTINGS'); setIsMoreMenuOpen(false); }} className={`flex flex-col items-center gap-2 py-3 rounded-xl transition-colors ${viewMode === 'SETTINGS' ? 'bg-indigo-50 text-indigo-500' : 'text-slate-500'}`}>
+                      <Settings size={20} strokeWidth={1.5}/>
+                      <span className="text-[10px] font-medium">Cấu hình</span>
+                    </button>
+                  )}
+                  {(currentUser.role === 'MANAGER' || currentUser.role === 'SUPER_ADMIN') && (
+                    <button onClick={() => { setIsNotifModalOpen(true); setIsMoreMenuOpen(false); }} className="flex flex-col items-center gap-2 py-3 rounded-xl text-slate-500">
+                      <Send size={20} strokeWidth={1.5}/>
+                      <span className="text-[10px] font-medium">Gửi TB</span>
+                    </button>
+                  )}
+                  <button onClick={() => { handleLogout(); setIsMoreMenuOpen(false); }} className="flex flex-col items-center gap-2 py-3 rounded-xl text-red-400">
+                    <LogOut size={20} strokeWidth={1.5}/>
+                    <span className="text-[10px] font-medium">Đăng xuất</span>
                   </button>
-                )}
-                <button onClick={() => { handleLogout(); setIsMoreMenuOpen(false); }} className="flex flex-col items-center gap-2 py-4 rounded-xl text-red-400 hover:bg-red-50 transition-colors">
-                  <LogOut size={22} strokeWidth={1.5}/>
-                  <span className="text-[11px] font-medium">Đăng xuất</span>
-                </button>
+                </div>
               </div>
             </div>
           )}
 
-          <nav className="md:hidden fixed bottom-0 left-0 right-0 w-full bottom-menu shadow-menu z-50">
-            <div className="flex justify-around items-center px-2 py-3 pb-8">
-              <button onClick={() => setViewMode('DASHBOARD')} className={`flex flex-col items-center gap-1.5 flex-1 py-1 transition-transform active:scale-95 ${viewMode === 'DASHBOARD' ? 'text-indigo-500' : 'text-slate-400'}`}>
-                <Calendar size={22} strokeWidth={viewMode === 'DASHBOARD' ? 2 : 1.5} />
-                <span className={`text-[10px] ${viewMode === 'DASHBOARD' ? 'font-medium' : 'font-light'}`}>Lịch</span>
+          <nav className="md:hidden fixed bottom-0 left-0 right-0 w-full bottom-menu z-50">
+            <div className="bottom-nav-bar flex justify-around items-center px-1 pt-2">
+
+              {/* Lịch - tất cả role */}
+              <button onClick={() => { setViewMode('DASHBOARD'); setIsMoreMenuOpen(false); }} className={`flex flex-col items-center gap-1 flex-1 py-1.5 mx-0.5 rounded-xl transition-all active:scale-95 ${viewMode === 'DASHBOARD' && !isMoreMenuOpen ? 'text-indigo-500 bg-indigo-50' : 'text-slate-400'}`}>
+                <Calendar size={21} strokeWidth={viewMode === 'DASHBOARD' ? 2 : 1.5} />
+                <span className={`text-[9px] leading-tight ${viewMode === 'DASHBOARD' && !isMoreMenuOpen ? 'font-medium' : 'font-light'}`}>Lịch</span>
               </button>
 
+              {/* Đăng ký - chỉ Staff/Operations */}
               {(currentUser.role === 'STAFF' || currentUser.role === 'OPERATIONS') && (
-                <button onClick={() => setViewMode('MY_AVAILABILITY')} className={`flex flex-col items-center gap-1.5 flex-1 py-1 transition-transform active:scale-95 ${viewMode === 'MY_AVAILABILITY' ? 'text-indigo-500' : 'text-slate-400'}`}>
-                  <CheckCircle2 size={22} strokeWidth={viewMode === 'MY_AVAILABILITY' ? 2 : 1.5} />
-                  <span className={`text-[10px] ${viewMode === 'MY_AVAILABILITY' ? 'font-medium' : 'font-light'}`}>Đăng ký</span>
+                <button onClick={() => { setViewMode('MY_AVAILABILITY'); setIsMoreMenuOpen(false); }} className={`flex flex-col items-center gap-1 flex-1 py-1.5 mx-0.5 rounded-xl transition-all active:scale-95 ${viewMode === 'MY_AVAILABILITY' && !isMoreMenuOpen ? 'text-indigo-500 bg-indigo-50' : 'text-slate-400'}`}>
+                  <CheckCircle2 size={21} strokeWidth={viewMode === 'MY_AVAILABILITY' ? 2 : 1.5} />
+                  <span className={`text-[9px] leading-tight ${viewMode === 'MY_AVAILABILITY' && !isMoreMenuOpen ? 'font-medium' : 'font-light'}`}>Đăng ký</span>
                 </button>
               )}
 
-              <button onClick={() => setViewMode('REQUESTS')} className={`relative flex flex-col items-center gap-1.5 flex-1 py-1 transition-transform active:scale-95 ${viewMode === 'REQUESTS' ? 'text-indigo-500' : 'text-slate-400'}`}>
+              {/* Yêu cầu - tất cả role */}
+              <button onClick={() => { setViewMode('REQUESTS'); setIsMoreMenuOpen(false); }} className={`relative flex flex-col items-center gap-1 flex-1 py-1.5 mx-0.5 rounded-xl transition-all active:scale-95 ${viewMode === 'REQUESTS' && !isMoreMenuOpen ? 'text-indigo-500 bg-indigo-50' : 'text-slate-400'}`}>
                 <div className="relative">
-                  <Inbox size={22} strokeWidth={viewMode === 'REQUESTS' ? 2 : 1.5} />
-                  {pendingCount > 0 && <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500"></span>}
+                  <Inbox size={21} strokeWidth={viewMode === 'REQUESTS' ? 2 : 1.5} />
+                  {pendingCount > 0 && <span className="absolute -top-1 -right-1.5 w-2 h-2 rounded-full bg-red-500 border border-white"></span>}
                 </div>
-                <span className={`text-[10px] ${viewMode === 'REQUESTS' ? 'font-medium' : 'font-light'}`}>Yêu cầu</span>
+                <span className={`text-[9px] leading-tight ${viewMode === 'REQUESTS' && !isMoreMenuOpen ? 'font-medium' : 'font-light'}`}>Yêu cầu</span>
               </button>
 
-              <button onClick={() => setIsNotifPanelOpen(true)} className={`relative flex flex-col items-center gap-1.5 flex-1 py-1 transition-transform active:scale-95 ${isNotifPanelOpen ? 'text-indigo-500' : 'text-slate-400'}`}>
+              {/* Thông báo - tất cả role */}
+              <button onClick={() => { setIsNotifPanelOpen(true); setIsMoreMenuOpen(false); }} className={`relative flex flex-col items-center gap-1 flex-1 py-1.5 mx-0.5 rounded-xl transition-all active:scale-95 ${isNotifPanelOpen && !isMoreMenuOpen ? 'text-indigo-500 bg-indigo-50' : 'text-slate-400'}`}>
                 <div className="relative">
-                  <Bell size={22} strokeWidth={isNotifPanelOpen ? 2 : 1.5} />
-                  {unreadCount > 0 && <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500"></span>}
+                  <Bell size={21} strokeWidth={isNotifPanelOpen ? 2 : 1.5} />
+                  {unreadCount > 0 && <span className="absolute -top-1 -right-1.5 w-2 h-2 rounded-full bg-red-500 border border-white"></span>}
                 </div>
-                <span className="text-[10px] font-light">Thông báo</span>
+                <span className={`text-[9px] leading-tight ${isNotifPanelOpen && !isMoreMenuOpen ? 'font-medium' : 'font-light'}`}>Thông báo</span>
               </button>
 
+              {/* Nhân sự - chỉ Manager/Admin */}
               {(currentUser.role === 'MANAGER' || currentUser.role === 'SUPER_ADMIN') && (
-                <button onClick={() => setViewMode('STAFF_MANAGEMENT')} className={`flex flex-col items-center gap-1.5 flex-1 py-1 transition-transform active:scale-95 ${viewMode === 'STAFF_MANAGEMENT' ? 'text-indigo-500' : 'text-slate-400'}`}>
-                  <Users size={22} strokeWidth={viewMode === 'STAFF_MANAGEMENT' ? 2 : 1.5} />
-                  <span className={`text-[10px] ${viewMode === 'STAFF_MANAGEMENT' ? 'font-medium' : 'font-light'}`}>Nhân sự</span>
+                <button onClick={() => { setViewMode('STAFF_MANAGEMENT'); setIsMoreMenuOpen(false); }} className={`flex flex-col items-center gap-1 flex-1 py-1.5 mx-0.5 rounded-xl transition-all active:scale-95 ${viewMode === 'STAFF_MANAGEMENT' && !isMoreMenuOpen ? 'text-indigo-500 bg-indigo-50' : 'text-slate-400'}`}>
+                  <Users size={21} strokeWidth={viewMode === 'STAFF_MANAGEMENT' ? 2 : 1.5} />
+                  <span className={`text-[9px] leading-tight ${viewMode === 'STAFF_MANAGEMENT' && !isMoreMenuOpen ? 'font-medium' : 'font-light'}`}>Nhân sự</span>
                 </button>
               )}
 
-              <button onClick={() => setIsMoreMenuOpen(!isMoreMenuOpen)} className={`flex flex-col items-center gap-1.5 flex-1 py-1 transition-transform active:scale-95 ${isMoreMenuOpen ? 'text-indigo-500' : 'text-slate-400'}`}>
-                <MoreHorizontal size={22} strokeWidth={isMoreMenuOpen ? 2 : 1.5} />
-                <span className="text-[10px] font-light">Thêm</span>
+              {/* Thêm - mở popup */}
+              <button onClick={() => setIsMoreMenuOpen(!isMoreMenuOpen)} className={`flex flex-col items-center gap-1 flex-1 py-1.5 mx-0.5 rounded-xl transition-all active:scale-95 ${isMoreMenuOpen ? 'text-indigo-500 bg-indigo-50' : 'text-slate-400'}`}>
+                <MoreHorizontal size={21} strokeWidth={isMoreMenuOpen ? 2 : 1.5} />
+                <span className={`text-[9px] leading-tight ${isMoreMenuOpen ? 'font-medium' : 'font-light'}`}>Thêm</span>
               </button>
+
             </div>
           </nav>
         </>
