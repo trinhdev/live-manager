@@ -265,6 +265,7 @@ export default function App() {
     if (!currentUser) return [];
     return notifications.filter(n => 
       !n.targetUserIds || 
+      n.targetUserIds.length === 0 || 
       n.targetUserIds.includes(currentUser.id) || 
       n.createdBy === currentUser.id
     );
@@ -480,7 +481,7 @@ export default function App() {
            // We use the JSON stored currentUser instead of state directly if dependencies become stale
            const lsUser = localStorage.getItem('ls_user');
            const userObj = lsUser ? JSON.parse(lsUser) : currentUser;
-           const isForMe = !newNotif.targetUserIds || newNotif.targetUserIds.includes(userObj?.id || '');
+           const isForMe = !newNotif.targetUserIds || newNotif.targetUserIds.length === 0 || newNotif.targetUserIds.includes(userObj?.id || '');
            if (isForMe) {
                new Notification(newNotif.title, { body: newNotif.message, icon: '/icon.jpg', tag: newNotif.id });
            }
