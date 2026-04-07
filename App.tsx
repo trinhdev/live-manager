@@ -1131,24 +1131,24 @@ export default function App() {
 
         {/* Nav */}
         <nav className="flex-1 px-4 py-2 space-y-1 overflow-y-auto">
-          <SidebarItem icon={<Calendar size={17}/>} label="Lịch trực" active={viewMode === 'DASHBOARD'} onClick={() => setViewMode('DASHBOARD')} />
+          <SidebarItem icon={<Calendar size={18}/>} label="Lịch" active={viewMode === 'DASHBOARD'} onClick={() => setViewMode('DASHBOARD')} />
           {currentUser && (currentUser.role === 'STAFF' || currentUser.role === 'OPERATIONS') && (
-            <SidebarItem icon={<CheckCircle2 size={17}/>} label="Đăng ký ca" active={viewMode === 'MY_AVAILABILITY'} onClick={() => setViewMode('MY_AVAILABILITY')} />
+            <SidebarItem icon={<CheckCircle2 size={18}/>} label="Đăng ký" active={viewMode === 'MY_AVAILABILITY'} onClick={() => setViewMode('MY_AVAILABILITY')} />
           )}
           {currentUser && (
-            <SidebarItem icon={<Inbox size={17}/>} label="Ca cần hỗ trợ" active={viewMode === 'REQUESTS'} onClick={() => setViewMode('REQUESTS')} badge={(currentUser.role === 'MANAGER' || currentUser.role === 'SUPER_ADMIN') && pendingCount > 0 ? pendingCount : undefined}/>
+            <SidebarItem icon={<Inbox size={18}/>} label="Yêu cầu" active={viewMode === 'REQUESTS'} onClick={() => setViewMode('REQUESTS')} badge={(currentUser.role === 'MANAGER' || currentUser.role === 'SUPER_ADMIN') && pendingCount > 0 ? pendingCount : undefined}/>
           )}
           {currentUser && (
-            <SidebarItem icon={<Bell size={17}/>} label="Thông báo" active={isNotifPanelOpen} onClick={() => setIsNotifPanelOpen(!isNotifPanelOpen)} badge={unreadCount > 0 ? unreadCount : undefined} />
+            <SidebarItem icon={<Bell size={18}/>} label="Thông báo" active={isNotifPanelOpen} onClick={() => setIsNotifPanelOpen(!isNotifPanelOpen)} badge={unreadCount > 0 ? unreadCount : undefined} />
           )}
           {(currentUser?.role === 'MANAGER' || currentUser?.role === 'SUPER_ADMIN') && (
-            <SidebarItem icon={<BarChart3 size={17}/>} label="Báo cáo" active={viewMode === 'REPORTS'} onClick={() => setViewMode('REPORTS')} />
+            <SidebarItem icon={<BarChart3 size={18}/>} label="Báo cáo" active={viewMode === 'REPORTS'} onClick={() => setViewMode('REPORTS')} />
           )}
           {(currentUser?.role === 'MANAGER' || currentUser?.role === 'SUPER_ADMIN') && (
             <>
               <div className="px-3 pt-6 pb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400">Hệ thống</div>
-              <SidebarItem icon={<Users size={17}/>} label="Nhân sự" active={viewMode === 'STAFF_MANAGEMENT'} onClick={() => setViewMode('STAFF_MANAGEMENT')} />
-              <SidebarItem icon={<Settings size={17}/>} label="Cấu hình" active={viewMode === 'SETTINGS'} onClick={() => setViewMode('SETTINGS')} />
+              <SidebarItem icon={<Users size={18}/>} label="Nhân sự" active={viewMode === 'STAFF_MANAGEMENT'} onClick={() => setViewMode('STAFF_MANAGEMENT')} />
+              <SidebarItem icon={<Settings size={18}/>} label="Cấu hình" active={viewMode === 'SETTINGS'} onClick={() => setViewMode('SETTINGS')} />
             </>
           )}
         </nav>
