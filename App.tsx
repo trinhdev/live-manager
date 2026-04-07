@@ -133,6 +133,34 @@ const RoleBadge: React.FC<{ role: Role }> = ({ role }) => {
   );
 };
 
+// ── Time Parsers Helper cho tính năng Kẹp Ca ── //
+const parseTimeStrToHours = (t: string): number => {
+  if (!t) return 0;
+  const clean = t.trim().toLowerCase();
+  const match = clean.match(/^(\d{1,2})(?:[:h](\d{1,2}))?/);
+  if (match) {
+     const h = parseInt(match[1]);
+     const m = match[2] ? parseInt(match[2]) : 0;
+     return h + m / 60;
+  }
+  return 0;
+};
+
+const parseDurationFromLabel = (label: string): number | null => {
+   if (!label) return null;
+   const parts = label.split(/\s*-\s*/);
+   if (parts.length === 2) {
+      const start = parseTimeStrToHours(parts[0]);
+      const end = parseTimeStrToHours(parts[1]);
+      if (start > 0 && end > 0) {
+         let duration = end - start;
+         if (duration < 0) duration += 24; // Qua đêm
+         return duration;
+      }
+   }
+   return null;
+};
+
 export default function App() {
   // --- STATE ---
 
@@ -511,13 +539,49 @@ export default function App() {
 
   const monthlyStats = useMemo(() => {
     return users.filter(u => u.role !== 'MANAGER').map(u => {
-       const shiftCount = schedule.filter(s => 
-           s.streamerAssignments.some(sa => sa.userId === u.id) || s.opsUserId === u.id
-       ).length;
-       const totalHours = shiftCount * 4; 
+       let shiftCount = 0;
+       let totalHours = 0;
+       
+       schedule.forEach(s => {
+           const sa = s.streamerAssignments.find(x => x.userId === u.id);
+           const isOps = s.opsUserId === u.id;
+           
+           if (sa || isOps) {
+               shiftCount++;
+               let hours = 0;
+               
+               // Ưu tiên đọc giờ Kẹp Ca nếu có cấu hình (ví dụ "19h - 21h")
+               if (sa && sa.timeLabel) {
+                   const customHours = parseDurationFromLabel(sa.timeLabel);
+                   if (customHours !== null) {
+                       hours = customHours;
+                   }
+               }
+               
+               // Nếu không có Kẹp Ca / Không parse được / Là OPS -> Tính theo giờ gốc của Shift
+               if (hours === 0) {
+                   const shiftDef = shifts.find(def => def.id === s.shiftId);
+                   if (shiftDef) {
+                       const start = parseTimeStrToHours(shiftDef.startTime);
+                       const end = parseTimeStrToHours(shiftDef.endTime);
+                       if (start > 0 && end > 0) {
+                           let duration = end - start;
+                           if (duration < 0) duration += 24;
+                           hours = duration;
+                       }
+                   }
+               }
+               
+               // Fallback an toàn nếu lỗi hoàn toàn
+               if (hours === 0) hours = 4;
+               
+               totalHours += hours;
+           }
+       });
+       
        return { ...u, shiftCount, totalHours };
     }).sort((a,b) => b.shiftCount - a.shiftCount);
-  }, [schedule, users]);
+  }, [schedule, users, shifts]);
 
 
   // --- ACTIONS ---
@@ -879,8 +943,34 @@ export default function App() {
   };
 
   const handleSaveBridge = async () => {
-      alert("Tính năng Kẹp ca cần backend logic update phức tạp hơn, đang cập nhật...");
-      handleCloseBridgeModal();
+      if (!editingSlot || !bridgeData.userId) return;
+      
+      const tLabel = (bridgeData.startTime && bridgeData.endTime) 
+          ? `${bridgeData.startTime} - ${bridgeData.endTime}` 
+          : '';
+
+      const existingItem = schedule.find(s => s.dayIndex === editingSlot.day && s.shiftId === editingSlot.shiftId && s.platform === activePlatform);
+      
+      if (!existingItem) {
+          alert('Không tìm thấy ca trực. Hãy gán nhân sự vào ca trước khi cấu hình kẹp ca!');
+          return;
+      }
+      
+      const newAssignments = existingItem.streamerAssignments.map(sa => 
+          sa.userId === bridgeData.userId ? { ...sa, timeLabel: tLabel } : sa
+      );
+      
+      const newItem = { ...existingItem, streamerAssignments: newAssignments };
+      
+      try {
+          await api.saveScheduleItem(newItem);
+          const saved = await api.getSchedule(currentWeekId, activeBrandSlug || undefined);
+          setSchedule(saved);
+          handleCloseBridgeModal();
+      } catch (e: any) {
+          console.error(e);
+          alert('Lỗi lưu cấu hình: ' + e.message);
+      }
   };
 
   // --- User Management ---
@@ -955,7 +1045,23 @@ export default function App() {
   // Handle Export (Mock)
   const handleExportExcel = () => { alert("Đang tải xuống báo cáo..."); };
   const handleCloseBridgeModal = () => { setIsBridgeModalOpen(false); setIsSlotModalOpen(true); };
-  const handleOpenBridgeModal = (uid: string) => { setBridgeData({...bridgeData, userId: uid}); setIsSlotModalOpen(false); setIsBridgeModalOpen(true); };
+  const handleOpenBridgeModal = (uid: string) => { 
+      let st = '';
+      let et = '';
+      if (editingSlot) {
+         const existingItem = schedule.find(s => s.dayIndex === editingSlot.day && s.shiftId === editingSlot.shiftId && s.platform === activePlatform);
+         const sa = existingItem?.streamerAssignments.find(x => x.userId === uid);
+         if (sa?.timeLabel) {
+            const parts = sa.timeLabel.split(/\s*-\s*/);
+            if (parts.length === 2) {
+               st = parts[0]; et = parts[1];
+            }
+         }
+      }
+      setBridgeData({ userId: uid, startTime: st, endTime: et, applyToNextShift: true }); 
+      setIsSlotModalOpen(false); 
+      setIsBridgeModalOpen(true); 
+  };
 
   const handleTestBot = async () => {
     setIsTestingBot(true);
@@ -2184,9 +2290,21 @@ export default function App() {
                          </div>
                     </div>
                 </div>
-                {/* Simplified content for demo - you can expand this with time pickers as in previous version */}
-                <div className="p-4 border border-dashed border-slate-300 rounded-xl bg-slate-50 text-center">
-                    <p className="text-sm text-slate-500">Tính năng chọn giờ kẹp ca (Backend logic)</p>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                       <div className="flex-1">
+                           <label className="block text-[10px] font-black uppercase text-slate-400 mb-1 ml-1">Giờ bắt đầu</label>
+                           <input type="time" className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold shadow-sm" 
+                              value={bridgeData.startTime} onChange={e => setBridgeData({...bridgeData, startTime: e.target.value})} />
+                       </div>
+                       <span className="text-slate-300 font-black mt-5">đến</span>
+                       <div className="flex-1">
+                           <label className="block text-[10px] font-black uppercase text-slate-400 mb-1 ml-1">Giờ kết thúc</label>
+                           <input type="time" className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold shadow-sm" 
+                              value={bridgeData.endTime} onChange={e => setBridgeData({...bridgeData, endTime: e.target.value})} />
+                       </div>
+                  </div>
+                  <button onClick={() => setBridgeData({...bridgeData, startTime: '', endTime: ''})} className="text-[10px] uppercase font-bold text-slate-400 hover:text-red-500 hover:underline mx-auto block">Xóa cấu hình Kẹp ca</button>
                 </div>
                 <div className="flex gap-2 pt-2">
                     <Button variant="secondary" className="flex-1 font-bold" onClick={handleCloseBridgeModal}>Hủy</Button>
