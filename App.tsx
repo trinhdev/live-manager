@@ -1204,9 +1204,7 @@ export default function App() {
                 <Button variant="primary" size="sm" onClick={handleAutoSchedule} icon={<Sparkles size={14}/>}>Xếp ca AI</Button>
               </div>
             )}
-            {viewMode === 'DASHBOARD' && !currentUser && (
-              <Button variant="mono" size="sm" onClick={() => setIsLoginPageOpen(true)} icon={<LogIn size={14}/>}>Đăng nhập</Button>
-            )}
+            {/* Login is now handled by the persistent header/sidebar for better UX */}
           </div>
         )}
 
@@ -2529,7 +2527,7 @@ export default function App() {
             <div className="md:hidden fixed inset-0 z-[60]" onClick={() => setIsMoreMenuOpen(false)}>
               <div className="more-popup absolute bottom-[72px] left-3 right-3 bg-white/96 backdrop-blur-3xl rounded-2xl border border-slate-100 p-4" style={{boxShadow:'0 -4px 40px rgba(0,0,0,0.08)'}}>
                 <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-3 px-1">Thêm</p>
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   {(currentUser.role === 'MANAGER' || currentUser.role === 'SUPER_ADMIN') && (
                     <button onClick={() => { setViewMode('REPORTS'); setIsMoreMenuOpen(false); }} className={`flex flex-col items-center gap-2 py-3 rounded-xl transition-colors ${viewMode === 'REPORTS' ? 'bg-indigo-50 text-indigo-500' : 'text-slate-500'}`}>
                       <BarChart3 size={20} strokeWidth={1.5}/>
@@ -2542,13 +2540,7 @@ export default function App() {
                       <span className="text-[10px] font-medium">Cấu hình</span>
                     </button>
                   )}
-                  {(currentUser.role === 'MANAGER' || currentUser.role === 'SUPER_ADMIN') && (
-                    <button onClick={() => { setIsNotifModalOpen(true); setIsMoreMenuOpen(false); }} className="flex flex-col items-center gap-2 py-3 rounded-xl text-slate-500">
-                      <Send size={20} strokeWidth={1.5}/>
-                      <span className="text-[10px] font-medium">Gửi TB</span>
-                    </button>
-                  )}
-                  <button onClick={() => { handleLogout(); setIsMoreMenuOpen(false); }} className="flex flex-col items-center gap-2 py-3 rounded-xl text-red-400">
+                  <button onClick={() => { handleLogout(); setIsMoreMenuOpen(false); }} className="flex flex-col items-center gap-2 py-3 rounded-xl text-red-400 animate-in fade-in zoom-in duration-200">
                     <LogOut size={20} strokeWidth={1.5}/>
                     <span className="text-[10px] font-medium">Đăng xuất</span>
                   </button>
