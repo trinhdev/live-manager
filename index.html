@@ -12,14 +12,14 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&subset=vietnamese&display=swap" rel="stylesheet">
 
     <script>
       tailwind.config = {
         theme: {
           extend: {
             fontFamily: {
-              sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+              sans: ['"Inter"', 'system-ui', '-apple-system', 'sans-serif'],
             },
             colors: {
               canvas: '#FAFAFA',
@@ -164,6 +164,89 @@
         background: #F5F5F5;
         color: #171717;
       }
+      /* Aurora UI / Minimalist Theme Base */
+      body, #root {
+        height: 100%;
+        margin: 0;
+        background-color: #F3F4F6;
+        color: #262626;
+      }
+      
+      .content-scroll::-webkit-scrollbar { display: none; }
+
+      .aurora-mesh {
+          position: fixed;
+          top: 30%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          width: 300px;
+          height: 300px;
+          z-index: 0;
+          filter: blur(60px);
+          opacity: 0.55;
+          animation: pulse-mesh 12s infinite alternate ease-in-out;
+          pointer-events: none;
+      }
+
+      .blob-1 {
+          position: absolute; top: 0; left: 0; width: 180px; height: 180px;
+          background: #BAE6FD;
+          border-radius: 50%; mix-blend-mode: multiply;
+          animation: drift 10s infinite alternate linear;
+      }
+      .blob-2 {
+          position: absolute; top: 30px; right: 0; width: 150px; height: 150px;
+          background: #FBCFE8;
+          border-radius: 50%; mix-blend-mode: multiply;
+          animation: drift 12s infinite-reverse linear;
+      }
+      .blob-3 {
+          position: absolute; bottom: 0; left: 30px; width: 200px; height: 200px;
+          background: #E9D5FF;
+          border-radius: 50%; mix-blend-mode: multiply;
+          animation: drift 8s infinite alternate linear;
+      }
+      
+      @keyframes drift {
+          0% { transform: translateY(0px) scale(1); }
+          100% { transform: translateY(30px) scale(1.05); }
+      }
+      @keyframes pulse-mesh {
+          0% { transform: translate(-50%, -50%) rotate(0deg); }
+          100% { transform: translate(-50%, -48%) rotate(10deg); }
+      }
+
+      /* Minimal Cards & Buttons */
+      .glass-card {
+          background: rgba(255, 255, 255, 0.6);
+          backdrop-filter: blur(24px);
+          -webkit-backdrop-filter: blur(24px);
+          border: 1px solid rgba(255, 255, 255, 0.9);
+          border-radius: 20px;
+          box-shadow: 0 4px 16px rgba(0,0,0,0.02);
+      }
+      
+      .btn-surface {
+          background-color: rgba(255, 255, 255, 0.85);
+          backdrop-filter: blur(10px);
+          -webkit-backdrop-filter: blur(10px);
+          border: 1px solid rgba(255, 255, 255, 1);
+          border-radius: 14px;
+          transition: all 0.2s ease;
+      }
+      .btn-surface:active {
+          background-color: rgba(245, 245, 245, 0.85);
+          transform: scale(0.98);
+      }
+
+      .bottom-menu {
+          background: rgba(255, 255, 255, 0.85);
+          backdrop-filter: blur(20px);
+          -webkit-backdrop-filter: blur(20px);
+          border-top: 1px solid rgba(255,255,255,0.7);
+      }
+
+      * { box-sizing: border-box; }
       .sidebar-link.active {
         background: #171717;
         color: #FFFFFF;

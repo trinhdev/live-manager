@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aurora Minimalist UI - Demo 2</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { 
+                        /* Dùng Inter cho cảm giác tối giản, technical và sạch sẽ nhất */
+                        sans: ['"Inter"', 'sans-serif'] 
+                    },
+                    colors: {
+                        app: {
+                            text: '#262626', 
+                            gray: '#A3A3A3',
+                            surface: 'rgba(255, 255, 255, 0.75)',
+                        }
+                    },
+                    boxShadow: {
+                        'soft': '0 2px 14px rgba(0, 0, 0, 0.03)',
+                        'menu': '0 -8px 30px rgba(0, 0, 0, 0.03)',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body {
+            background-color: #F3F4F6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .phone-frame {
+            width: 375px; 
+            height: 812px;
+            background-color: #FAFAFA;
+            border-radius: 44px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.1), inset 0 0 0 8px #E5E7EB;
+            position: relative;
+            overflow: hidden; /* Prevent scrolling outside */
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* KHỐI MÀU AURORA MỜ BỀNH BỒNG (Mịn và nhẹ hơn trước) */
+        .aurora-mesh {
+            position: absolute;
+            top: 30%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 300px;
+            height: 300px;
+            z-index: 0;
+            filter: blur(60px);
+            opacity: 0.55;
+            animation: pulse-mesh 12s infinite alternate ease-in-out;
+            pointer-events: none;
+        }
+
+        .blob-1 {
+            position: absolute; top: 0; left: 0; width: 180px; height: 180px;
+            background: #BAE6FD; /* Light Blue */
+            border-radius: 50%; mix-blend-mode: multiply;
+            animation: drift 10s infinite alternate linear;
+        }
+        
+        .blob-2 {
+            position: absolute; top: 30px; right: 0; width: 150px; height: 150px;
+            background: #FBCFE8; /* Light Pink */
+            border-radius: 50%; mix-blend-mode: multiply;
+            animation: drift 12s infinite-reverse linear;
+        }
+
+        .blob-3 {
+            position: absolute; bottom: 0; left: 30px; width: 200px; height: 200px;
+            background: #E9D5FF; /* Light Purple */
+            border-radius: 50%; mix-blend-mode: multiply;
+            animation: drift 8s infinite alternate linear;
+        }
+
+        @keyframes drift {
+            0% { transform: translateY(0px) scale(1); }
+            100% { transform: translateY(30px) scale(1.05); }
+        }
+
+        @keyframes pulse-mesh {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -48%) rotate(10deg); }
+        }
+
+        /* Nút vuông bo góc vừa phải (Không hover bóng đổ) */
+        .btn-surface {
+            background-color: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 1);
+            border-radius: 14px; /* Bo vuông mượt, không dùng hình viên thuốc */
+            transition: all 0.2s ease;
+        }
+        /* Chỉ làm mờ hình đi xíu khi ấn thay vì đổ bóng */
+        .btn-surface:active {
+            background-color: rgba(245, 245, 245, 0.85);
+            transform: scale(0.98);
+        }
+
+        /* Lớp thẻ Card nổi mỏng nhẹ */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.9);
+            border-radius: 20px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.02);
+        }
+
+        /* BOTTOM MENU */
+        .bottom-menu {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(255,255,255,0.7);
+        }
+
+        /* Ẩn scrollbar khu vực content */
+        .content-scroll::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="phone-frame">
+        <!-- Nền dải cực quang -->
+        <div class="aurora-mesh">
+            <div class="blob-1"></div>
+            <div class="blob-2"></div>
+            <div class="blob-3"></div>
+        </div>
+
+        <!-- Header cố định -->
+        <header class="relative z-10 flex justify-between items-center px-6 pt-12 pb-4 bg-gradient-to-b from-white/60 to-transparent backdrop-blur-[2px]">
+            <div>
+                <h1 class="text-xl font-medium text-app-text tracking-tight">Chào buổi sáng,</h1>
+                <p class="text-xs font-normal text-app-gray mt-0.5">Hôm nay có 3 báo cáo mới</p>
+            </div>
+            <button class="w-10 h-10 flex items-center justify-center btn-surface border-none shadow-soft text-app-text">
+                <i data-lucide="bell" class="w-4 h-4 stroke-[1.5px]"></i>
+            </button>
+        </header>
+
+        <!-- Vùng nội dung cuộn được -->
+        <div class="relative z-10 flex-1 overflow-auto content-scroll px-6 pb-24">
+            
+            <!-- Hero Card: Thẻ chính bo góc 20px -->
+            <div class="glass-card p-5 mt-4">
+                <div class="flex justify-between items-start mb-6">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-100 to-purple-100 flex items-center justify-center text-blue-600">
+                        <i data-lucide="check-circle" class="w-5 h-5 stroke-[1.5px]"></i>
+                    </div>
+                    <span class="text-[10px] font-medium text-indigo-500 bg-indigo-50 px-2.5 py-1 rounded-lg">Đang diễn ra</span>
+                </div>
+                <h2 class="text-lg font-medium text-app-text mb-1">Ca làm việc của bạn</h2>
+                <p class="text-sm font-light text-app-gray mb-5 leading-relaxed">
+                    18:00 đến 22:00 tại Gimmetee Studio
+                </p>
+                <div class="flex gap-3">
+                    <button class="btn-surface flex-1 py-3 text-xs font-medium text-center shadow-soft text-indigo-600 border border-indigo-50">Cấu hình T.Gian</button>
+                    <button class="btn-surface flex-1 py-3 text-xs font-light text-center">Xin đổi ca</button>
+                </div>
+            </div>
+
+            <!-- Các chỉ số nhanh (Bo góc vuông nhỏ hơn - rounded-2xl) -->
+            <h3 class="text-[13px] font-medium text-app-gray mt-8 mb-4 tracking-wide">TỔNG QUAN THÁNG</h3>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="glass-card p-4">
+                    <i data-lucide="clock" class="w-4 h-4 stroke-[1.5px] text-blue-400 mb-3"></i>
+                    <p class="text-[11px] font-light text-app-gray mb-1">Giờ làm việc</p>
+                    <p class="text-xl font-medium text-app-text">145<span class="text-sm font-light text-app-gray">h</span></p>
+                </div>
+                <div class="glass-card p-4">
+                    <i data-lucide="bar-chart-2" class="w-4 h-4 stroke-[1.5px] text-purple-400 mb-3"></i>
+                    <p class="text-[11px] font-light text-app-gray mb-1">Ca tiếp theo</p>
+                    <p class="text-sm font-medium text-app-text mt-1.5">T2, 19:30</p>
+                </div>
+                <div class="glass-card p-4 col-span-2 flex justify-between items-center">
+                    <div>
+                        <p class="text-[11px] font-light text-app-gray mb-1">Doanh thu dự kiến</p>
+                        <p class="text-lg font-medium text-app-text">4,500,000<span class="font-light text-sm text-app-gray pr-1">đ</span></p>
+                    </div>
+                    <button class="w-8 h-8 rounded-xl bg-white flex items-center justify-center text-app-gray border border-slate-100 transition-colors active:bg-slate-50">
+                        <i data-lucide="chevron-right" class="w-4 h-4 stroke-[1.5px]"></i>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- HỆ THỐNG MENU Ở DƯỚI (Bottom Navigation Menu) -->
+        <nav class="absolute bottom-0 w-full bottom-menu shadow-menu px-6 py-4 pb-8 flex justify-between items-center z-50">
+            <button class="flex flex-col items-center gap-1.5 text-indigo-500 w-16 transition-transform active:scale-95">
+                <i data-lucide="home" class="w-[22px] h-[22px] stroke-[2px]"></i>
+                <span class="text-[10px] font-medium">Trang chủ</span>
+            </button>
+            <button class="flex flex-col items-center gap-1.5 text-slate-400 w-16 transition-transform active:scale-95">
+                <i data-lucide="calendar" class="w-[22px] h-[22px] stroke-[1.5px]"></i>
+                <span class="text-[10px] font-light">Lịch</span>
+            </button>
+            <button class="flex flex-col items-center gap-1.5 text-slate-400 w-16 transition-transform active:scale-95">
+                <i data-lucide="pie-chart" class="w-[22px] h-[22px] stroke-[1.5px]"></i>
+                <span class="text-[10px] font-light">Báo cáo</span>
+            </button>
+            <button class="flex flex-col items-center gap-1.5 text-slate-400 w-16 transition-transform active:scale-95">
+                <i data-lucide="user" class="w-[22px] h-[22px] stroke-[1.5px]"></i>
+                <span class="text-[10px] font-light">Cá nhân</span>
+            </button>
+        </nav>
+    </div>
+
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>

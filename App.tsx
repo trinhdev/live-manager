@@ -1,55 +1,9 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
-  Calendar, 
-  Users, 
-  Clock, 
-  Settings, 
-  LogOut, 
-  Plus, 
-  Trash2, 
-  ShieldCheck, 
-  Sparkles,
-  ChevronLeft,
-  ChevronRight,
-  Edit2,
-  Wrench,
-  CheckCircle2,
-  XCircle,
-  MessageSquare,
-  History,
-  Info,
-  Link as LinkIcon,
-  Layers,
-  ArrowRightLeft,
-  Bell,
-  MessageCircle,
-  Send,
-  Key,
-  RefreshCw,
-  Check,
-  MousePointer2,
-  CalendarCheck,
-  UserPlus,
-  Save,
-  Mic2,
-  Shield,
-  Gem,
-  Award,
-  Crown,
-  Star,
-  ListTodo,
-  RotateCcw,
-  FileSpreadsheet,
-  Download,
-  BarChart3,
-  Loader2,
-  LogIn,
-  Menu,
-  X,
-  Palette,
-  Bot,
-  AlertTriangle
+  Menu, X, Calendar, Search, Filter, Plus, ChevronLeft, ChevronRight, 
+  MapPin, Clock, Users, Sun, Moon, CheckCircle2, ChevronDown, Lock,
+  Phone, AlertCircle, RefreshCw, BarChart3, Settings, Play, Image as ImageIcon, Copy, Key, Link as LinkIcon, Trash2, Edit2, Zap, Save, Check, CreditCard, Star, Activity, UserPlus, LogOut, LogIn, Monitor, Smartphone, Video, Camera, Mic, Volume2, Maximize, Minimize, Settings2, Sliders, Bell, MessageSquare, Briefcase, Award, TrendingUp, TrendingDown, Send, PauseCircle, PhoneCall, Inbox,
+  ShieldCheck, Sparkles, Wrench, XCircle, History, Info, Layers, ArrowRightLeft, MessageCircle, MousePointer2, CalendarCheck, Mic2, Shield, Gem, Crown, ListTodo, RotateCcw, FileSpreadsheet, Download, Loader2, Palette, Bot, AlertTriangle
 } from 'lucide-react';
 import { User, Brand, Shift, Availability, ScheduleItem, ViewMode, Rank, Role, ShiftRequest, RequestStatus, RequestType, Platform, AppNotification, NotificationType } from './types';
 import { DAYS_OF_WEEK, PLATFORM_CONFIG, TIKTOK_LOGO_SVG, SHOPEE_LOGO_SVG } from './constants';
@@ -1114,103 +1068,47 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row dot-grid-bg font-sans pb-20 md:pb-0" style={{color:'#171717'}}>
-
-      {/* Mobile Top Bar */}
-      <header className="md:hidden sticky top-0 z-40" style={{background:'rgba(250,250,250,0.85)',backdropFilter:'blur(16px)',borderBottom:'1px solid #E5E5E5'}}>
-        <div className="flex items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-2.5">
-            <button onClick={() => setIsMobileMenuOpen(true)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#F5F5F5] transition-colors" style={{color:'#737373'}}>
-              <Menu size={18} />
-            </button>
-            {currentBrand?.logoUrl ? (
-              <img src={currentBrand.logoUrl} className="w-7 h-7 rounded-lg object-cover bg-white shadow-sm" alt="" />
-            ) : (
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-[11px] font-black" style={{background: currentBrand?.color || '#171717'}}>{currentBrand ? currentBrand.name.substring(0, 2).toUpperCase() : 'LS'}</div>
-            )}
-            <span className="text-[15px] font-bold tracking-tight truncate max-w-[140px] hidden sm:inline" style={{color:'#171717'}}>{currentBrand ? currentBrand.name : 'LiveSync'}</span>
-          </div>
-          <div className="flex items-center gap-3">
-            {currentUser && currentUser.role !== 'MANAGER' && currentUser.role !== 'SUPER_ADMIN' && (
-              <button onClick={() => setIsNotifPanelOpen(true)} className="relative w-8 h-8 flex items-center justify-center rounded-full hover:bg-[#F5F5F5] transition-colors" style={{color:'#171717'}}>
-                <Bell size={18} />
-                {unreadCount > 0 && <span className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full" style={{background:'#EF4444', border:'2px solid #fff'}}></span>}
-              </button>
-            )}
-            <button onClick={() => !currentUser && setIsLoginPageOpen(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-full transition-colors" style={{background:'#F5F5F5',border:'1px solid #E5E5E5'}}>
-              {currentUser ? (
-                <img src={currentUser.avatar} className="w-5 h-5 rounded-full object-cover" alt="" />
-              ) : (
-                <span className="text-[12px] font-medium" style={{color:'#737373'}}>Khách</span>
+    <>
+      <div className="aurora-mesh">
+          <div className="blob-1"></div>
+          <div className="blob-2"></div>
+          <div className="blob-3"></div>
+      </div>
+      <div className="min-h-screen flex flex-col md:flex-row font-sans pb-20 md:pb-0 relative z-10 text-[#262626]">
+      {/* ── MOBILE TOP BAR ── */}
+      <header className="md:hidden sticky top-0 z-40 px-6 pt-10 pb-4 bg-gradient-to-b from-white/70 to-transparent backdrop-blur-[2px]">
+        <div className="flex justify-between items-center">
+            <div>
+                <h1 className="text-[19px] font-medium tracking-tight text-app-text">{currentBrand ? currentBrand.name : 'LiveSync'}</h1>
+                <p className="text-[11px] font-normal text-app-gray mt-0.5">{currentUser ? `Xin chào, ${currentUser.name}` : 'Phiên khách'}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              {currentUser && (
+                <button onClick={() => setIsNotifPanelOpen(true)} className="relative w-10 h-10 flex items-center justify-center btn-surface border-none shadow-soft text-app-text z-50">
+                  <Bell size={18} strokeWidth={1.5} />
+                  {unreadCount > 0 && <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-red-500"></span>}
+                </button>
               )}
-            </button>
-          </div>
+              {!currentUser && (
+                <button onClick={() => setIsLoginPageOpen(true)} className="flex items-center gap-2 px-3 py-2 btn-surface border-none shadow-soft">
+                   <LogIn size={14} strokeWidth={2}/> <span className="text-[11px] font-medium">Đăng nhập</span>
+                </button>
+              )}
+            </div>
         </div>
       </header>
 
-      {/* Mobile Menu Overlay */}
-      {isMobileMenuOpen && (
-        <div className="fixed inset-0 z-50 md:hidden flex">
-          <div className="absolute inset-0" style={{background:'rgba(0,0,0,0.15)',backdropFilter:'blur(2px)'}} onClick={() => setIsMobileMenuOpen(false)} />
-          <div className="relative w-72 bg-white h-full p-5 animate-slide-in" style={{borderRight:'1px solid #E5E5E5',boxShadow:'4px 0 24px rgba(0,0,0,0.08)'}}>
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-2">
-                {currentBrand?.logoUrl ? (
-                  <img src={currentBrand.logoUrl} className="w-7 h-7 rounded-lg object-cover bg-white" alt="" />
-                ) : (
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-[11px] font-black" style={{background: currentBrand?.color || '#171717'}}>{currentBrand ? currentBrand.name.substring(0, 2).toUpperCase() : 'LS'}</div>
-                )}
-                <span className="text-[16px] font-bold tracking-tight truncate max-w-[160px]" style={{color:'#171717'}}>{currentBrand ? currentBrand.name : 'LiveSync'}</span>
-              </div>
-              <button onClick={() => setIsMobileMenuOpen(false)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[#F5F5F5]" style={{color:'#A3A3A3'}}><X size={15}/></button>
-            </div>
-            <nav className="space-y-0.5">
-              <SidebarItem icon={<Calendar size={16}/>} label="Lịch làm việc" active={viewMode === 'DASHBOARD'} onClick={() => { setViewMode('DASHBOARD'); setIsMobileMenuOpen(false); }} />
-              {currentUser && (currentUser.role === 'STAFF' || currentUser.role === 'OPERATIONS') && (
-                <SidebarItem icon={<Clock size={16}/>} label="Đăng ký rảnh" active={viewMode === 'MY_AVAILABILITY'} onClick={() => { setViewMode('MY_AVAILABILITY'); setIsMobileMenuOpen(false); }} />
-              )}
-              {currentUser && (
-                <SidebarItem icon={<MessageSquare size={16}/>} label="Yêu cầu" active={viewMode === 'REQUESTS'} onClick={() => { setViewMode('REQUESTS'); setIsMobileMenuOpen(false); }} badge={(currentUser.role === 'MANAGER' || currentUser.role === 'SUPER_ADMIN') && pendingCount > 0 ? pendingCount : undefined}/>
-              )}
-              {currentUser && (
-                <SidebarItem icon={<Bell size={16}/>} label="Thông báo" active={isNotifPanelOpen} onClick={() => { setIsNotifPanelOpen(true); setIsMobileMenuOpen(false); }} badge={unreadCount > 0 ? unreadCount : undefined} />
-              )}
-              {(currentUser?.role === 'MANAGER' || currentUser?.role === 'SUPER_ADMIN') && (
-                <SidebarItem icon={<BarChart3 size={16}/>} label="Báo cáo" active={viewMode === 'REPORTS'} onClick={() => { setViewMode('REPORTS'); setIsMobileMenuOpen(false); }} />
-              )}
-              {(currentUser?.role === 'MANAGER' || currentUser?.role === 'SUPER_ADMIN') && (
-                <>
-                  <div className="px-3 pt-5 pb-1 text-[10px] font-semibold uppercase tracking-widest" style={{color:'#A3A3A3'}}>Hệ thống</div>
-                  <SidebarItem icon={<Users size={16}/>} label="Nhân sự" active={viewMode === 'STAFF_MANAGEMENT'} onClick={() => { setViewMode('STAFF_MANAGEMENT'); setIsMobileMenuOpen(false); }} />
-                  <SidebarItem icon={<Settings size={16}/>} label="Cấu hình" active={viewMode === 'SETTINGS'} onClick={() => { setViewMode('SETTINGS'); setIsMobileMenuOpen(false); }} />
-                </>
-              )}
-            </nav>
-            <div className="mt-auto absolute bottom-6 left-5 right-5">
-              <div className="divider mb-4" />
-              {currentUser ? (
-                <button onClick={handleLogout} className="sidebar-link" style={{color:'#EF4444'}}>
-                  <LogOut size={15}/> {currentUser.role === 'SUPER_ADMIN' ? 'Về Panel Quản Trị' : 'Đăng xuất'}
-                </button>
-              ) : (
-                <button onClick={() => { setIsLoginPageOpen(true); setIsMobileMenuOpen(false); }} className="sidebar-link" style={{color:'#2563EB'}}><LogIn size={15}/> Đăng nhập</button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Desktop Sidebar — minimal strip */}
-      <aside className="hidden md:flex w-56 h-screen sticky top-0 flex-col z-30 overflow-y-auto" style={{background:'#FFFFFF',borderRight:'1px solid #E5E5E5'}}>
+      <aside className="hidden md:flex w-64 h-screen sticky top-0 flex-col z-30 bg-white/60 backdrop-blur-3xl overflow-y-auto shadow-soft border-r border-[#FFFFFF]">
         {/* Logo */}
-        <div className="px-5 pt-6 pb-4" style={{borderBottom:'1px solid #F5F5F5'}}>
-          <div className="flex items-center gap-2.5">
+        <div className="px-6 pt-10 pb-6 border-b border-black/5">
+          <div className="flex items-center gap-3">
             {currentBrand?.logoUrl ? (
-              <img src={currentBrand.logoUrl} className="w-7 h-7 rounded-lg object-cover bg-white shadow-sm" alt="" />
+              <img src={currentBrand.logoUrl} className="w-8 h-8 rounded-xl object-cover shadow-sm" alt="" />
             ) : (
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-[11px] font-black" style={{background: currentBrand?.color || '#171717'}}>{currentBrand ? currentBrand.name.substring(0, 2).toUpperCase() : 'LS'}</div>
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-[12px] font-medium" style={{background: currentBrand?.color || '#171717'}}>{currentBrand ? currentBrand.name.substring(0, 2).toUpperCase() : 'LS'}</div>
             )}
-            <span className="text-[16px] font-bold tracking-tight truncate" style={{color:'#171717'}}>{currentBrand ? currentBrand.name : 'LiveSync'}</span>
+            <span className="text-[18px] font-semibold tracking-tight text-app-text">{currentBrand ? currentBrand.name : 'LiveSync'}</span>
           </div>
         </div>
 
@@ -1337,7 +1235,7 @@ export default function App() {
                   <PlatformIcon platform={p} size={16} />
                   {cfg.label}
                   {count > 0 && (
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
                       style={{
                         background: isActive ? cfg.bgLight : '#EBEBEB',
                         color: isActive ? cfg.color : '#A3A3A3',
@@ -1351,7 +1249,7 @@ export default function App() {
         
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-3">
           <div>
-            <h1 className="text-[22px] font-bold tracking-tight mb-0.5" style={{color:'#171717'}}>
+            <h1 className="text-[22px] font-medium tracking-tight mb-0.5" style={{color:'#171717'}}>
               {viewMode === 'DASHBOARD' && 'Lịch làm việc'}
               {viewMode === 'MY_AVAILABILITY' && 'Đăng ký lịch rảnh'}
               {viewMode === 'REQUESTS' && 'Yêu cầu'}
@@ -1401,13 +1299,13 @@ export default function App() {
               <div className="flex items-center gap-4 flex-shrink-0">
                 <div className="flex flex-col items-center justify-center w-14 h-14 rounded-xl"
                   style={{background: totalShifts > 0 ? '#EFF6FF' : '#F5F5F5'}}>
-                  <span className="text-[22px] font-black tabular-nums leading-none"
+                  <span className="text-[22px] font-semibold tabular-nums leading-none"
                     style={{color: totalShifts > 0 ? '#2563EB' : '#D4D4D4'}}>{totalShifts}</span>
                   <span className="text-[9px] font-semibold uppercase tracking-wider mt-0.5"
                     style={{color: totalShifts > 0 ? '#93C5FD' : '#D4D4D4'}}>ca</span>
                 </div>
                 <div>
-                  <p className="text-[13px] font-bold leading-tight" style={{color:'#171717'}}>
+                  <p className="text-[13px] font-medium leading-tight" style={{color:'#171717'}}>
                     Lịch của {currentUser.name.split(' ').pop()}
                   </p>
                   <p className="text-[11px] mt-0.5" style={{color:'#A3A3A3'}}>
@@ -1452,7 +1350,7 @@ export default function App() {
                             <span className="text-[8px] font-semibold uppercase tracking-wider" style={{color:'#A3A3A3'}}>
                               {DAYS_OF_WEEK[slot.dayIndex]?.replace('Thứ ', 'T')}
                             </span>
-                            <span className="text-[14px] font-black tabular-nums leading-none"
+                            <span className="text-[14px] font-semibold tabular-nums leading-none"
                               style={{color: todaySlot ? '#2563EB' : '#171717'}}>
                               {date?.getDate()}
                             </span>
@@ -1461,7 +1359,7 @@ export default function App() {
                           <div className="w-px self-stretch" style={{background:'#E5E5E5'}}/>
                           {/* Shift */}
                           <div>
-                            <p className="text-[11px] font-bold leading-tight" style={{color:'#171717'}}>{sh?.name}</p>
+                            <p className="text-[11px] font-medium leading-tight" style={{color:'#171717'}}>{sh?.name}</p>
                             <p className="text-[9px] font-mono" style={{color:'#A3A3A3'}}>{sh?.startTime}–{sh?.endTime}</p>
                             {sa?.timeLabel && (
                               <span className="text-[8px] font-semibold px-1.5 py-0.5 rounded mt-0.5 inline-block"
@@ -1535,7 +1433,7 @@ export default function App() {
                       }}
                     >
                       <span className="text-[9px] font-semibold uppercase tracking-wider mb-1">{day.replace('Thứ ', 'T')}</span>
-                      <span className="text-[17px] font-bold tabular-nums leading-none">{date.getDate()}</span>
+                      <span className="text-[17px] font-medium tabular-nums leading-none">{date.getDate()}</span>
                       {today && !selected && <div className="w-1 h-1 rounded-full mt-1" style={{background:'#2563EB'}}/>}
                     </button>
                   );
@@ -1576,7 +1474,7 @@ export default function App() {
                     >
                       {/* Left: shift info */}
                       <div className="flex flex-col justify-center" style={{minWidth: 80}}>
-                        <span className={`inline-flex px-1.5 py-0.5 rounded text-[9px] font-bold w-fit mb-1 ${shift.color}`}>{shift.startTime}–{shift.endTime}</span>
+                        <span className={`inline-flex px-1.5 py-0.5 rounded text-[9px] font-medium w-fit mb-1 ${shift.color}`}>{shift.startTime}–{shift.endTime}</span>
                         <p className="text-[13px] font-semibold" style={{color:'#171717'}}>{shift.name}</p>
                       </div>
                       {/* Right: people */}
@@ -1633,7 +1531,7 @@ export default function App() {
                             <th key={idx} className="text-center" style={{padding:'8px 6px', minWidth: 110, background: today ? '#F0F6FF' : 'transparent'}}>
                               <div className="flex flex-col items-center">
                                 <span className="text-[9px] font-semibold uppercase tracking-widest" style={{color: today ? '#2563EB' : '#A3A3A3', marginBottom:2}}>{day}</span>
-                                <span className={`text-[15px] font-bold tabular-nums leading-none ${today ? 'w-7 h-7 rounded-full flex items-center justify-center text-white' : ''}`}
+                                <span className={`text-[15px] font-medium tabular-nums leading-none ${today ? 'w-7 h-7 rounded-full flex items-center justify-center text-white' : ''}`}
                                   style={today ? {background:'#2563EB'} : {color:'#171717'}}>
                                   {date.getDate()}
                                 </span>
@@ -1649,7 +1547,7 @@ export default function App() {
                           {/* Shift label — sticky */}
                           <td className="sticky left-0 z-10 border-r align-middle" style={{background:'#FFFFFF',borderColor:'#F0F0F0',padding:'10px 14px',minHeight:80}}>
                             <p className="text-[12px] font-semibold leading-tight" style={{color:'#171717'}}>{shift.name}</p>
-                            <span className={`inline-flex px-1.5 py-0.5 rounded text-[9px] font-bold mt-1 ${shift.color}`}>{shift.startTime}–{shift.endTime}</span>
+                            <span className={`inline-flex px-1.5 py-0.5 rounded text-[9px] font-medium mt-1 ${shift.color}`}>{shift.startTime}–{shift.endTime}</span>
                           </td>
                           {DAYS_OF_WEEK.map((_, dayIdx) => {
                             const slot = currentWeekSchedule.find(s => s.dayIndex === dayIdx && s.shiftId === shift.id);
@@ -1731,7 +1629,7 @@ export default function App() {
             {/* Header */}
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div>
-                <h3 className="font-bold flex items-center gap-2 text-[15px]" style={{color:'#171717'}}>
+                <h3 className="font-medium flex items-center gap-2 text-[15px]" style={{color:'#171717'}}>
                   <CalendarCheck className="w-4 h-4" style={{color:'#2563EB'}}/> Đăng ký lịch rảnh
                 </h3>
                 <p className="text-[12px] mt-0.5" style={{color:'#A3A3A3'}}>Chọn các ca bạn có thể làm việc trong tuần này.</p>
@@ -1744,13 +1642,13 @@ export default function App() {
                 </div>
                 {/* Submit button */}
                 {currentUser.isAvailabilitySubmitted ? (
-                  <div className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-bold" style={{background:'#F0FDF4',border:'1px solid #BBF7D0',color:'#16A34A'}}>
+                  <div className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-medium" style={{background:'#F0FDF4',border:'1px solid #BBF7D0',color:'#16A34A'}}>
                     <Check size={13} strokeWidth={3}/> Đã gửi
                   </div>
                 ) : (
                   <button
                     onClick={handleSubmitAvailability}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-bold transition-all hover:opacity-90 active:scale-95"
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-medium transition-all hover:opacity-90 active:scale-95"
                     style={{background:'#2563EB',color:'#fff'}}
                   >
                     <Send size={13}/> Gửi đăng ký
@@ -1783,7 +1681,7 @@ export default function App() {
                       }}
                     >
                       <span className="text-[9px] font-semibold uppercase tracking-wider mb-1">{day.replace('Thứ ', 'T')}</span>
-                      <span className="text-[18px] font-bold tabular-nums leading-none">{date.getDate()}</span>
+                      <span className="text-[18px] font-medium tabular-nums leading-none">{date.getDate()}</span>
                       {dayAvCount > 0 && (
                         <div className="mt-1 flex gap-0.5">
                           {Array.from({length: Math.min(dayAvCount, 4)}).map((_, i) => (
@@ -1830,7 +1728,7 @@ export default function App() {
                       </div>
                       {/* Shift info */}
                       <div className="flex-1 min-w-0">
-                        <p className="text-[14px] font-bold leading-tight" style={{color: isAvailable ? '#1D4ED8' : '#171717'}}>{shift.name}</p>
+                        <p className="text-[14px] font-medium leading-tight" style={{color: isAvailable ? '#1D4ED8' : '#171717'}}>{shift.name}</p>
                         <p className="text-[11px] font-mono mt-0.5" style={{color: isAvailable ? '#3B82F6' : '#A3A3A3'}}>{shift.startTime} – {shift.endTime}</p>
                       </div>
                       {/* Status label */}
@@ -1846,7 +1744,7 @@ export default function App() {
               {!currentUser.isAvailabilitySubmitted && (
                 <button
                   onClick={handleSubmitAvailability}
-                  className="w-full mt-4 py-3.5 rounded-xl text-[14px] font-bold flex items-center justify-center gap-2 transition-all active:scale-95"
+                  className="w-full mt-4 py-3.5 rounded-xl text-[14px] font-medium flex items-center justify-center gap-2 transition-all active:scale-95"
                   style={{background:'#2563EB',color:'#fff'}}
                 >
                   <Send size={15}/> Gửi đăng ký tuần này
@@ -1870,7 +1768,7 @@ export default function App() {
                           <th key={idx} className="text-center" style={{padding:'8px 4px', minWidth:92, background: today ? '#F0F6FF' : 'transparent'}}>
                             <div className="flex flex-col items-center">
                               <span className="text-[9px] font-semibold uppercase tracking-widest" style={{color: today ? '#2563EB' : '#A3A3A3', marginBottom:2}}>{day}</span>
-                              <span className={`text-[14px] font-bold tabular-nums leading-none${today ? ' w-6 h-6 rounded-full flex items-center justify-center text-white' : ''}`}
+                              <span className={`text-[14px] font-medium tabular-nums leading-none${today ? ' w-6 h-6 rounded-full flex items-center justify-center text-white' : ''}`}
                                 style={today ? {background:'#2563EB'} : {color:'#171717'}}>
                                 {date.getDate()}
                               </span>
@@ -1885,7 +1783,7 @@ export default function App() {
                       <tr key={shift.id} style={{borderTop: sIdx > 0 ? '1px solid #F5F5F5' : 'none'}}>
                         <td className="sticky left-0 z-10 border-r" style={{background:'#FFFFFF',borderColor:'#F0F0F0',padding:'10px 14px'}}>
                           <p className="text-[12px] font-semibold leading-tight" style={{color:'#171717'}}>{shift.name}</p>
-                          <span className={`inline-flex px-1.5 py-0.5 rounded text-[9px] font-bold mt-1 ${shift.color}`}>{shift.startTime}–{shift.endTime}</span>
+                          <span className={`inline-flex px-1.5 py-0.5 rounded text-[9px] font-medium mt-1 ${shift.color}`}>{shift.startTime}–{shift.endTime}</span>
                         </td>
                         {DAYS_OF_WEEK.map((_, dayIdx) => {
                           const isAvailable = currentWeekAvailabilities.some(
@@ -1937,7 +1835,7 @@ export default function App() {
               {/* Header */}
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <h3 className="text-[15px] font-bold flex items-center gap-2" style={{color:'#171717'}}>
+                  <h3 className="text-[15px] font-medium flex items-center gap-2" style={{color:'#171717'}}>
                     <MessageSquare size={15} style={{color:'#737373'}}/>
                     {canManageRequests ? 'Tất cả yêu cầu' : 'Yêu cầu của tôi'}
                   </h3>
@@ -1993,7 +1891,7 @@ export default function App() {
                               className="w-8 h-8 rounded-full object-cover flex-shrink-0 border-2"
                               style={{borderColor:'#F0F0F0'}} alt=""/>
                             <div>
-                              <p className="text-[13px] font-bold leading-tight" style={{color:'#171717'}}>
+                              <p className="text-[13px] font-medium leading-tight" style={{color:'#171717'}}>
                                 {isMyRequest && currentUser.role !== 'MANAGER' ? 'Tôi' : req.userName}
                               </p>
                               <p className="text-[10px]" style={{color:'#A3A3A3'}}>
@@ -2001,7 +1899,7 @@ export default function App() {
                               </p>
                             </div>
                           </div>
-                          <span className={`flex-shrink-0 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${
+                          <span className={`flex-shrink-0 px-2 py-0.5 rounded-md text-[10px] font-medium uppercase ${
                             req.status === 'APPROVED' ? 'bg-green-50 text-green-700 border border-green-100' :
                             req.status === 'REJECTED' ? 'bg-red-50 text-red-600 border border-red-100' :
                             'bg-orange-50 text-orange-600 border border-orange-100'
@@ -2013,7 +1911,7 @@ export default function App() {
                         {/* Details */}
                         <div className="pl-2 space-y-2">
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-medium border ${
                               req.type === 'LEAVE'
                                 ? 'bg-red-50 text-red-600 border-red-100'
                                 : 'bg-indigo-50 text-indigo-600 border-indigo-100'
@@ -2024,13 +1922,13 @@ export default function App() {
                             <span className="text-[11px]" style={{color:'#A3A3A3'}}>·</span>
                             <span className="text-[11px] font-medium" style={{color:'#737373'}}>{DAYS_OF_WEEK[req.dayIndex]}</span>
                             <span className="text-[11px]" style={{color:'#A3A3A3'}}>·</span>
-                            <span className="text-[11px] font-bold" style={{color:'#171717'}}>{shift?.name}</span>
+                            <span className="text-[11px] font-medium" style={{color:'#171717'}}>{shift?.name}</span>
                           </div>
                           {req.type === 'SWAP' && req.targetUserName && (
                             <div className="text-[11px] px-2 py-1.5 rounded-lg flex items-center gap-1.5"
                               style={{background:'#F5F5F5', color:'#737373'}}>
                               <ArrowRightLeft size={11}/>
-                              <span>Đổi với: <span className="font-bold" style={{color:'#171717'}}>{req.targetUserName}</span></span>
+                              <span>Đổi với: <span className="font-medium" style={{color:'#171717'}}>{req.targetUserName}</span></span>
                             </div>
                           )}
                           {req.reason && (
@@ -2051,7 +1949,7 @@ export default function App() {
                             >Từ chối</button>
                             <button
                               onClick={() => handleProcessRequest(req.id, 'APPROVED')}
-                              className="flex-1 py-1.5 rounded-lg text-[12px] font-bold transition-all hover:opacity-90"
+                              className="flex-1 py-1.5 rounded-lg text-[12px] font-medium transition-all hover:opacity-90"
                               style={{background:'#171717', color:'#fff'}}
                             >Chấp thuận</button>
                           </div>
@@ -2150,7 +2048,7 @@ export default function App() {
             <div className="bg-white rounded-2xl border p-6" style={{borderColor:'#E5E5E5'}}>
                <div className="flex items-center justify-between mb-5">
                  <div>
-                    <h3 className="text-[15px] font-bold flex items-center gap-2" style={{color:'#171717',letterSpacing:'-0.02em'}}><Clock size={16} style={{color:'#737373'}}/> Ca Live</h3>
+                    <h3 className="text-[15px] font-medium flex items-center gap-2" style={{color:'#171717',letterSpacing:'-0.02em'}}><Clock size={16} style={{color:'#737373'}}/> Ca Live</h3>
                     <p className="text-[12px] mt-0.5" style={{color:'#A3A3A3'}}>Quản lý các khung giờ livestream.</p>
                  </div>
                </div>
@@ -2175,7 +2073,7 @@ export default function App() {
                      >
                        <PlatformIcon platform={p} size={14} />
                        {cfg.label}
-                       <span className="text-[10px] font-bold px-1 py-0.5 rounded-full"
+                       <span className="text-[10px] font-medium px-1 py-0.5 rounded-full"
                          style={{background: isActive ? cfg.bgLight : '#EBEBEB', color: isActive ? cfg.color : '#A3A3A3'}}>{count}</span>
                      </button>
                    );
@@ -2195,10 +2093,10 @@ export default function App() {
                      <tbody className="divide-y divide-slate-100">
                         {shifts.filter(s => s.platform === activePlatform).map(shift => (
                            <tr key={shift.id} className="hover:bg-slate-50/50">
-                              <td className="p-4 font-bold">{shift.name}</td>
+                              <td className="p-4 font-medium">{shift.name}</td>
                               <td className="p-4 font-mono">{shift.startTime} - {shift.endTime}</td>
                               <td className="p-4">
-                                 <div className={`px-2 py-1 rounded text-xs font-bold w-fit ${shift.color}`}>Mẫu hiển thị</div>
+                                 <div className={`px-2 py-1 rounded text-xs font-medium w-fit ${shift.color}`}>Mẫu hiển thị</div>
                               </td>
                               <td className="p-4 text-right">
                                  <div className="flex items-center justify-end gap-2">
@@ -2223,8 +2121,8 @@ export default function App() {
       <Modal isOpen={isSlotModalOpen} onClose={() => setIsSlotModalOpen(false)} title="Điều phối nhân sự">
         <div className="space-y-4">
            <div className="flex bg-slate-100 p-1 rounded-lg">
-             <button className={`flex-1 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-md transition-all ${slotTab === 'STREAMER' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400'}`} onClick={() => setSlotTab('STREAMER')}>Streamer</button>
-             <button className={`flex-1 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-md transition-all ${slotTab === 'OPS' ? 'bg-white shadow-sm text-orange-600' : 'text-slate-400'}`} onClick={() => setSlotTab('OPS')}>Vận hành</button>
+             <button className={`flex-1 py-1.5 text-[10px] font-semibold uppercase tracking-wider rounded-md transition-all ${slotTab === 'STREAMER' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400'}`} onClick={() => setSlotTab('STREAMER')}>Streamer</button>
+             <button className={`flex-1 py-1.5 text-[10px] font-semibold uppercase tracking-wider rounded-md transition-all ${slotTab === 'OPS' ? 'bg-white shadow-sm text-orange-600' : 'text-slate-400'}`} onClick={() => setSlotTab('OPS')}>Vận hành</button>
           </div>
 
           <div className="max-h-[300px] md:max-h-[350px] overflow-y-auto space-y-2 pr-1 scrollbar-hide">
@@ -2235,14 +2133,14 @@ export default function App() {
                     const assignment = current?.streamerAssignments.find(sa => sa.userId === u.id);
                     return (
                         <div key={u.id} className="flex gap-1.5">
-                            <button onClick={() => toggleStreamerInSlot(u.id)} className={`flex-1 flex items-center justify-between p-2 md:p-3 rounded-xl border transition-all ${assignment ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-100' : 'bg-slate-50 border-slate-100 hover:border-indigo-200'}`}>
+                            <button onClick={() => toggleStreamerInSlot(u.id)} className={`flex-1 flex items-center justify-between p-2 md:p-3 rounded-xl border transition-all ${assignment ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-100' : 'bg-slate-50 border-slate-100 hover:border-indigo-200'}`}>
                                 <div className="flex items-center gap-2 md:gap-3">
                                     <img src={u.avatar} className="w-7 h-7 md:w-8 md:h-8 rounded-full border-2 border-white shadow-sm" alt=""/>
                                     <div className="text-left min-w-0">
-                                        <p className="font-bold text-xs md:text-sm leading-none truncate">{u.name}</p>
+                                        <p className="font-medium text-xs md:text-sm leading-none truncate">{u.name}</p>
                                         <div className="flex items-center gap-1.5 mt-1">
                                           <RankBadge rank={u.rank} size="sm" />
-                                          {assignment?.timeLabel && <p className="text-[8px] md:text-[9px] font-black uppercase opacity-80">{assignment.timeLabel}</p>}
+                                          {assignment?.timeLabel && <p className="text-[8px] md:text-[9px] font-semibold uppercase opacity-80">{assignment.timeLabel}</p>}
                                         </div>
                                     </div>
                                 </div>
@@ -2257,15 +2155,15 @@ export default function App() {
                 </div>
              ) : (
                 <div className="space-y-2">
-                  <button onClick={() => setOpsInSlot(null)} className="w-full p-2.5 rounded-xl border-2 border-dashed border-red-100 text-red-500 font-black text-[10px] uppercase hover:bg-red-50 transition-colors">Hủy vận hành</button>
+                  <button onClick={() => setOpsInSlot(null)} className="w-full p-2.5 rounded-xl border-2 border-dashed border-red-100 text-red-500 font-semibold text-[10px] uppercase hover:bg-red-50 transition-colors">Hủy vận hành</button>
                   {users.filter(u => u.role === 'OPERATIONS').map(u => {
                     const current = currentWeekSchedule.find(s => s.dayIndex === editingSlot?.day && s.shiftId === editingSlot?.shiftId);
                     const isSelected = current?.opsUserId === u.id;
                     return (
-                      <button key={u.id} onClick={() => setOpsInSlot(u.id)} className={`w-full flex items-center justify-between p-2.5 rounded-xl border-2 transition-all ${isSelected ? 'bg-orange-600 text-white border-orange-600 shadow-md shadow-orange-100' : 'bg-slate-50 border-slate-100 hover:border-orange-300'}`}>
+                      <button key={u.id} onClick={() => setOpsInSlot(u.id)} className={`w-full flex items-center justify-between p-2.5 rounded-xl border-2 transition-all ${isSelected ? 'bg-orange-600 text-white border-orange-600 shadow-sm shadow-orange-100' : 'bg-slate-50 border-slate-100 hover:border-orange-300'}`}>
                         <div className="flex items-center gap-2.5">
                           <img src={u.avatar} className="w-7 h-7 md:w-8 md:h-8 rounded-full border-2 border-white shadow-sm" alt=""/>
-                          <p className="font-bold text-xs md:text-sm leading-none">{u.name}</p>
+                          <p className="font-medium text-xs md:text-sm leading-none">{u.name}</p>
                         </div>
                         {isSelected && <CheckCircle2 size={16} strokeWidth={3}/>}
                       </button>
@@ -2285,30 +2183,30 @@ export default function App() {
                     <div className="flex items-center gap-3">
                          <img src={users.find(u => u.id === bridgeData.userId)?.avatar} className="w-10 h-10 rounded-full border-2 border-white shadow-sm" alt=""/>
                          <div>
-                             <p className="font-bold text-sm text-slate-900">{users.find(u => u.id === bridgeData.userId)?.name}</p>
-                             <p className="text-[10px] font-black uppercase text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded w-fit">Đang cấu hình</p>
+                             <p className="font-medium text-sm text-slate-900">{users.find(u => u.id === bridgeData.userId)?.name}</p>
+                             <p className="text-[10px] font-semibold uppercase text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded w-fit">Đang cấu hình</p>
                          </div>
                     </div>
                 </div>
                 <div className="space-y-3">
                   <div className="flex items-center gap-3">
                        <div className="flex-1">
-                           <label className="block text-[10px] font-black uppercase text-slate-400 mb-1 ml-1">Giờ bắt đầu</label>
-                           <input type="time" className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold shadow-sm" 
+                           <label className="block text-[10px] font-semibold uppercase text-slate-400 mb-1 ml-1">Giờ bắt đầu</label>
+                           <input type="time" className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium shadow-sm" 
                               value={bridgeData.startTime} onChange={e => setBridgeData({...bridgeData, startTime: e.target.value})} />
                        </div>
-                       <span className="text-slate-300 font-black mt-5">đến</span>
+                       <span className="text-slate-300 font-semibold mt-5">đến</span>
                        <div className="flex-1">
-                           <label className="block text-[10px] font-black uppercase text-slate-400 mb-1 ml-1">Giờ kết thúc</label>
-                           <input type="time" className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold shadow-sm" 
+                           <label className="block text-[10px] font-semibold uppercase text-slate-400 mb-1 ml-1">Giờ kết thúc</label>
+                           <input type="time" className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium shadow-sm" 
                               value={bridgeData.endTime} onChange={e => setBridgeData({...bridgeData, endTime: e.target.value})} />
                        </div>
                   </div>
-                  <button onClick={() => setBridgeData({...bridgeData, startTime: '', endTime: ''})} className="text-[10px] uppercase font-bold text-slate-400 hover:text-red-500 hover:underline mx-auto block">Xóa cấu hình Kẹp ca</button>
+                  <button onClick={() => setBridgeData({...bridgeData, startTime: '', endTime: ''})} className="text-[10px] uppercase font-medium text-slate-400 hover:text-red-500 hover:underline mx-auto block">Xóa cấu hình Kẹp ca</button>
                 </div>
                 <div className="flex gap-2 pt-2">
-                    <Button variant="secondary" className="flex-1 font-bold" onClick={handleCloseBridgeModal}>Hủy</Button>
-                    <Button className="flex-1 font-black shadow-lg shadow-indigo-100" onClick={handleSaveBridge} icon={<Save size={16}/>}>Lưu cấu hình</Button>
+                    <Button variant="secondary" className="flex-1 font-medium" onClick={handleCloseBridgeModal}>Hủy</Button>
+                    <Button className="flex-1 font-semibold shadow-soft shadow-indigo-100" onClick={handleSaveBridge} icon={<Save size={16}/>}>Lưu cấu hình</Button>
                 </div>
               </div>
           )}
@@ -2319,13 +2217,13 @@ export default function App() {
         <div className="space-y-6">
           <div className="space-y-4">
             <div>
-              <label className="block text-[10px] font-black uppercase text-slate-400 mb-1.5 ml-1">Thông tin cơ bản</label>
+              <label className="block text-[10px] font-semibold uppercase text-slate-400 mb-1.5 ml-1">Thông tin cơ bản</label>
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   {/* ID Field */}
                   <input 
                     type="text" 
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium"
                     value={userFormData.id || ''} 
                     onChange={e => setUserFormData({...userFormData, id: e.target.value})} 
                     placeholder="Mã nhân sự (ID/Username)..." 
@@ -2333,17 +2231,17 @@ export default function App() {
                   {/* Password Field */}
                   <input 
                     type="text" 
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium"
                     value={userFormData.password || ''} 
                     onChange={e => setUserFormData({...userFormData, password: e.target.value})} 
                     placeholder="Mật khẩu..." 
                   />
                 </div>
-                <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold" value={userFormData.name || ''} onChange={e => setUserFormData({...userFormData, name: e.target.value})} placeholder="Họ và tên..." />
-                <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold" value={userFormData.zaloPhone || ''} onChange={e => setUserFormData({...userFormData, zaloPhone: e.target.value})} placeholder="Số Zalo..." />
+                <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium" value={userFormData.name || ''} onChange={e => setUserFormData({...userFormData, name: e.target.value})} placeholder="Họ và tên..." />
+                <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium" value={userFormData.zaloPhone || ''} onChange={e => setUserFormData({...userFormData, zaloPhone: e.target.value})} placeholder="Số Zalo..." />
                 {/* Avatar URL Field */}
                 <div>
-                  <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold" value={userFormData.avatar || ''} onChange={e => setUserFormData({...userFormData, avatar: e.target.value})} placeholder="Link ảnh đại diện (URL)..." />
+                  <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium" value={userFormData.avatar || ''} onChange={e => setUserFormData({...userFormData, avatar: e.target.value})} placeholder="Link ảnh đại diện (URL)..." />
                   {userFormData.avatar && (
                     <div className="mt-2 flex items-center gap-2">
                       <img src={userFormData.avatar} className="w-10 h-10 rounded-full object-cover border-2 border-slate-200" alt="Preview" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
@@ -2355,31 +2253,31 @@ export default function App() {
             </div>
             {/* Roles Selection */}
             <div>
-              <label className="block text-[10px] font-black uppercase text-slate-400 mb-2 ml-1">Vai trò</label>
+              <label className="block text-[10px] font-semibold uppercase text-slate-400 mb-2 ml-1">Vai trò</label>
               <div className="grid grid-cols-3 gap-2">
                 {['STAFF', 'OPERATIONS', 'MANAGER'].map((r) => (
-                  <button key={r} onClick={() => setUserFormData({...userFormData, role: r as Role})} className={`p-2 rounded-lg border text-[10px] font-bold ${userFormData.role === r ? 'bg-indigo-600 text-white' : 'bg-white'}`}>{r}</button>
+                  <button key={r} onClick={() => setUserFormData({...userFormData, role: r as Role})} className={`p-2 rounded-lg border text-[10px] font-medium ${userFormData.role === r ? 'bg-indigo-600 text-white' : 'bg-white'}`}>{r}</button>
                 ))}
               </div>
             </div>
             {/* Rank Selection if Staff */}
             {userFormData.role === 'STAFF' && (
                 <div>
-                    <label className="block text-[10px] font-black uppercase text-slate-400 mb-2 ml-1">Rank</label>
+                    <label className="block text-[10px] font-semibold uppercase text-slate-400 mb-2 ml-1">Rank</label>
                     <div className="grid grid-cols-4 gap-2">
                         {['S', 'A', 'B', 'C'].map((r) => (
-                        <button key={r} onClick={() => setUserFormData({...userFormData, rank: r as Rank})} className={`p-2 rounded-lg border text-[10px] font-bold ${userFormData.rank === r ? 'bg-indigo-600 text-white' : 'bg-white'}`}>{r}</button>
+                        <button key={r} onClick={() => setUserFormData({...userFormData, rank: r as Rank})} className={`p-2 rounded-lg border text-[10px] font-medium ${userFormData.rank === r ? 'bg-indigo-600 text-white' : 'bg-white'}`}>{r}</button>
                         ))}
                     </div>
                 </div>
             )}
             {/* Revenue */}
             {userFormData.role === 'STAFF' && (
-                <input type="number" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold" value={userFormData.revenue || 0} onChange={e => setUserFormData({...userFormData, revenue: Number(e.target.value)})} placeholder="Doanh thu..." />
+                <input type="number" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium" value={userFormData.revenue || 0} onChange={e => setUserFormData({...userFormData, revenue: Number(e.target.value)})} placeholder="Doanh thu..." />
             )}
             {/* Platform Selection */}
             <div>
-              <label className="block text-[10px] font-black uppercase text-slate-400 mb-2 ml-1">Nền tảng Live</label>
+              <label className="block text-[10px] font-semibold uppercase text-slate-400 mb-2 ml-1">Nền tảng Live</label>
               <div className="grid grid-cols-2 gap-2">
                 {(['tiktok', 'shopee'] as Platform[]).map(p => {
                   const cfg = PLATFORM_CONFIG[p];
@@ -2394,8 +2292,8 @@ export default function App() {
                           : [...current, p];
                         setUserFormData({...userFormData, platforms: next.length > 0 ? next : [p]});
                       }}
-                      className={`flex items-center justify-center gap-2 p-3 rounded-xl border-2 text-[12px] font-bold transition-all ${
-                        isSelected ? 'shadow-md' : 'bg-white opacity-60'
+                      className={`flex items-center justify-center gap-2 p-3 rounded-xl border-2 text-[12px] font-medium transition-all ${
+                        isSelected ? 'shadow-sm' : 'bg-white opacity-60'
                       }`}
                       style={{
                         background: isSelected ? cfg.bgLight : undefined,
@@ -2413,8 +2311,8 @@ export default function App() {
           </div>
 
           <div className="pt-4 flex gap-2">
-            <Button variant="secondary" className="flex-1 font-bold" onClick={() => setIsUserModalOpen(false)}>Hủy</Button>
-            <Button className="flex-1 font-black shadow-lg shadow-indigo-100" onClick={handleSaveUser} icon={<Save size={16}/>}>Lưu nhân sự</Button>
+            <Button variant="secondary" className="flex-1 font-medium" onClick={() => setIsUserModalOpen(false)}>Hủy</Button>
+            <Button className="flex-1 font-semibold shadow-soft shadow-indigo-100" onClick={handleSaveUser} icon={<Save size={16}/>}>Lưu nhân sự</Button>
           </div>
         </div>
       </Modal>
@@ -2423,21 +2321,21 @@ export default function App() {
       <Modal isOpen={isShiftModalOpen} onClose={() => setIsShiftModalOpen(false)} title={shiftFormData.id ? "Sửa Ca Live" : "Thêm Ca Live Mới"}>
          <div className="space-y-4">
              <div>
-                <label className="block text-[10px] font-black uppercase text-slate-400 mb-1.5 ml-1">Thông tin Ca</label>
+                <label className="block text-[10px] font-semibold uppercase text-slate-400 mb-1.5 ml-1">Thông tin Ca</label>
                 <div className="space-y-3">
                    <div className="grid grid-cols-3 gap-3">
-                      <input type="text" disabled={!!shiftFormData.id && shiftFormData.id !== '' && shifts.some(s => s.id === shiftFormData.id)} className="col-span-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm font-bold uppercase" value={shiftFormData.id} onChange={e => setShiftFormData({...shiftFormData, id: e.target.value})} placeholder="Mã (VD: ca1)..." />
-                      <input type="text" className="col-span-2 w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm font-bold" value={shiftFormData.name} onChange={e => setShiftFormData({...shiftFormData, name: e.target.value})} placeholder="Tên ca (VD: Ca Sáng)..." />
+                      <input type="text" disabled={!!shiftFormData.id && shiftFormData.id !== '' && shifts.some(s => s.id === shiftFormData.id)} className="col-span-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm font-medium uppercase" value={shiftFormData.id} onChange={e => setShiftFormData({...shiftFormData, id: e.target.value})} placeholder="Mã (VD: ca1)..." />
+                      <input type="text" className="col-span-2 w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm font-medium" value={shiftFormData.name} onChange={e => setShiftFormData({...shiftFormData, name: e.target.value})} placeholder="Tên ca (VD: Ca Sáng)..." />
                    </div>
                    <div className="grid grid-cols-2 gap-3">
-                      <input type="time" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm font-bold" value={shiftFormData.startTime} onChange={e => setShiftFormData({...shiftFormData, startTime: e.target.value})} />
-                      <input type="time" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm font-bold" value={shiftFormData.endTime} onChange={e => setShiftFormData({...shiftFormData, endTime: e.target.value})} />
+                      <input type="time" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm font-medium" value={shiftFormData.startTime} onChange={e => setShiftFormData({...shiftFormData, startTime: e.target.value})} />
+                      <input type="time" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm font-medium" value={shiftFormData.endTime} onChange={e => setShiftFormData({...shiftFormData, endTime: e.target.value})} />
                    </div>
                 </div>
              </div>
              <div>
-                <label className="block text-[10px] font-black uppercase text-slate-400 mb-1.5 ml-1">Màu sắc hiển thị</label>
-                <div className="grid grid-cols-2 gap-2 text-xs font-bold">
+                <label className="block text-[10px] font-semibold uppercase text-slate-400 mb-1.5 ml-1">Màu sắc hiển thị</label>
+                <div className="grid grid-cols-2 gap-2 text-xs font-medium">
                    <button onClick={() => setShiftFormData({...shiftFormData, color: 'bg-orange-100 text-orange-800 border-orange-200'})} className={`p-3 rounded-xl border-2 bg-orange-100 text-orange-800 border-orange-200 ${shiftFormData.color.includes('orange') ? 'ring-2 ring-orange-400' : ''}`}>Cam (Sáng)</button>
                    <button onClick={() => setShiftFormData({...shiftFormData, color: 'bg-blue-100 text-blue-800 border-blue-200'})} className={`p-3 rounded-xl border-2 bg-blue-100 text-blue-800 border-blue-200 ${shiftFormData.color.includes('blue') ? 'ring-2 ring-blue-400' : ''}`}>Xanh Dương (Chiều)</button>
                    <button onClick={() => setShiftFormData({...shiftFormData, color: 'bg-purple-100 text-purple-800 border-purple-200'})} className={`p-3 rounded-xl border-2 bg-purple-100 text-purple-800 border-purple-200 ${shiftFormData.color.includes('purple') ? 'ring-2 ring-purple-400' : ''}`}>Tím (Tối)</button>
@@ -2456,23 +2354,23 @@ export default function App() {
         <div className="space-y-4">
           <div className="space-y-3">
              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 ml-1">Hình thức</label>
+                <label className="block text-[10px] font-semibold text-slate-400 uppercase mb-1 ml-1">Hình thức</label>
                 <div className="grid grid-cols-2 gap-2">
-                   <button onClick={() => setRequestForm({...requestForm, type: 'SWAP'})} className={`p-3 rounded-xl border-2 font-black text-[10px] uppercase ${requestForm.type === 'SWAP' ? 'bg-indigo-600 text-white' : 'bg-white'}`}>Thay đổi nhân sự</button>
-                   <button onClick={() => setRequestForm({...requestForm, type: 'LEAVE'})} className={`p-3 rounded-xl border-2 font-black text-[10px] uppercase ${requestForm.type === 'LEAVE' ? 'bg-red-600 text-white' : 'bg-white'}`}>Xin nghỉ ca</button>
+                   <button onClick={() => setRequestForm({...requestForm, type: 'SWAP'})} className={`p-3 rounded-xl border-2 font-semibold text-[10px] uppercase ${requestForm.type === 'SWAP' ? 'bg-indigo-600 text-white' : 'bg-white'}`}>Thay đổi nhân sự</button>
+                   <button onClick={() => setRequestForm({...requestForm, type: 'LEAVE'})} className={`p-3 rounded-xl border-2 font-semibold text-[10px] uppercase ${requestForm.type === 'LEAVE' ? 'bg-red-600 text-white' : 'bg-white'}`}>Xin nghỉ ca</button>
                 </div>
              </div>
               {requestForm.type === 'SWAP' && (
-                <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold" value={requestForm.targetUserId || ''} onChange={e => setRequestForm({...requestForm, targetUserId: e.target.value})}>
+                <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium" value={requestForm.targetUserId || ''} onChange={e => setRequestForm({...requestForm, targetUserId: e.target.value})}>
                      <option value="">-- Chọn đồng nghiệp --</option>
                      {users.filter(u => u.id !== currentUser?.id && u.role === (currentUser?.role === 'OPERATIONS' ? 'OPERATIONS' : 'STAFF')).map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                 </select>
               )}
-             <textarea rows={3} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold resize-none" value={requestForm.reason} onChange={e => setRequestForm({...requestForm, reason: e.target.value})} placeholder="Lý do..."></textarea>
+             <textarea rows={3} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium resize-none" value={requestForm.reason} onChange={e => setRequestForm({...requestForm, reason: e.target.value})} placeholder="Lý do..."></textarea>
           </div>
           <div className="pt-2 flex gap-2">
-            <Button variant="secondary" size="sm" className="flex-1 font-bold" onClick={() => setIsRequestModalOpen(false)}>Hủy</Button>
-            <Button size="sm" className="flex-1 font-black" onClick={createRequest} icon={<Send size={14}/>}>Gửi yêu cầu</Button>
+            <Button variant="secondary" size="sm" className="flex-1 font-medium" onClick={() => setIsRequestModalOpen(false)}>Hủy</Button>
+            <Button size="sm" className="flex-1 font-semibold" onClick={createRequest} icon={<Send size={14}/>}>Gửi yêu cầu</Button>
           </div>
         </div>
       </Modal>
@@ -2487,19 +2385,19 @@ export default function App() {
               <div className="flex items-center justify-between sm:justify-start w-full sm:w-auto">
                 <div className="flex items-center gap-2">
                   <Bell size={20} style={{color:'#171717'}} />
-                  <h3 className="text-[17px] font-bold whitespace-nowrap" style={{color:'#171717'}}>Thông báo</h3>
+                  <h3 className="text-[17px] font-medium whitespace-nowrap" style={{color:'#171717'}}>Thông báo</h3>
                   {unreadCount > 0 && (
-                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-red-500 text-white whitespace-nowrap">{unreadCount}</span>
+                    <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-red-500 text-white whitespace-nowrap">{unreadCount}</span>
                   )}
                 </div>
                 <button onClick={() => setIsNotifPanelOpen(false)} className="sm:hidden p-2 rounded-xl bg-white shadow-sm border border-slate-200"><X size={18} style={{color:'#171717'}} /></button>
               </div>
               <div className="flex items-center gap-2 w-full sm:w-auto">
                 {unreadCount > 0 && (
-                  <button onClick={markAllNotifsRead} className="flex-1 sm:flex-none text-[12px] font-bold text-center py-2.5 sm:py-0 text-blue-600 bg-blue-50 sm:bg-transparent rounded-lg sm:rounded-none">Đọc tất cả</button>
+                  <button onClick={markAllNotifsRead} className="flex-1 sm:flex-none text-[12px] font-medium text-center py-2.5 sm:py-0 text-blue-600 bg-blue-50 sm:bg-transparent rounded-lg sm:rounded-none">Đọc tất cả</button>
                 )}
                 {(currentUser?.role === 'MANAGER' || currentUser?.role === 'SUPER_ADMIN') && (
-                  <button onClick={() => setIsNotifModalOpen(true)} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2.5 sm:py-2.5 rounded-xl text-[12px] font-bold transition-all hover:bg-slate-800" style={{background:'#171717', color:'#fff'}}>
+                  <button onClick={() => setIsNotifModalOpen(true)} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2.5 sm:py-2.5 rounded-xl text-[12px] font-medium transition-all hover:bg-slate-800" style={{background:'#171717', color:'#fff'}}>
                     <Plus size={14} /> Gửi TB
                   </button>
                 )}
@@ -2547,7 +2445,7 @@ export default function App() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5">
-                            <p className="text-[12px] font-bold truncate" style={{color:'#171717'}}>{notif.title}</p>
+                            <p className="text-[12px] font-medium truncate" style={{color:'#171717'}}>{notif.title}</p>
                             {!isRead && <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />}
                           </div>
                           {notif.message !== notif.title && (
@@ -2572,12 +2470,12 @@ export default function App() {
       <Modal isOpen={isNotifModalOpen} onClose={() => setIsNotifModalOpen(false)} title="Gửi thông báo">
         <div className="space-y-4">
           <div>
-            <label className="block text-[10px] font-black uppercase text-slate-400 mb-1.5 ml-1">Tiêu đề</label>
-            <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold" value={notifFormData.title} onChange={e => setNotifFormData({...notifFormData, title: e.target.value})} placeholder="VD: Nhắc đăng ký lịch live..." />
+            <label className="block text-[10px] font-semibold uppercase text-slate-400 mb-1.5 ml-1">Tiêu đề</label>
+            <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium" value={notifFormData.title} onChange={e => setNotifFormData({...notifFormData, title: e.target.value})} placeholder="VD: Nhắc đăng ký lịch live..." />
           </div>
           <div>
-            <label className="block text-[10px] font-black uppercase text-slate-400 mb-1.5 ml-1">Nội dung</label>
-            <textarea rows={3} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold resize-none" value={notifFormData.message} onChange={e => setNotifFormData({...notifFormData, message: e.target.value})} placeholder="Nội dung thông báo..." />
+            <label className="block text-[10px] font-semibold uppercase text-slate-400 mb-1.5 ml-1">Nội dung</label>
+            <textarea rows={3} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium resize-none" value={notifFormData.message} onChange={e => setNotifFormData({...notifFormData, message: e.target.value})} placeholder="Nội dung thông báo..." />
           </div>
           <div className="flex gap-2 pt-2">
             <Button variant="secondary" className="flex-1" onClick={() => setIsNotifModalOpen(false)}>Hủy</Button>
@@ -2606,7 +2504,7 @@ export default function App() {
                 <Bell size={18} style={{color: '#2563EB'}} />
               </div>
               <div>
-                <h4 className="text-[15px] font-bold" style={{color:'#171717'}}>{selectedNotification.title}</h4>
+                <h4 className="text-[15px] font-medium" style={{color:'#171717'}}>{selectedNotification.title}</h4>
                 <p className="text-[11px] mt-0.5" style={{color:'#A3A3A3'}}>
                   {new Date(selectedNotification.createdAt).toLocaleString('vi-VN', { dateStyle: 'full', timeStyle: 'short' })}
                 </p>
@@ -2624,7 +2522,36 @@ export default function App() {
         )}
       </Modal>
 
+      {/* ── MOBILE BOTTOM NAVIGATION ── */}
+      {currentUser && (
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 w-full bottom-menu shadow-menu px-6 py-4 pb-8 flex justify-between items-center z-50">
+            <button onClick={() => setViewMode('DASHBOARD')} className={`flex flex-col items-center gap-1.5 w-16 transition-transform active:scale-95 ${viewMode === 'DASHBOARD' ? 'text-indigo-500' : 'text-slate-400'}`}>
+                <Calendar size={22} strokeWidth={viewMode === 'DASHBOARD' ? 2 : 1.5} />
+                <span className={`text-[10px] ${viewMode === 'DASHBOARD' ? 'font-medium' : 'font-light'}`}>Lịch</span>
+            </button>
+            <button onClick={() => setViewMode('MY_AVAILABILITY')} className={`flex flex-col items-center gap-1.5 w-16 transition-transform active:scale-95 ${viewMode === 'MY_AVAILABILITY' ? 'text-indigo-500' : 'text-slate-400'}`}>
+                <CheckCircle2 size={22} strokeWidth={viewMode === 'MY_AVAILABILITY' ? 2 : 1.5} />
+                <span className={`text-[10px] ${viewMode === 'MY_AVAILABILITY' ? 'font-medium' : 'font-light'}`}>Đăng ký</span>
+            </button>
+            <button onClick={() => setViewMode('REQUESTS')} className={`flex flex-col items-center gap-1.5 w-16 transition-transform active:scale-95 ${viewMode === 'REQUESTS' ? 'text-indigo-500' : 'text-slate-400'}`}>
+                <Inbox size={22} strokeWidth={viewMode === 'REQUESTS' ? 2 : 1.5} />
+                <span className={`text-[10px] ${viewMode === 'REQUESTS' ? 'font-medium' : 'font-light'}`}>Ca xin đổi</span>
+            </button>
+            {(currentUser.role === 'MANAGER' || currentUser.role === 'SUPER_ADMIN') && (
+              <button onClick={() => setViewMode('REPORTS')} className={`flex flex-col items-center gap-1.5 w-16 transition-transform active:scale-95 ${viewMode === 'REPORTS' ? 'text-indigo-500' : 'text-slate-400'}`}>
+                  <BarChart3 size={22} strokeWidth={viewMode === 'REPORTS' ? 2 : 1.5} />
+                  <span className={`text-[10px] ${viewMode === 'REPORTS' ? 'font-medium' : 'font-light'}`}>Báo cáo</span>
+              </button>
+            )}
+            <button onClick={handleLogout} className="flex flex-col items-center gap-1.5 text-slate-400 w-16 transition-transform active:scale-95">
+                <LogOut size={22} strokeWidth={1.5} />
+                <span className="text-[10px] font-light">Thoát</span>
+            </button>
+        </nav>
+      )}
+
     </div>
+    </>
   );
 }
 
@@ -2638,7 +2565,7 @@ const SidebarItem = ({ icon, label, active, onClick, badge }: { icon: React.Reac
       <span>{label}</span>
     </div>
     {badge !== undefined && (
-      <span className="w-4 h-4 text-white text-[9px] font-bold rounded-full flex items-center justify-center" style={{background:'#EF4444'}}>
+      <span className="w-4 h-4 text-white text-[9px] font-medium rounded-full flex items-center justify-center" style={{background:'#EF4444'}}>
         {badge}
       </span>
     )}
