@@ -51,15 +51,39 @@ import {
   Bot,
   AlertTriangle
 } from 'lucide-react';
-import { User, Brand, Shift, Availability, ScheduleItem, ViewMode, Rank, Role, ShiftRequest, RequestStatus, RequestType } from './types';
-import { DAYS_OF_WEEK } from './constants';
+import { User, Brand, Shift, Availability, ScheduleItem, ViewMode, Rank, Role, ShiftRequest, RequestStatus, RequestType, Platform, AppNotification, NotificationType } from './types';
+import { DAYS_OF_WEEK, PLATFORM_CONFIG, TIKTOK_LOGO_SVG, SHOPEE_LOGO_SVG } from './constants';
 import { Button } from './components/Button';
+import { DEFAULT_LLM_CONFIG, LlmConfig, testConnection } from './services/llm';
 import { Modal } from './components/Modal';
 import { LoginPage } from './components/LoginPage';
 import { SuperAdminPanel } from './components/SuperAdminPanel';
 import { ZaloService, ZaloConfig } from './services/zalo';
-import { api } from './services/api';
+import { api, sendOneSignalPush } from './services/api';
+import { supabase } from './services/supabase';
 import { autoGenerateSchedule } from './services/scheduler';
+import OneSignal from 'react-onesignal';
+
+// ── Platform Icon Component ──────────────────────────────────
+const PlatformIcon: React.FC<{ platform: Platform; size?: number; className?: string }> = ({ platform, size = 16, className = '' }) => (
+  <span
+    className={`inline-flex items-center justify-center flex-shrink-0 ${className}`}
+    style={{ width: size, height: size, color: PLATFORM_CONFIG[platform].color }}
+    dangerouslySetInnerHTML={{ __html: platform === 'tiktok' ? TIKTOK_LOGO_SVG : SHOPEE_LOGO_SVG }}
+  />
+);
+
+// ── Platform Badge Component ──────────────────────────────────
+const PlatformBadge: React.FC<{ platform: Platform; size?: 'sm' | 'md' }> = ({ platform, size = 'sm' }) => {
+  const cfg = PLATFORM_CONFIG[platform];
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-md font-semibold ${size === 'sm' ? 'px-1.5 py-0.5 text-[9px]' : 'px-2 py-1 text-[11px]'}`}
+      style={{ background: cfg.bgLight, color: cfg.color, border: `1px solid ${cfg.borderColor}` }}>
+      <PlatformIcon platform={platform} size={size === 'sm' ? 10 : 13} />
+      {cfg.label}
+    </span>
+  );
+};
 
 // Helper: parse brand slug from URL (e.g. /gimmetee → 'gimmetee', / → null)
 const getBrandSlugFromURL = (): string | null => {
@@ -129,6 +153,19 @@ export default function App() {
 
   // System State
   const [isLoading, setIsLoading] = useState(true);
+  // LLM (AI) configuration
+  const [llmConfig, setLlmConfig] = useState<LlmConfig>(() => {
+    try {
+      const raw = localStorage.getItem('ls_llm_config');
+      return raw ? JSON.parse(raw) : DEFAULT_LLM_CONFIG;
+    } catch {
+      return DEFAULT_LLM_CONFIG;
+    }
+  });
+  const [isTestingLLM, setIsTestingLLM] = useState(false);
+  useEffect(() => {
+    localStorage.setItem('ls_llm_config', JSON.stringify(llmConfig));
+  }, [llmConfig]);
   
   // Persistent Login State
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
@@ -156,6 +193,102 @@ export default function App() {
   });
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  // Platform State
+  const [activePlatform, setActivePlatform] = useState<Platform>('tiktok');
+
+  // Notification State
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [isNotifPanelOpen, setIsNotifPanelOpen] = useState(false);
+  const [isNotifModalOpen, setIsNotifModalOpen] = useState(false);
+  const [notifFormData, setNotifFormData] = useState({ title: '', message: '' });
+
+  // Notification helpers
+  const addNotification = async (notif: Omit<AppNotification, 'id' | 'createdAt' | 'readBy'>) => {
+    try {
+      await api.createNotification(notif);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const markNotifRead = async (notifId: string) => {
+    if (!currentUser) return;
+    const notif = notifications.find(n => n.id === notifId);
+    if (!notif) return;
+    const newReadBy = [...new Set([...(notif.readBy || []), currentUser.id])];
+    
+    // Optimistic update
+    setNotifications(prev => prev.map(n => n.id === notifId ? { ...n, readBy: newReadBy } : n));
+    
+    try {
+      await api.updateNotification(notifId, { readBy: newReadBy });
+    } catch (e) {
+      console.error(e);
+      // Revert if needed (simplified here)
+    }
+  };
+
+  const markAllNotifsRead = async () => {
+    if (!currentUser) return;
+    const unreadNotifs = myNotifications.filter(n => !(n.readBy || []).includes(currentUser.id));
+    if (unreadNotifs.length === 0) return;
+
+    // Optimistic
+    setNotifications(prev => prev.map(n => myNotifications.some(mn => mn.id === n.id) ? { ...n, readBy: [...new Set([...(n.readBy || []), currentUser.id])] } : n));
+    
+    try {
+      await Promise.all(unreadNotifs.map(n => 
+        api.updateNotification(n.id, { readBy: [...new Set([...(n.readBy || []), currentUser.id])] })
+      ));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const unreadCount = useMemo(() => {
+    if (!currentUser) return 0;
+    return notifications.filter(n => {
+      const isForMe = !n.targetUserIds || n.targetUserIds.includes(currentUser.id);
+      const isRead = (n.readBy || []).includes(currentUser.id);
+      return isForMe && !isRead;
+    }).length;
+  }, [notifications, currentUser]);
+
+  const myNotifications = useMemo(() => {
+    if (!currentUser) return [];
+    return notifications.filter(n => !n.targetUserIds || n.targetUserIds.includes(currentUser.id));
+  }, [notifications, currentUser]);
+
+  // Request notification permission on mount
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  // Initialize OneSignal
+  useEffect(() => {
+    const ONE_SIGNAL_APP_ID = (import.meta as any).env.VITE_ONESIGNAL_APP_ID;
+    if (ONE_SIGNAL_APP_ID && ONE_SIGNAL_APP_ID !== 'CHANGEME_APP_ID') {
+      OneSignal.init({
+        appId: ONE_SIGNAL_APP_ID,
+        allowLocalhostAsSecureOrigin: true, // Cho phép test trên localhost
+      }).catch(err => console.error("OneSignal Init Error:", err));
+    }
+  }, []);
+
+  // Login OneSignal External User ID
+  useEffect(() => {
+    if (currentUser && currentUser.id) {
+      const ONE_SIGNAL_APP_ID = (import.meta as any).env.VITE_ONESIGNAL_APP_ID;
+      if (ONE_SIGNAL_APP_ID && ONE_SIGNAL_APP_ID !== 'CHANGEME_APP_ID') {
+        OneSignal.login(currentUser.id).catch(err => console.error("OneSignal Login Error:", err));
+      }
+    } else {
+      OneSignal.logout().catch(e => {}); // Ignore error on logout if not initialized
+    }
+  }, [currentUser]);
+
   // Mobile day selector for schedule grid
   const [selectedDayIndex, setSelectedDayIndex] = useState<number>(() => {
     const today = new Date();
@@ -226,7 +359,7 @@ export default function App() {
     type: 'SWAP',
     reason: ''
   });
-  const [shiftFormData, setShiftFormData] = useState<Shift>({ id: '', name: '', startTime: '', endTime: '', color: '' });
+  const [shiftFormData, setShiftFormData] = useState<Shift>({ id: '', name: '', startTime: '', endTime: '', color: '', platform: 'tiktok' });
   const [userFormData, setUserFormData] = useState<Partial<User>>({});
   const [oldUserId, setOldUserId] = useState<string>(''); // Used to track ID renaming
   const [bridgeData, setBridgeData] = useState<{
@@ -264,13 +397,14 @@ export default function App() {
     if (!activeBrandSlug) { setIsLoading(false); return; }
     setIsLoading(true);
     try {
-      const [brandData, uData, sData, schData, avData, reqData] = await Promise.all([
+      const [brandData, uData, sData, schData, avData, reqData, notifData] = await Promise.all([
         api.getBrand(activeBrandSlug),
         api.getUsers(activeBrandSlug),
         api.getShifts(activeBrandSlug),
         api.getSchedule(currentWeekId, activeBrandSlug),
         api.getAvailabilities(currentWeekId, activeBrandSlug),
-        api.getRequests(currentWeekId, activeBrandSlug)
+        api.getRequests(currentWeekId, activeBrandSlug),
+        api.getNotifications()
       ]);
       setCurrentBrand(brandData);
       setUsers(uData);
@@ -278,12 +412,20 @@ export default function App() {
       setSchedule(schData);
       setAvailabilities(avData);
       setRequests(reqData);
+      setNotifications(notifData);
     } catch (err) {
       console.error("Failed to fetch data:", err);
     } finally {
       setIsLoading(false);
     }
   };
+
+  // ── Platform-filtered derived data ──────────────────────────
+  const platformShifts = useMemo(() => shifts.filter(s => s.platform === activePlatform), [shifts, activePlatform]);
+  const platformSchedule = useMemo(() => schedule.filter(s => s.platform === activePlatform), [schedule, activePlatform]);
+  const platformAvailabilities = useMemo(() => availabilities.filter(a => a.platform === activePlatform), [availabilities, activePlatform]);
+  const platformRequests = useMemo(() => requests.filter(r => r.platform === activePlatform), [requests, activePlatform]);
+  const platformUsers = useMemo(() => users.filter(u => !u.platforms || u.platforms.includes(activePlatform)), [users, activePlatform]);
 
   useEffect(() => {
     fetchData();
@@ -305,10 +447,47 @@ export default function App() {
     }
   }, [users, currentUser]);
 
+  // Realtime Notifications Subscription
+  useEffect(() => {
+    if (!('channel' in supabase)) return; // Offline mode handling
+
+    const channel = (supabase as any).channel('realtime_notifications')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, (payload: any) => {
+        const n = payload.new;
+        const newNotif: AppNotification = { 
+          id: n.id, type: n.type, title: n.title, message: n.message, platform: n.platform, 
+          targetUserIds: n.targetUserIds, createdBy: n.createdBy, createdAt: Number(n.createdAt), readBy: n.readBy || [] 
+        };
+        
+        setNotifications((prev: AppNotification[]) => [newNotif, ...prev]);
+        
+        // Push notification if meant for me
+        if ('Notification' in window && Notification.permission === 'granted') {
+           // We use the JSON stored currentUser instead of state directly if dependencies become stale
+           const lsUser = localStorage.getItem('ls_user');
+           const userObj = lsUser ? JSON.parse(lsUser) : currentUser;
+           const isForMe = !newNotif.targetUserIds || newNotif.targetUserIds.includes(userObj?.id || '');
+           if (isForMe) {
+               new Notification(newNotif.title, { body: newNotif.message, icon: '/favicon.ico' });
+           }
+        }
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'notifications' }, (payload: any) => {
+          const n = payload.new;
+          setNotifications((prev: AppNotification[]) => prev.map(old => old.id === n.id ? { ...old, readBy: n.readBy || [] } : old));
+      })
+      .subscribe();
+
+    return () => {
+      (supabase as any).removeChannel(channel);
+    };
+  }, []);
+
   // --- Derived Data ---
-  const currentWeekSchedule = useMemo(() => schedule, [schedule]);
-  const currentWeekAvailabilities = useMemo(() => availabilities, [availabilities]);
-  const currentWeekRequests = useMemo(() => requests, [requests]);
+  const currentWeekSchedule = useMemo(() => platformSchedule, [platformSchedule]);
+  const currentWeekAvailabilities = useMemo(() => platformAvailabilities, [platformAvailabilities]);
+  const currentWeekRequests = useMemo(() => platformRequests, [platformRequests]);
+  const canManageRequests = currentUser?.role === 'MANAGER' || currentUser?.role === 'SUPER_ADMIN';
   const pendingCount = useMemo(() => requests.filter(r => r.status === 'PENDING').length, [requests]);
   const staffUsers = useMemo(() => users.filter(u => u.role !== 'MANAGER'), [users]);
   const submittedCount = useMemo(() => staffUsers.filter(u => u.isAvailabilitySubmitted).length, [staffUsers]);
@@ -390,20 +569,21 @@ export default function App() {
 
     if (exists) {
       setAvailabilities(prev => prev.filter(
-        a => !(a.userId === currentUser.id && a.dayIndex === dayIndex && a.shiftId === shiftId)
+        a => !(a.userId === currentUser.id && a.dayIndex === dayIndex && a.shiftId === shiftId && a.platform === activePlatform)
       ));
     } else {
       setAvailabilities(prev => [...prev, {
         userId: currentUser.id,
         weekId: currentWeekId,
         dayIndex,
-        shiftId
+        shiftId,
+        platform: activePlatform
       }]);
     }
 
     // Sync to backend (fire and forget — không block UI)
     try {
-      await api.toggleAvailability({ userId: currentUser.id, dayIndex, shiftId, weekId: currentWeekId, brandId: activeBrandSlug || undefined });
+      await api.toggleAvailability({ userId: currentUser.id, dayIndex, shiftId, weekId: currentWeekId, brandId: activeBrandSlug || undefined, platform: activePlatform });
     } catch (e) {
       console.warn('Backend offline — đã lưu local.');
     }
@@ -422,13 +602,23 @@ export default function App() {
     try {
       await api.updateUser({ id: currentUser.id, isAvailabilitySubmitted: true });
       alert('✅ Đã gửi đăng ký! Admin sẽ nhận được thông báo.');
+      // Notify managers
+      const managerIds = users.filter(u => u.role === 'MANAGER').map(u => u.id);
+      addNotification({
+        type: 'AVAILABILITY_REGISTERED',
+        title: 'Đăng ký lịch rảnh mới',
+        message: `${currentUser.name} đã đăng ký lịch rảnh cho ${PLATFORM_CONFIG[activePlatform].label} tuần ${currentWeek}.`,
+        platform: activePlatform,
+        targetUserIds: managerIds,
+        createdBy: currentUser.id,
+      });
     } catch (e) {
       alert('✅ Đã lưu đăng ký! (Chế độ offline)');
     }
   };
 
   const handleAutoSchedule = async () => {
-    const newItems = autoGenerateSchedule(users, shifts, availabilities, schedule, currentWeekId);
+    const newItems = autoGenerateSchedule(users, shifts, availabilities, schedule, currentWeekId, activePlatform);
     setIsLoading(true);
     try {
         await api.clearSchedule(currentWeekId); 
@@ -445,9 +635,51 @@ export default function App() {
   };
 
   const createRequest = async () => {
-    if (!currentUser || !requestForm.slot) return;
-    const shift = shifts.find(s => s.id === requestForm.slot?.shiftId);
-    const targetUser = users.find(u => u.id === requestForm.targetUserId);
+    if (!currentUser) return;
+    if (!requestForm.slot) {
+      alert('Hãy chọn đúng ca của bạn trong lịch làm việc để gửi yêu cầu.');
+      return;
+    }
+
+    const requestSlot = requestForm.slot;
+    const shift = shifts.find(s => s.id === requestSlot.shiftId);
+    const currentSlot = currentWeekSchedule.find(
+      s => s.dayIndex === requestSlot.day && s.shiftId === requestSlot.shiftId && s.weekId === currentWeekId
+    );
+
+    if (!shift || !currentSlot) {
+      alert('Ca này không còn tồn tại hoặc đã thay đổi. Vui lòng kiểm tra lại lịch.');
+      return;
+    }
+
+    const isAssignedStreamer = currentSlot.streamerAssignments.some(sa => sa.userId === currentUser.id);
+    const isAssignedOps = currentSlot.opsUserId === currentUser.id;
+    if (!isAssignedStreamer && !isAssignedOps) {
+      alert('Bạn chỉ có thể gửi yêu cầu cho ca hiện đang được phân công cho mình.');
+      return;
+    }
+
+    const isSwap = requestForm.type === 'SWAP';
+    if (isSwap && !requestForm.targetUserId) {
+      alert('Vui lòng chọn người nhận đổi ca.');
+      return;
+    }
+
+    const targetRole = currentUser.role === 'OPERATIONS' ? 'OPERATIONS' : 'STAFF';
+    const targetUser = users.find(u => u.id === requestForm.targetUserId && u.role === targetRole);
+
+    if (isSwap && !targetUser) {
+      alert('Người nhận đổi ca không hợp lệ cho loại ca này.');
+      return;
+    }
+
+    if (isSwap) {
+      const targetAlreadyAssigned = currentSlot.streamerAssignments.some(sa => sa.userId === requestForm.targetUserId) || currentSlot.opsUserId === requestForm.targetUserId;
+      if (targetAlreadyAssigned) {
+        alert('Người này đã có trong ca hiện tại.');
+        return;
+      }
+    }
 
     const newReq: ShiftRequest = {
       id: `req-${Date.now()}`,
@@ -458,6 +690,7 @@ export default function App() {
       shiftId: requestForm.slot.shiftId,
       weekId: currentWeekId,
       brandId: activeBrandSlug || undefined,
+      platform: activePlatform,
       reason: requestForm.reason,
       targetUserId: requestForm.targetUserId,
       targetUserName: targetUser?.name,
@@ -466,13 +699,19 @@ export default function App() {
     };
     
     try {
-        // This INSERT triggers the Webhook to send Zalo message automatically
         await api.createRequest(newReq);
         setRequests([newReq, ...requests]);
         setIsRequestModalOpen(false);
-        
-        // Removed explicit ZaloService call here to avoid duplicate messages.
-        // The Webhook on 'requests' table insert handles the notification.
+        // Notify managers about new request
+        const managerIds = users.filter(u => u.role === 'MANAGER').map(u => u.id);
+        addNotification({
+          type: 'REQUEST_NEW',
+          title: 'Yêu cầu mới',
+          message: `${currentUser.name} ${newReq.type === 'LEAVE' ? 'xin nghỉ' : 'xin đổi'} ca ${shifts.find(s => s.id === newReq.shiftId)?.name || ''} ngày ${DAYS_OF_WEEK[newReq.dayIndex]}.`,
+          platform: activePlatform,
+          targetUserIds: managerIds,
+          createdBy: currentUser.id,
+        });
     } catch (e) {
         alert("Lỗi gửi yêu cầu");
     }
@@ -480,30 +719,66 @@ export default function App() {
 
   const handleProcessRequest = async (reqId: string, status: RequestStatus) => {
     try {
-        await api.updateRequestStatus(reqId, status);
         const req = requests.find(r => r.id === reqId);
         if (!req) return;
 
         if (status === 'APPROVED') {
-            const existingItem = schedule.find(s => s.dayIndex === req.dayIndex && s.shiftId === req.shiftId && s.weekId === req.weekId);
-            if (existingItem) {
-                let newItem = { ...existingItem };
-                if (req.type === 'LEAVE') {
-                    newItem.streamerAssignments = newItem.streamerAssignments.filter(sa => sa.userId !== req.userId);
-                    if (newItem.opsUserId === req.userId) newItem.opsUserId = null;
-                } else if (req.type === 'SWAP') {
-                    if (newItem.opsUserId === req.userId) newItem.opsUserId = req.targetUserId || null;
-                    newItem.streamerAssignments = newItem.streamerAssignments.map(sa => 
-                        sa.userId === req.userId ? { ...sa, userId: req.targetUserId! } : sa
-                    );
-                }
-                await api.saveScheduleItem(newItem);
-                const newSch = await api.getSchedule(currentWeekId, activeBrandSlug || undefined);
-                setSchedule(newSch);
+            const freshSchedule = await api.getSchedule(currentWeekId, activeBrandSlug || undefined);
+            const existingItem = freshSchedule.find(s => s.dayIndex === req.dayIndex && s.shiftId === req.shiftId && s.weekId === req.weekId);
+            if (!existingItem) {
+                alert('Không tìm thấy ca cần xử lý. Có thể lịch đã thay đổi, vui lòng tải lại và kiểm tra lại.');
+                return;
             }
+
+            let newItem = { ...existingItem, streamerAssignments: [...existingItem.streamerAssignments] };
+            if (req.type === 'LEAVE') {
+                newItem.streamerAssignments = newItem.streamerAssignments.filter(sa => sa.userId !== req.userId);
+                if (newItem.opsUserId === req.userId) newItem.opsUserId = null;
+            } else if (req.type === 'SWAP') {
+                if (!req.targetUserId) {
+                    alert('Yêu cầu đổi ca thiếu người nhận đổi.');
+                    return;
+                }
+
+                const targetUserId = req.targetUserId;
+                const targetAlreadyAssigned = newItem.streamerAssignments.some(sa => sa.userId === targetUserId) || newItem.opsUserId === targetUserId;
+                if (targetAlreadyAssigned) {
+                    alert('Người nhận đổi đã có trong ca này.');
+                    return;
+                }
+
+                if (newItem.opsUserId === req.userId) newItem.opsUserId = targetUserId;
+                newItem.streamerAssignments = newItem.streamerAssignments.map(sa =>
+                    sa.userId === req.userId ? { ...sa, userId: targetUserId } : sa
+                );
+            }
+
+            const requesterStillAssigned = newItem.streamerAssignments.some(sa => sa.userId === req.userId) || newItem.opsUserId === req.userId;
+            if (requesterStillAssigned) {
+                alert('Không thể áp dụng yêu cầu vì ca hiện tại không khớp với dữ liệu mới nhất.');
+                return;
+            }
+
+            await api.saveScheduleItem(newItem);
+            const newSch = await api.getSchedule(currentWeekId, activeBrandSlug || undefined);
+            setSchedule(newSch);
         }
+
+        await api.updateRequestStatus(reqId, status);
         const newReqs = await api.getRequests(currentWeekId, activeBrandSlug || undefined);
         setRequests(newReqs);
+
+        // Notify the requesting user
+        const notifTargets = [req.userId];
+        if (req.targetUserId) notifTargets.push(req.targetUserId);
+        addNotification({
+          type: status === 'APPROVED' ? 'REQUEST_APPROVED' : 'REQUEST_REJECTED',
+          title: status === 'APPROVED' ? 'Yêu cầu đã duyệt ✅' : 'Yêu cầu bị từ chối ❌',
+          message: `Yêu cầu ${req.type === 'LEAVE' ? 'nghỉ ca' : 'đổi ca'} ${shifts.find(s => s.id === req.shiftId)?.name || ''} ngày ${DAYS_OF_WEEK[req.dayIndex]} đã ${status === 'APPROVED' ? 'được duyệt' : 'bị từ chối'}.`,
+          platform: req.platform,
+          targetUserIds: notifTargets,
+          createdBy: currentUser?.id,
+        });
 
     } catch (e) {
         alert("Lỗi xử lý yêu cầu");
@@ -527,11 +802,12 @@ export default function App() {
         }
     } else {
         newItem = {
-            id: `${currentWeekId}-${editingSlot.day}-${editingSlot.shiftId}`,
+            id: `${currentWeekId}-${activePlatform}-${editingSlot.day}-${editingSlot.shiftId}`,
             dayIndex: editingSlot.day,
             shiftId: editingSlot.shiftId,
             weekId: currentWeekId,
             brandId: activeBrandSlug || undefined,
+            platform: activePlatform,
             streamerAssignments: [{ userId }],
             opsUserId: null
         };
@@ -543,7 +819,7 @@ export default function App() {
             setSchedule(schedule.filter(s => s.id !== newItem.id));
         } else {
             await api.saveScheduleItem(newItem);
-            const saved = await api.getSchedule(currentWeekId);
+            const saved = await api.getSchedule(currentWeekId, activeBrandSlug || undefined);
             setSchedule(saved);
         }
     } catch(e) { console.error(e); }
@@ -559,10 +835,11 @@ export default function App() {
     } else {
         if (!userId) return; 
         newItem = {
-            id: `${currentWeekId}-${editingSlot.day}-${editingSlot.shiftId}`,
+            id: `${currentWeekId}-${activePlatform}-${editingSlot.day}-${editingSlot.shiftId}`,
             dayIndex: editingSlot.day,
             shiftId: editingSlot.shiftId,
             weekId: currentWeekId,
+            platform: activePlatform,
             streamerAssignments: [],
             opsUserId: userId
         };
@@ -574,7 +851,7 @@ export default function App() {
             setSchedule(schedule.filter(s => s.id !== newItem.id));
         } else {
             await api.saveScheduleItem(newItem);
-            const saved = await api.getSchedule(currentWeekId);
+            const saved = await api.getSchedule(currentWeekId, activeBrandSlug || undefined);
             setSchedule(saved);
         }
     } catch(e) { console.error(e); }
@@ -614,7 +891,7 @@ export default function App() {
   const handleOpenUserModal = (u?: User) => {
       setIsEditUser(!!u);
       setOldUserId(u?.id || '');
-      setUserFormData(u || { id: '', role: 'STAFF', rank: 'C', password: '123', brandId: activeBrandSlug || undefined });
+      setUserFormData(u || { id: '', role: 'STAFF', rank: 'C', password: '123', brandId: activeBrandSlug || undefined, platforms: ['tiktok'] });
       setIsUserModalOpen(true);
   };
 
@@ -649,7 +926,7 @@ export default function App() {
   };
 
   const handleOpenShiftModal = (s?: Shift) => {
-    setShiftFormData(s || { id: '', name: '', startTime: '', endTime: '', color: 'bg-slate-100 text-slate-800 border-slate-200' });
+    setShiftFormData(s || { id: '', name: '', startTime: '', endTime: '', color: 'bg-slate-100 text-slate-800 border-slate-200', platform: activePlatform });
     setIsShiftModalOpen(true);
   };
 
@@ -760,6 +1037,9 @@ export default function App() {
               {currentUser && (
                 <SidebarItem icon={<MessageSquare size={16}/>} label="Yêu cầu" active={viewMode === 'REQUESTS'} onClick={() => { setViewMode('REQUESTS'); setIsMobileMenuOpen(false); }} badge={(currentUser.role === 'MANAGER' || currentUser.role === 'SUPER_ADMIN') && pendingCount > 0 ? pendingCount : undefined}/>
               )}
+              {currentUser && (
+                <SidebarItem icon={<Bell size={16}/>} label="Thông báo" active={isNotifPanelOpen} onClick={() => { setIsNotifPanelOpen(true); setIsMobileMenuOpen(false); }} badge={unreadCount > 0 ? unreadCount : undefined} />
+              )}
               {(currentUser?.role === 'MANAGER' || currentUser?.role === 'SUPER_ADMIN') && (
                 <SidebarItem icon={<BarChart3 size={16}/>} label="Báo cáo" active={viewMode === 'REPORTS'} onClick={() => { setViewMode('REPORTS'); setIsMobileMenuOpen(false); }} />
               )}
@@ -825,6 +1105,9 @@ export default function App() {
           )}
           {currentUser && (
             <SidebarItem icon={<MessageSquare size={15}/>} label="Yêu cầu" active={viewMode === 'REQUESTS'} onClick={() => setViewMode('REQUESTS')} badge={(currentUser.role === 'MANAGER' || currentUser.role === 'SUPER_ADMIN') && pendingCount > 0 ? pendingCount : undefined}/>
+          )}
+          {currentUser && (
+            <SidebarItem icon={<Bell size={15}/>} label="Thông báo" active={isNotifPanelOpen} onClick={() => setIsNotifPanelOpen(!isNotifPanelOpen)} badge={unreadCount > 0 ? unreadCount : undefined} />
           )}
           {(currentUser?.role === 'MANAGER' || currentUser?.role === 'SUPER_ADMIN') && (
             <SidebarItem icon={<BarChart3 size={15}/>} label="Báo cáo" active={viewMode === 'REPORTS'} onClick={() => setViewMode('REPORTS')} />
@@ -892,6 +1175,42 @@ export default function App() {
             {viewMode === 'DASHBOARD' && !currentUser && (
               <Button variant="mono" size="sm" onClick={() => setIsLoginPageOpen(true)} icon={<LogIn size={14}/>}>Đăng nhập</Button>
             )}
+          </div>
+        )}
+
+        {/* Platform Tab Switcher */}
+        {(viewMode === 'DASHBOARD' || viewMode === 'MY_AVAILABILITY' || viewMode === 'REQUESTS') && (
+          <div className="mb-4 flex items-center gap-1 p-1 rounded-xl w-fit" style={{background:'#F5F5F5',border:'1px solid #E5E5E5'}}>
+            {(['tiktok', 'shopee'] as Platform[]).map(p => {
+              const cfg = PLATFORM_CONFIG[p];
+              const isActive = activePlatform === p;
+              const count = p === 'tiktok'
+                ? schedule.filter(s => s.platform === 'tiktok').length
+                : schedule.filter(s => s.platform === 'shopee').length;
+              return (
+                <button
+                  key={p}
+                  onClick={() => setActivePlatform(p)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-semibold transition-all"
+                  style={{
+                    background: isActive ? '#FFFFFF' : 'transparent',
+                    color: isActive ? cfg.color : '#A3A3A3',
+                    boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                    border: isActive ? '1px solid #E5E5E5' : '1px solid transparent',
+                  }}
+                >
+                  <PlatformIcon platform={p} size={16} />
+                  {cfg.label}
+                  {count > 0 && (
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                      style={{
+                        background: isActive ? cfg.bgLight : '#EBEBEB',
+                        color: isActive ? cfg.color : '#A3A3A3',
+                      }}>{count}</span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         )}
         
@@ -1095,7 +1414,7 @@ export default function App() {
 
               {/* Shift cards for selected day */}
               <div className="space-y-2">
-                {shifts.map(shift => {
+                {platformShifts.map(shift => {
                   const slot = currentWeekSchedule.find(s => s.dayIndex === selectedDayIndex && s.shiftId === shift.id);
                   const ops = users.find(u => u.id === slot?.opsUserId);
                   const isMyShift = slot?.streamerAssignments.some(sa => sa.userId === currentUser?.id) || slot?.opsUserId === currentUser?.id;
@@ -1190,7 +1509,7 @@ export default function App() {
                       </tr>
                     </thead>
                     <tbody>
-                      {shifts.map((shift, sIdx) => (
+                      {platformShifts.map((shift, sIdx) => (
                         <tr key={shift.id} style={{borderTop: sIdx > 0 ? '1px solid #F5F5F5' : 'none'}}>
                           {/* Shift label — sticky */}
                           <td className="sticky left-0 z-10 border-r align-middle" style={{background:'#FFFFFF',borderColor:'#F0F0F0',padding:'10px 14px',minHeight:80}}>
@@ -1349,7 +1668,7 @@ export default function App() {
 
               {/* Shift toggle cards */}
               <div className="space-y-2">
-                {shifts.map(shift => {
+                {platformShifts.map(shift => {
                   const isAvailable = currentWeekAvailabilities.some(
                     a => a.userId === currentUser.id && a.dayIndex === selectedDayIndex && a.shiftId === shift.id
                   );
@@ -1427,7 +1746,7 @@ export default function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {shifts.map((shift, sIdx) => (
+                    {platformShifts.map((shift, sIdx) => (
                       <tr key={shift.id} style={{borderTop: sIdx > 0 ? '1px solid #F5F5F5' : 'none'}}>
                         <td className="sticky left-0 z-10 border-r" style={{background:'#FFFFFF',borderColor:'#F0F0F0',padding:'10px 14px'}}>
                           <p className="text-[12px] font-semibold leading-tight" style={{color:'#171717'}}>{shift.name}</p>
@@ -1472,7 +1791,7 @@ export default function App() {
         {/* Requests Management Section */}
         {viewMode === 'REQUESTS' && currentUser && (() => {
           // Role-based filter: Manager sees all, staff sees only their own
-          const visibleRequests = currentUser.role === 'MANAGER'
+          const visibleRequests = canManageRequests
             ? requests
             : requests.filter(r => r.userId === currentUser.id);
 
@@ -1485,25 +1804,15 @@ export default function App() {
                 <div>
                   <h3 className="text-[15px] font-bold flex items-center gap-2" style={{color:'#171717'}}>
                     <MessageSquare size={15} style={{color:'#737373'}}/>
-                    {currentUser.role === 'MANAGER' ? 'Tất cả yêu cầu' : 'Yêu cầu của tôi'}
+                    {canManageRequests ? 'Tất cả yêu cầu' : 'Yêu cầu của tôi'}
                   </h3>
                   <p className="text-[12px] mt-0.5" style={{color:'#A3A3A3'}}>
-                    {currentUser.role === 'MANAGER'
+                    {canManageRequests
                       ? `${visibleRequests.length} yêu cầu${pendingVisible > 0 ? ` · ${pendingVisible} chờ duyệt` : ''}`
                       : `${visibleRequests.length} yêu cầu đã gửi`}
                   </p>
                 </div>
-                {/* Staff: new request button */}
-                {currentUser.role !== 'MANAGER' && (
-                  <button
-                    onClick={() => { setRequestForm({ type: 'LEAVE', reason: '', slot: undefined }); setIsRequestModalOpen(true); }}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-bold transition-all hover:opacity-90"
-                    style={{background:'#171717', color:'#fff'}}
-                  >
-                    <Plus size={13}/> Tạo yêu cầu
-                  </button>
-                )}
-              </div>
+                </div>
 
               {visibleRequests.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 rounded-2xl border border-dashed text-center"
@@ -1513,12 +1822,12 @@ export default function App() {
                     <MessageSquare size={20} style={{color:'#D4D4D4'}}/>
                   </div>
                   <p className="text-[14px] font-semibold" style={{color:'#171717'}}>
-                    {currentUser.role === 'MANAGER' ? 'Chưa có yêu cầu nào' : 'Bạn chưa gửi yêu cầu nào'}
+                    {canManageRequests ? 'Chưa có yêu cầu nào' : 'Bạn chưa gửi yêu cầu nào'}
                   </p>
                   <p className="text-[12px] mt-1" style={{color:'#A3A3A3'}}>
-                    {currentUser.role === 'MANAGER'
+                    {canManageRequests
                       ? 'Các yêu cầu xin nghỉ hoặc đổi ca sẽ xuất hiện tại đây.'
-                      : 'Nhấn "Tạo yêu cầu" để gửi yêu cầu xin nghỉ hoặc đổi ca.'}
+                      : 'Chọn ca của bạn trong lịch làm việc để gửi yêu cầu xin nghỉ hoặc đổi ca.'}
                   </p>
                 </div>
               ) : (
@@ -1576,6 +1885,7 @@ export default function App() {
                             }`}>
                               {req.type === 'LEAVE' ? 'Xin nghỉ' : 'Đổi ca'}
                             </span>
+                            <PlatformBadge platform={req.platform} size="sm" />
                             <span className="text-[11px]" style={{color:'#A3A3A3'}}>·</span>
                             <span className="text-[11px] font-medium" style={{color:'#737373'}}>{DAYS_OF_WEEK[req.dayIndex]}</span>
                             <span className="text-[11px]" style={{color:'#A3A3A3'}}>·</span>
@@ -1597,7 +1907,7 @@ export default function App() {
                         </div>
 
                         {/* Manager approve/reject actions */}
-                        {currentUser.role === 'MANAGER' && isPending && (
+                         {canManageRequests && isPending && (
                           <div className="flex gap-2 pt-1 pl-2">
                             <button
                               onClick={() => handleProcessRequest(req.id, 'REJECTED')}
@@ -1628,6 +1938,7 @@ export default function App() {
                   <tr style={{background:'#FAFAFA',borderBottom:'1px solid #F0F0F0'}}>
                     <th className="p-4 text-left text-[10px] font-semibold uppercase tracking-widest" style={{color:'#A3A3A3'}}>Nhân sự</th>
                     <th className="p-4 text-left text-[10px] font-semibold uppercase tracking-widest" style={{color:'#A3A3A3'}}>Vai trò & Rank</th>
+                    <th className="p-4 text-left text-[10px] font-semibold uppercase tracking-widest hidden sm:table-cell" style={{color:'#A3A3A3'}}>Nền tảng</th>
                     <th className="p-4 text-left text-[10px] font-semibold uppercase tracking-widest hidden sm:table-cell" style={{color:'#A3A3A3'}}>Doanh thu</th>
                     <th className="p-4 text-right text-[10px] font-semibold uppercase tracking-widest" style={{color:'#A3A3A3'}}>Hành động</th>
                   </tr>
@@ -1648,6 +1959,13 @@ export default function App() {
                         <div className="flex flex-col gap-1.5 items-start">
                           <RoleBadge role={u.role} />
                           {u.role === 'STAFF' && <RankBadge rank={u.rank} size="sm" />}
+                        </div>
+                      </td>
+                      <td className="p-4 hidden sm:table-cell">
+                        <div className="flex gap-1 flex-wrap">
+                          {(u.platforms || ['tiktok']).map(p => (
+                            <PlatformBadge key={p} platform={p} size="sm" />
+                          ))}
                         </div>
                       </td>
                       <td className="p-4 hidden sm:table-cell align-middle">
@@ -1701,6 +2019,33 @@ export default function App() {
                     <p className="text-[12px] mt-0.5" style={{color:'#A3A3A3'}}>Quản lý các khung giờ livestream.</p>
                  </div>
                </div>
+
+               {/* Platform filter tabs for shifts */}
+               <div className="flex items-center gap-1 p-1 rounded-xl w-fit mb-4" style={{background:'#F5F5F5',border:'1px solid #E5E5E5'}}>
+                 {(['tiktok', 'shopee'] as Platform[]).map(p => {
+                   const cfg = PLATFORM_CONFIG[p];
+                   const isActive = activePlatform === p;
+                   const count = shifts.filter(s => s.platform === p).length;
+                   return (
+                     <button
+                       key={p}
+                       onClick={() => setActivePlatform(p)}
+                       className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-all"
+                       style={{
+                         background: isActive ? '#FFFFFF' : 'transparent',
+                         color: isActive ? cfg.color : '#A3A3A3',
+                         boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                         border: isActive ? '1px solid #E5E5E5' : '1px solid transparent',
+                       }}
+                     >
+                       <PlatformIcon platform={p} size={14} />
+                       {cfg.label}
+                       <span className="text-[10px] font-bold px-1 py-0.5 rounded-full"
+                         style={{background: isActive ? cfg.bgLight : '#EBEBEB', color: isActive ? cfg.color : '#A3A3A3'}}>{count}</span>
+                     </button>
+                   );
+                 })}
+               </div>
                
                <div className="overflow-hidden rounded-xl border border-slate-200">
                   <table className="w-full text-sm text-left">
@@ -1713,7 +2058,7 @@ export default function App() {
                         </tr>
                      </thead>
                      <tbody className="divide-y divide-slate-100">
-                        {shifts.map(shift => (
+                        {shifts.filter(s => s.platform === activePlatform).map(shift => (
                            <tr key={shift.id} className="hover:bg-slate-50/50">
                               <td className="p-4 font-bold">{shift.name}</td>
                               <td className="p-4 font-mono">{shift.startTime} - {shift.endTime}</td>
@@ -1731,39 +2076,6 @@ export default function App() {
                      </tbody>
                   </table>
                </div>
-            </div>
-
-            {/* Zalo/Bot Configuration Section */}
-            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 md:p-8">
-              <div className="mb-6">
-                 <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2"><Bot className="text-blue-600"/> Cấu hình Bot & Webhook</h3>
-                 <p className="text-sm text-slate-500 mt-1">Kết nối Bot Telegram/Zalo Bridge để gửi thông báo vào Group.</p>
-              </div>
-              <div className="space-y-4 max-w-2xl">
-                 <div>
-                    <label className="block text-xs font-bold uppercase text-slate-500 mb-1.5 ml-1">Webhook / API Endpoint</label>
-                    <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold" value={zaloConfig.webhookUrl} onChange={e => setZaloConfig({...zaloConfig, webhookUrl: e.target.value})} placeholder="https://api.telegram.org/bot..." />
-                    <p className="text-[10px] text-slate-400 font-medium mt-1 ml-1">Nếu dùng Telegram, nhập: https://api.telegram.org/bot[TOKEN]/sendMessage</p>
-                 </div>
-                 
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-xs font-bold uppercase text-slate-500 mb-1.5 ml-1">Bot Token</label>
-                        <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold" value={zaloConfig.botToken} onChange={e => setZaloConfig({...zaloConfig, botToken: e.target.value})} placeholder="Nhập Token Bot..." />
-                    </div>
-                    <div>
-                        <label className="block text-xs font-bold uppercase text-slate-500 mb-1.5 ml-1">Group ID (Chat ID)</label>
-                        <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold" value={zaloConfig.groupId} onChange={e => setZaloConfig({...zaloConfig, groupId: e.target.value})} placeholder="Nhập ID nhóm (-100...)" />
-                    </div>
-                 </div>
-
-                 <div className="flex items-center gap-3 pt-4 border-t border-slate-100">
-                    <Button onClick={() => { localStorage.setItem('ls_zalo_config', JSON.stringify(zaloConfig)); alert("Đã lưu cấu hình!"); }} icon={<Save size={16}/>}>Lưu cấu hình</Button>
-                    <Button variant="secondary" onClick={handleTestBot} icon={isTestingBot ? <Loader2 size={16} className="animate-spin" /> : <Send size={16}/>} disabled={isTestingBot}>
-                        {isTestingBot ? 'Đang gửi...' : 'Test Gửi tin'}
-                    </Button>
-                 </div>
-              </div>
             </div>
           </div>
         )}
@@ -1882,6 +2194,16 @@ export default function App() {
                 </div>
                 <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold" value={userFormData.name || ''} onChange={e => setUserFormData({...userFormData, name: e.target.value})} placeholder="Họ và tên..." />
                 <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold" value={userFormData.zaloPhone || ''} onChange={e => setUserFormData({...userFormData, zaloPhone: e.target.value})} placeholder="Số Zalo..." />
+                {/* Avatar URL Field */}
+                <div>
+                  <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold" value={userFormData.avatar || ''} onChange={e => setUserFormData({...userFormData, avatar: e.target.value})} placeholder="Link ảnh đại diện (URL)..." />
+                  {userFormData.avatar && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <img src={userFormData.avatar} className="w-10 h-10 rounded-full object-cover border-2 border-slate-200" alt="Preview" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                      <span className="text-[10px] text-slate-400">Xem trước</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
             {/* Roles Selection */}
@@ -1908,6 +2230,39 @@ export default function App() {
             {userFormData.role === 'STAFF' && (
                 <input type="number" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold" value={userFormData.revenue || 0} onChange={e => setUserFormData({...userFormData, revenue: Number(e.target.value)})} placeholder="Doanh thu..." />
             )}
+            {/* Platform Selection */}
+            <div>
+              <label className="block text-[10px] font-black uppercase text-slate-400 mb-2 ml-1">Nền tảng Live</label>
+              <div className="grid grid-cols-2 gap-2">
+                {(['tiktok', 'shopee'] as Platform[]).map(p => {
+                  const cfg = PLATFORM_CONFIG[p];
+                  const isSelected = (userFormData.platforms || []).includes(p);
+                  return (
+                    <button
+                      key={p}
+                      onClick={() => {
+                        const current = userFormData.platforms || [];
+                        const next = isSelected
+                          ? current.filter(x => x !== p)
+                          : [...current, p];
+                        setUserFormData({...userFormData, platforms: next.length > 0 ? next : [p]});
+                      }}
+                      className={`flex items-center justify-center gap-2 p-3 rounded-xl border-2 text-[12px] font-bold transition-all ${
+                        isSelected ? 'shadow-md' : 'bg-white opacity-60'
+                      }`}
+                      style={{
+                        background: isSelected ? cfg.bgLight : undefined,
+                        borderColor: isSelected ? cfg.color : '#E5E5E5',
+                        color: isSelected ? cfg.color : '#A3A3A3',
+                      }}
+                    >
+                      <PlatformIcon platform={p} size={16} />
+                      {cfg.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
 
           <div className="pt-4 flex gap-2">
@@ -1960,17 +2315,134 @@ export default function App() {
                    <button onClick={() => setRequestForm({...requestForm, type: 'LEAVE'})} className={`p-3 rounded-xl border-2 font-black text-[10px] uppercase ${requestForm.type === 'LEAVE' ? 'bg-red-600 text-white' : 'bg-white'}`}>Xin nghỉ ca</button>
                 </div>
              </div>
-             {requestForm.type === 'SWAP' && (
-               <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold" value={requestForm.targetUserId || ''} onChange={e => setRequestForm({...requestForm, targetUserId: e.target.value})}>
-                    <option value="">-- Chọn đồng nghiệp --</option>
-                    {users.filter(u => u.id !== currentUser?.id && u.role === 'STAFF').map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-               </select>
-             )}
+              {requestForm.type === 'SWAP' && (
+                <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold" value={requestForm.targetUserId || ''} onChange={e => setRequestForm({...requestForm, targetUserId: e.target.value})}>
+                     <option value="">-- Chọn đồng nghiệp --</option>
+                     {users.filter(u => u.id !== currentUser?.id && u.role === (currentUser?.role === 'OPERATIONS' ? 'OPERATIONS' : 'STAFF')).map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                </select>
+              )}
              <textarea rows={3} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold resize-none" value={requestForm.reason} onChange={e => setRequestForm({...requestForm, reason: e.target.value})} placeholder="Lý do..."></textarea>
           </div>
           <div className="pt-2 flex gap-2">
             <Button variant="secondary" size="sm" className="flex-1 font-bold" onClick={() => setIsRequestModalOpen(false)}>Hủy</Button>
             <Button size="sm" className="flex-1 font-black" onClick={createRequest} icon={<Send size={14}/>}>Gửi yêu cầu</Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── Notification Slide-Over Panel ─────────────────────────── */}
+      {isNotifPanelOpen && (
+        <div className="fixed inset-0 z-50 flex">
+          <div className="absolute inset-0 bg-black/20 backdrop-blur-sm transition-opacity" onClick={() => setIsNotifPanelOpen(false)} />
+          <div className="relative ml-auto w-full sm:w-[400px] bg-white flex flex-col shadow-2xl h-full" style={{animation:'slideInRight 0.2s ease-out'}}>
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-5 gap-3" style={{borderBottom:'1px solid #F0F0F0', background: '#FAFAFA'}}>
+              <div className="flex items-center justify-between sm:justify-start w-full sm:w-auto">
+                <div className="flex items-center gap-2">
+                  <Bell size={20} style={{color:'#171717'}} />
+                  <h3 className="text-[17px] font-bold whitespace-nowrap" style={{color:'#171717'}}>Thông báo</h3>
+                  {unreadCount > 0 && (
+                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-red-500 text-white whitespace-nowrap">{unreadCount}</span>
+                  )}
+                </div>
+                <button onClick={() => setIsNotifPanelOpen(false)} className="sm:hidden p-2 rounded-xl bg-white shadow-sm border border-slate-200"><X size={18} style={{color:'#171717'}} /></button>
+              </div>
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                {unreadCount > 0 && (
+                  <button onClick={markAllNotifsRead} className="flex-1 sm:flex-none text-[12px] font-bold text-center py-2.5 sm:py-0 text-blue-600 bg-blue-50 sm:bg-transparent rounded-lg sm:rounded-none">Đọc tất cả</button>
+                )}
+                {(currentUser?.role === 'MANAGER' || currentUser?.role === 'SUPER_ADMIN') && (
+                  <button onClick={() => setIsNotifModalOpen(true)} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2.5 sm:py-2.5 rounded-xl text-[12px] font-bold transition-all hover:bg-slate-800" style={{background:'#171717', color:'#fff'}}>
+                    <Plus size={14} /> Gửi TB
+                  </button>
+                )}
+                <div className="w-px h-6 bg-slate-200 mx-1 hidden sm:block"></div>
+                <button onClick={() => setIsNotifPanelOpen(false)} className="hidden sm:flex p-2 rounded-xl hover:bg-slate-200 transition-colors"><X size={18} style={{color:'#737373'}} /></button>
+              </div>
+            </div>
+            {/* Notification List */}
+            <div className="flex-1 overflow-y-auto">
+              {myNotifications.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3" style={{background:'#F5F5F5'}}>
+                    <Bell size={20} style={{color:'#D4D4D4'}} />
+                  </div>
+                  <p className="text-[13px] font-semibold" style={{color:'#A3A3A3'}}>Chưa có thông báo nào</p>
+                </div>
+              ) : (
+                <div className="divide-y" style={{borderColor:'#F5F5F5'}}>
+                  {myNotifications.map(notif => {
+                    const isRead = (notif.readBy || []).includes(currentUser?.id || '');
+                    const timeAgo = (() => {
+                      const mins = Math.floor((Date.now() - notif.createdAt) / 60000);
+                      if (mins < 1) return 'Vừa xong';
+                      if (mins < 60) return `${mins} phút trước`;
+                      const hrs = Math.floor(mins / 60);
+                      if (hrs < 24) return `${hrs} giờ trước`;
+                      return `${Math.floor(hrs / 24)} ngày trước`;
+                    })();
+                    const iconColor = notif.type === 'ANNOUNCEMENT' ? '#2563EB'
+                      : notif.type === 'REQUEST_APPROVED' ? '#16A34A'
+                      : notif.type === 'REQUEST_REJECTED' ? '#EF4444'
+                      : notif.type === 'REQUEST_NEW' ? '#F59E0B'
+                      : '#6366F1';
+                    return (
+                      <div key={notif.id}
+                        onClick={() => !isRead && markNotifRead(notif.id)}
+                        className="flex gap-3 p-4 cursor-pointer transition-colors hover:bg-slate-50"
+                        style={{background: isRead ? 'transparent' : '#FAFBFF'}}
+                      >
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{background: `${iconColor}15`}}>
+                          <Bell size={14} style={{color: iconColor}} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-[12px] font-bold truncate" style={{color:'#171717'}}>{notif.title}</p>
+                            {!isRead && <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />}
+                          </div>
+                          {notif.message !== notif.title && (
+                            <p className="text-[11px] mt-0.5 leading-relaxed" style={{color:'#737373'}}>{notif.message}</p>
+                          )}
+                          <div className="flex items-center gap-2 mt-1.5">
+                            {notif.platform && <PlatformBadge platform={notif.platform} size="sm" />}
+                            <span className="text-[10px]" style={{color:'#A3A3A3'}}>{timeAgo}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Announcement Modal (Manager) ─────────────────────────── */}
+      <Modal isOpen={isNotifModalOpen} onClose={() => setIsNotifModalOpen(false)} title="Gửi thông báo">
+        <div className="space-y-4">
+          <div>
+            <label className="block text-[10px] font-black uppercase text-slate-400 mb-1.5 ml-1">Tiêu đề</label>
+            <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold" value={notifFormData.title} onChange={e => setNotifFormData({...notifFormData, title: e.target.value})} placeholder="VD: Nhắc đăng ký lịch live..." />
+          </div>
+          <div>
+            <label className="block text-[10px] font-black uppercase text-slate-400 mb-1.5 ml-1">Nội dung</label>
+            <textarea rows={3} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold resize-none" value={notifFormData.message} onChange={e => setNotifFormData({...notifFormData, message: e.target.value})} placeholder="Nội dung thông báo..." />
+          </div>
+          <div className="flex gap-2 pt-2">
+            <Button variant="secondary" className="flex-1" onClick={() => setIsNotifModalOpen(false)}>Hủy</Button>
+            <Button className="flex-1" onClick={() => {
+              if (!notifFormData.title || !notifFormData.message) { alert('Vui lòng nhập tiêu đề và nội dung!'); return; }
+              addNotification({
+                type: 'ANNOUNCEMENT',
+                title: notifFormData.title,
+                message: notifFormData.message,
+                createdBy: currentUser?.id,
+              });
+              setNotifFormData({ title: '', message: '' });
+              setIsNotifModalOpen(false);
+              alert('Đã gửi thông báo đến tất cả nhân sự!');
+            }} icon={<Send size={14} />}>Gửi thông báo</Button>
           </div>
         </div>
       </Modal>

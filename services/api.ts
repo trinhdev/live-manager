@@ -1,7 +1,42 @@
 
 import { supabase } from './supabase';
-import { User, Brand, Shift, Availability, ScheduleItem, ShiftRequest } from '../types';
+import { User, Brand, Shift, Availability, ScheduleItem, ShiftRequest, Platform, AppNotification } from '../types';
 import { INITIAL_USERS, INITIAL_SHIFTS } from '../constants';
+
+export const sendOneSignalPush = async (title: string, message: string, targetUserIds?: string[] | null) => {
+  const APP_ID = (import.meta as any).env.VITE_ONESIGNAL_APP_ID;
+  const REST_API_KEY = (import.meta as any).env.VITE_ONESIGNAL_REST_API_KEY;
+
+  if (!APP_ID || APP_ID === 'CHANGEME_APP_ID' || !REST_API_KEY || REST_API_KEY === 'CHANGEME_REST_API_KEY') {
+    return;
+  }
+
+  const payload: any = {
+    app_id: APP_ID,
+    headings: { en: title, vi: title },
+    contents: { en: message, vi: message },
+    target_channel: "push"
+  };
+
+  if (targetUserIds && targetUserIds.length > 0) {
+    payload.include_aliases = { external_id: targetUserIds };
+  } else {
+    payload.included_segments = ["All"];
+  }
+
+  try {
+    await fetch('https://onesignal.com/api/v1/notifications', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Basic ${REST_API_KEY}`
+      },
+      body: JSON.stringify(payload)
+    });
+  } catch (error) {
+    console.error("Lỗi gửi OneSignal Push:", error);
+  }
+};
 
 // Helper: map User from DB (snake_case) to App (camelCase)
 const mapUser = (u: any): User => ({
@@ -9,6 +44,7 @@ const mapUser = (u: any): User => ({
   name: u.name,
   role: u.role,
   brandId: u.brand_id,
+  platforms: u.platforms || ['tiktok'],
   rank: u.rank,
   password: u.password,
   avatar: u.avatar,
@@ -24,6 +60,7 @@ const mapShift = (s: any): Shift => ({
   startTime: s.start_time || s.startTime,
   endTime: s.end_time || s.endTime,
   color: s.color,
+  platform: s.platform || 'tiktok',
 });
 
 // Helper: map Brand
@@ -74,7 +111,6 @@ export const api = {
     try {
       let query = supabase.from('users').select('*');
       if (brandId) {
-        // Filter brand users; exclude SUPER_ADMIN from brand views
         query = query.eq('brand_id', brandId);
       }
       const { data, error } = await query;
@@ -96,6 +132,7 @@ export const api = {
     const dbUser: any = {
       ...user,
       brand_id: user.brandId,
+      platforms: user.platforms || ['tiktok'],
       zalo_phone: user.zaloPhone,
       is_availability_submitted: user.isAvailabilitySubmitted,
     };
@@ -104,8 +141,6 @@ export const api = {
     delete dbUser.isAvailabilitySubmitted;
 
     if (oldId && oldId !== user.id) {
-      // Allow modifying the primary key (username/id) through UPDATE
-      // Will work if the Supabase ON UPDATE CASCADE constraints are applied via patch
       const { error } = await supabase.from('users').update(dbUser).eq('id', oldId);
       if (error) throw error;
       const { data, error: err2 } = await supabase.from('users').select().eq('id', user.id).single();
@@ -125,17 +160,18 @@ export const api = {
 
   // ─── SHIFTS ────────────────────────────────────────────────
 
-  async getShifts(brandId?: string): Promise<Shift[]> {
+  async getShifts(brandId?: string, platform?: Platform): Promise<Shift[]> {
     try {
       let query = supabase.from('shifts').select('*').order('start_time', { ascending: true });
       if (brandId) query = query.eq('brand_id', brandId);
+      if (platform) query = query.eq('platform', platform);
       const { data, error } = await query;
       if (error) {
         console.warn('Supabase getShifts error:', error.message);
         return [];
       }
       if (!data || data.length === 0) return [];
-      return data.map(mapShift).sort((a, b) => a.startTime.localeCompare(b.startTime));
+      return data.map(mapShift).sort((a: Shift, b: Shift) => a.startTime.localeCompare(b.startTime));
     } catch (e) {
       console.warn('API Exception (shifts)');
       return [];
@@ -149,6 +185,7 @@ export const api = {
       start_time: shift.startTime,
       end_time: shift.endTime,
       color: shift.color,
+      platform: shift.platform || 'tiktok',
     };
     if (brandId) dbShift.brand_id = brandId;
     const { data, error } = await supabase.from('shifts').upsert(dbShift).select().single();
@@ -163,10 +200,11 @@ export const api = {
 
   // ─── SCHEDULE ──────────────────────────────────────────────
 
-  async getSchedule(weekId: string, brandId?: string): Promise<ScheduleItem[]> {
+  async getSchedule(weekId: string, brandId?: string, platform?: Platform): Promise<ScheduleItem[]> {
     try {
       let query = supabase.from('schedule').select('*').eq('week_id', weekId);
       if (brandId) query = query.eq('brand_id', brandId);
+      if (platform) query = query.eq('platform', platform);
       const { data, error } = await query;
       if (error) throw error;
       return (data || []).map((item: any) => ({
@@ -175,6 +213,7 @@ export const api = {
         dayIndex: item.day_index,
         shiftId: item.shift_id,
         brandId: item.brand_id,
+        platform: item.platform || 'tiktok',
         opsUserId: item.ops_user_id,
         note: item.note,
         isFinalized: item.is_finalized,
@@ -193,6 +232,7 @@ export const api = {
       day_index: item.dayIndex,
       shift_id: item.shiftId,
       ops_user_id: item.opsUserId,
+      platform: item.platform || 'tiktok',
       note: item.note,
       is_finalized: item.isFinalized,
       streamer_assignments: item.streamerAssignments,
@@ -208,19 +248,21 @@ export const api = {
     if (error) throw error;
   },
 
-  async clearSchedule(weekId: string, brandId?: string): Promise<void> {
+  async clearSchedule(weekId: string, brandId?: string, platform?: Platform): Promise<void> {
     let query = supabase.from('schedule').delete().eq('week_id', weekId);
     if (brandId) query = (query as any).eq('brand_id', brandId);
+    if (platform) query = (query as any).eq('platform', platform);
     const { error } = await query;
     if (error) throw error;
   },
 
   // ─── AVAILABILITY ──────────────────────────────────────────
 
-  async getAvailabilities(weekId: string, brandId?: string): Promise<Availability[]> {
+  async getAvailabilities(weekId: string, brandId?: string, platform?: Platform): Promise<Availability[]> {
     try {
       let query = supabase.from('availabilities').select('*').eq('week_id', weekId);
       if (brandId) query = query.eq('brand_id', brandId);
+      if (platform) query = query.eq('platform', platform);
       const { data, error } = await query;
       if (error) throw error;
       return (data || []).map((item: any) => ({
@@ -229,6 +271,7 @@ export const api = {
         dayIndex: item.day_index,
         shiftId: item.shift_id,
         brandId: item.brand_id,
+        platform: item.platform || 'tiktok',
       })) as Availability[];
     } catch (e) {
       return [];
@@ -241,6 +284,7 @@ export const api = {
       week_id: av.weekId,
       day_index: av.dayIndex,
       shift_id: av.shiftId,
+      platform: av.platform || 'tiktok',
     };
     if (av.brandId) matchObj.brand_id = av.brandId;
 
@@ -259,6 +303,7 @@ export const api = {
         week_id: av.weekId,
         day_index: av.dayIndex,
         shift_id: av.shiftId,
+        platform: av.platform || 'tiktok',
       };
       if (av.brandId) insertObj.brand_id = av.brandId;
       await supabase.from('availabilities').insert(insertObj);
@@ -275,7 +320,7 @@ export const api = {
 
   // ─── REQUESTS ──────────────────────────────────────────────
 
-  async getRequests(weekId: string, brandId?: string): Promise<ShiftRequest[]> {
+  async getRequests(weekId: string, brandId?: string, platform?: Platform): Promise<ShiftRequest[]> {
     try {
       let query = supabase
         .from('requests')
@@ -283,6 +328,7 @@ export const api = {
         .eq('week_id', weekId)
         .order('created_at', { ascending: false });
       if (brandId) query = query.eq('brand_id', brandId);
+      if (platform) query = query.eq('platform', platform);
       const { data, error } = await query;
       if (error) throw error;
       return (data || []).map((item: any) => ({
@@ -294,6 +340,7 @@ export const api = {
         dayIndex: item.day_index,
         shiftId: item.shift_id,
         brandId: item.brand_id,
+        platform: item.platform || 'tiktok',
         reason: item.reason,
         targetUserId: item.target_user_id,
         targetUserName: item.target_user_name,
@@ -314,6 +361,7 @@ export const api = {
       week_id: req.weekId,
       day_index: req.dayIndex,
       shift_id: req.shiftId,
+      platform: req.platform || 'tiktok',
       reason: req.reason,
       target_user_id: req.targetUserId,
       target_user_name: req.targetUserName,
@@ -329,4 +377,74 @@ export const api = {
     const { error } = await supabase.from('requests').update({ status }).eq('id', id);
     if (error) throw error;
   },
+
+  // ── Notifications ──────────────────────────────────────────────────────────
+  
+  async getNotifications(): Promise<AppNotification[]> {
+    const { data, error } = await supabase
+      .from('notifications')
+      .select('*')
+      .order('createdAt', { ascending: false })
+      .limit(50);
+    
+    if (error) {
+      console.error('Lỗi khi fetch notifications', error);
+      return [];
+    }
+    
+    return data.map((n: any) => ({
+      id: n.id,
+      type: n.type,
+      title: n.title,
+      message: n.message,
+      platform: n.platform,
+      targetUserIds: n.targetUserIds,
+      createdBy: n.createdBy,
+      createdAt: Number(n.createdAt),
+      readBy: n.readBy || []
+    }));
+  },
+
+  async createNotification(notif: Omit<AppNotification, 'id' | 'createdAt' | 'readBy'>): Promise<AppNotification> {
+    const payload = {
+      type: notif.type,
+      title: notif.title,
+      message: notif.message,
+      platform: notif.platform || null,
+      targetUserIds: notif.targetUserIds || null,
+      createdBy: notif.createdBy || null,
+      createdAt: Date.now(),
+      readBy: []
+    };
+
+    const { data, error } = await supabase.from('notifications').insert(payload).select().single();
+    if (error) {
+      console.error('Lỗi khi tạo notification', error);
+      throw error;
+    }
+    
+    // Gửi Push Notification qua OneSignal ngay lập tức cho các thiết bị đã tắt app
+    sendOneSignalPush(notif.title, notif.message, notif.targetUserIds);
+    
+    return {
+      id: data.id,
+      type: data.type,
+      title: data.title,
+      message: data.message,
+      platform: data.platform,
+      targetUserIds: data.targetUserIds,
+      createdBy: data.createdBy,
+      createdAt: Number(data.createdAt),
+      readBy: data.readBy || []
+    };
+  },
+
+  async updateNotification(id: string, updates: Partial<AppNotification>): Promise<void> {
+    const { error } = await supabase.from('notifications').update(updates).eq('id', id);
+    if (error) {
+      console.error('Lỗi khi update notification', error);
+      throw error;
+    }
+  }
+
 };

@@ -1,5 +1,5 @@
 
-import { User, Availability, Shift, ScheduleItem, Rank } from '../types';
+import { User, Availability, Shift, ScheduleItem, Rank, Platform } from '../types';
 import { DAYS_OF_WEEK } from '../constants';
 
 const RANK_PRIORITY: Record<Rank, number> = {
@@ -14,31 +14,32 @@ export const autoGenerateSchedule = (
   shifts: Shift[],
   availabilities: Availability[],
   existingSchedule: ScheduleItem[],
-  currentWeekId: string
+  currentWeekId: string,
+  platform: Platform = 'tiktok'
 ): ScheduleItem[] => {
   
-  // Filter data for current week only
-  const weekAvailabilities = availabilities.filter(a => a.weekId === currentWeekId);
-  const weekSchedule = existingSchedule.filter(s => s.weekId === currentWeekId);
+  // Filter data for current week and platform only
+  const weekAvailabilities = availabilities.filter(a => a.weekId === currentWeekId && a.platform === platform);
+  const weekSchedule = existingSchedule.filter(s => s.weekId === currentWeekId && s.platform === platform);
   
-  // Start with existing schedule for this week to preserve manual edits if needed, 
-  // or empty array if we want a fresh start. Here we do fresh start + keep manual logic outside.
-  // For simplicity in this demo, we generate a fresh list to be merged in App.tsx
+  // Filter shifts for this platform
+  const platformShifts = shifts.filter(s => s.platform === platform);
+  
+  // Filter users who work on this platform
+  const platformUsers = users.filter(u => u.platforms?.includes(platform));
+  
   const newSchedule: ScheduleItem[] = [];
 
   for (let dayIndex = 0; dayIndex < DAYS_OF_WEEK.length; dayIndex++) {
-    for (const shift of shifts) {
-      // Skip if slot already filled in existing schedule (optional logic, but let's overwrite for "Auto")
-      
+    for (const shift of platformShifts) {
       // 1. Find who is available for this slot (Streamers only)
-      const availableStreamers = users.filter(user => 
+      const availableStreamers = platformUsers.filter(user => 
         user.role === 'STAFF' &&
         weekAvailabilities.some(a => a.userId === user.id && a.dayIndex === dayIndex && a.shiftId === shift.id)
       );
 
       // 2. Sort candidates by Rank (Revenue)
       availableStreamers.sort((a, b) => {
-        // Fallback for missing rank
         const rankA = a.rank || 'C';
         const rankB = b.rank || 'C';
         const rankDiff = RANK_PRIORITY[rankB] - RANK_PRIORITY[rankA];
@@ -56,10 +57,11 @@ export const autoGenerateSchedule = (
 
         if (topCandidate) {
             newSchedule.push({
-              id: `${currentWeekId}-${dayIndex}-${shift.id}-${Date.now()}`,
+              id: `${currentWeekId}-${platform}-${dayIndex}-${shift.id}-${Date.now()}`,
               dayIndex,
               shiftId: shift.id,
               weekId: currentWeekId,
+              platform,
               streamerAssignments: [{ userId: topCandidate.id }],
               opsUserId: null, 
               note: 'Tự động xếp'

@@ -3,6 +3,8 @@ export type Role = 'SUPER_ADMIN' | 'MANAGER' | 'STAFF' | 'OPERATIONS';
 
 export type Rank = 'S' | 'A' | 'B' | 'C';
 
+export type Platform = 'tiktok' | 'shopee';
+
 export interface Brand {
   id: string;       // slug dùng trong URL: 'gimmetee'
   name: string;     // Tên hiển thị: 'Gimmetee'
@@ -16,6 +18,7 @@ export interface User {
   name: string;
   role: Role;
   brandId?: string;            // null / undefined cho SUPER_ADMIN
+  platforms?: Platform[];      // ['tiktok'], ['shopee'], ['tiktok','shopee']
   rank?: Rank;
   password: string;
   avatar?: string;
@@ -30,6 +33,7 @@ export interface Shift {
   startTime: string;
   endTime: string;
   color: string;
+  platform: Platform;
 }
 
 export interface Availability {
@@ -38,6 +42,7 @@ export interface Availability {
   shiftId: string;
   weekId: string;
   brandId?: string;
+  platform: Platform;
 }
 
 export interface StreamerAssignment {
@@ -51,6 +56,7 @@ export interface ScheduleItem {
   shiftId: string;
   weekId: string;
   brandId?: string;
+  platform: Platform;
   streamerAssignments: StreamerAssignment[];
   opsUserId: string | null;
   note?: string;
@@ -69,6 +75,7 @@ export interface ShiftRequest {
   shiftId: string;
   weekId: string;
   brandId?: string;
+  platform: Platform;
   reason: string;
   proposedTime?: string;
   targetUserId?: string;
@@ -78,3 +85,17 @@ export interface ShiftRequest {
 }
 
 export type ViewMode = 'DASHBOARD' | 'MY_AVAILABILITY' | 'STAFF_MANAGEMENT' | 'SETTINGS' | 'REQUESTS' | 'REPORTS';
+
+export type NotificationType = 'ANNOUNCEMENT' | 'REMINDER' | 'REQUEST_NEW' | 'REQUEST_APPROVED' | 'REQUEST_REJECTED' | 'AVAILABILITY_REGISTERED';
+
+export interface AppNotification {
+  id: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  platform?: Platform;
+  targetUserIds?: string[];   // null = all, array = specific users
+  createdBy?: string;
+  createdAt: number;
+  readBy?: string[];          // user IDs who have read this
+}
