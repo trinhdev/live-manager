@@ -185,8 +185,8 @@ export default function App() {
       const saved = localStorage.getItem('ls_user');
       if (saved) {
         const u = JSON.parse(saved);
-        // If staff, go to availability. If manager, go to dashboard.
-        return u.role === 'MANAGER' ? 'DASHBOARD' : 'MY_AVAILABILITY';
+        // Always default to Dashboard for all roles on first load
+        return 'DASHBOARD';
       }
     } catch (e) {}
     return 'DASHBOARD';
@@ -483,7 +483,8 @@ export default function App() {
            const userObj = lsUser ? JSON.parse(lsUser) : currentUser;
            const isForMe = !newNotif.targetUserIds || newNotif.targetUserIds.length === 0 || newNotif.targetUserIds.includes(userObj?.id || '');
            if (isForMe) {
-               new Notification(newNotif.title, { body: newNotif.message, icon: '/icon.jpg', tag: newNotif.id });
+               const appName = currentBrand ? currentBrand.name : 'LiveSync';
+               new Notification(`${appName} — ${newNotif.title}`, { body: newNotif.message, icon: '/icon.jpg', tag: newNotif.id });
            }
         }
       })
@@ -545,7 +546,7 @@ export default function App() {
     if (user.role === 'SUPER_ADMIN') {
       setViewMode('DASHBOARD');
     } else {
-      setViewMode(user.role === 'MANAGER' ? 'DASHBOARD' : 'MY_AVAILABILITY');
+      setViewMode('DASHBOARD');
     }
   };
 
