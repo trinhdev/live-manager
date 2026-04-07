@@ -263,7 +263,11 @@ export default function App() {
 
   const myNotifications = useMemo(() => {
     if (!currentUser) return [];
-    return notifications.filter(n => !n.targetUserIds || n.targetUserIds.includes(currentUser.id));
+    return notifications.filter(n => 
+      !n.targetUserIds || 
+      n.targetUserIds.includes(currentUser.id) || 
+      n.createdBy === currentUser.id
+    );
   }, [notifications, currentUser]);
 
   // Request notification permission on mount
@@ -466,7 +470,10 @@ export default function App() {
           targetUserIds: n.targetUserIds, createdBy: n.createdBy, createdAt: Number(n.createdAt), readBy: n.readBy || [] 
         };
         
-        setNotifications((prev: AppNotification[]) => [newNotif, ...prev]);
+        setNotifications((prev: AppNotification[]) => {
+            if (prev.some(x => x.id === newNotif.id)) return prev;
+            return [newNotif, ...prev];
+        });
         
         // Push notification if meant for me
         if ('Notification' in window && Notification.permission === 'granted') {
