@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Menu, X, Calendar, Search, Filter, Plus, ChevronLeft, ChevronRight, 
   MapPin, Clock, Users, Sun, Moon, CheckCircle2, ChevronDown, Lock,
-  Phone, AlertCircle, RefreshCw, BarChart3, Settings, Play, Image as ImageIcon, Copy, Key, Link as LinkIcon, Trash2, Edit2, Zap, Save, Check, CreditCard, Star, Activity, UserPlus, LogOut, LogIn, Monitor, Smartphone, Video, Camera, Mic, Volume2, Maximize, Minimize, Settings2, Sliders, Bell, MessageSquare, Briefcase, Award, TrendingUp, TrendingDown, Send, PauseCircle, PhoneCall, Inbox,
+  Phone, AlertCircle, RefreshCw, BarChart3, Settings, Play, Image as ImageIcon, Copy, Key, Link as LinkIcon, Trash2, Edit2, Zap, Save, Check, CreditCard, Star, Activity, UserPlus, LogOut, LogIn, Monitor, Smartphone, Video, Camera, Mic, Volume2, Maximize, Minimize, Settings2, Sliders, Bell, MessageSquare, Briefcase, Award, TrendingUp, TrendingDown, Send, PauseCircle, PhoneCall, Inbox, MoreHorizontal,
   ShieldCheck, Sparkles, Wrench, XCircle, History, Info, Layers, ArrowRightLeft, MessageCircle, MousePointer2, CalendarCheck, Mic2, Shield, Gem, Crown, ListTodo, RotateCcw, FileSpreadsheet, Download, Loader2, Palette, Bot, AlertTriangle
 } from 'lucide-react';
 import { User, Brand, Shift, Availability, ScheduleItem, ViewMode, Rank, Role, ShiftRequest, RequestStatus, RequestType, Platform, AppNotification, NotificationType } from './types';
@@ -175,6 +175,7 @@ export default function App() {
   });
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   // Platform State
   const [activePlatform, setActivePlatform] = useState<Platform>('tiktok');
 
@@ -1075,96 +1076,29 @@ export default function App() {
           <div className="blob-3"></div>
       </div>
       <div className="min-h-screen flex flex-col md:flex-row font-sans pb-20 md:pb-0 relative z-10 text-[#262626]">
-      {/* ── MOBILE TOP BAR ── */}
-      <header className="md:hidden sticky top-0 z-40 px-6 pt-10 pb-4 bg-gradient-to-b from-white/70 to-transparent backdrop-blur-[2px]">
-        <div className="flex justify-between items-center gap-2">
-            <div className="flex items-center gap-3 flex-1 min-w-0">
-                <button onClick={() => setIsMobileMenuOpen(true)} className="w-10 h-10 flex items-center justify-center flex-shrink-0 btn-surface border-none shadow-soft text-[#262626]">
-                  <Menu size={20} strokeWidth={1.5} />
-                </button>
-                <div className="min-w-0">
-                    <h1 className="text-[19px] font-medium tracking-tight text-[#262626] truncate">{currentBrand ? currentBrand.name : 'LiveSync'}</h1>
-                    <p className="text-[11px] font-normal text-[#A3A3A3] mt-0.5 truncate">{currentUser ? `Xin chào, ${currentUser.name}` : 'Phiên khách'}</p>
-                </div>
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              {currentUser && (
-                <button onClick={() => setIsNotifPanelOpen(true)} className="relative w-10 h-10 flex items-center justify-center btn-surface border-none shadow-soft text-app-text z-50">
-                  <Bell size={18} strokeWidth={1.5} />
-                  {unreadCount > 0 && <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-red-500"></span>}
-                </button>
-              )}
-              {!currentUser && (
-                <button onClick={() => setIsLoginPageOpen(true)} className="flex items-center gap-2 px-3 py-2 btn-surface border-none shadow-soft">
-                   <LogIn size={14} strokeWidth={2}/> <span className="text-[11px] font-medium">Đăng nhập</span>
-                </button>
-              )}
-            </div>
+      {/* ── MOBILE TOP BAR (sạch sẽ, không hamburger) ── */}
+      <header className="md:hidden sticky top-0 z-40 px-5 pt-10 pb-4 bg-gradient-to-b from-white/80 to-transparent backdrop-blur-[2px]">
+        <div className="flex justify-between items-center">
+          <div className="min-w-0">
+            <h1 className="text-[20px] font-semibold tracking-tight text-[#1A1A1A] truncate">{currentBrand ? currentBrand.name : 'LiveSync'}</h1>
+            <p className="text-[11px] font-light text-[#A3A3A3] mt-0.5">{currentUser ? currentUser.name : 'Chưa đăng nhập'}</p>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {currentUser && (
+              <button onClick={() => setIsNotifPanelOpen(true)} className="relative w-10 h-10 flex items-center justify-center btn-surface border border-white/80 shadow-soft text-[#262626]">
+                <Bell size={18} strokeWidth={1.5} />
+                {unreadCount > 0 && <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-red-500"></span>}
+              </button>
+            )}
+            {!currentUser && (
+              <button onClick={() => setIsLoginPageOpen(true)} className="flex items-center gap-1.5 px-3 py-2 btn-surface border border-white/80 shadow-soft text-[#262626]">
+                <LogIn size={14} strokeWidth={1.5}/> <span className="text-[12px] font-medium">Đăng nhập</span>
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
-      {/* ── MOBILE SLIDEOVER MENU ── */}
-      {isMobileMenuOpen && (
-        <div className="md:hidden fixed inset-0 z-50 flex">
-          <div className="absolute inset-0 bg-black/20 backdrop-blur-sm transition-opacity" onClick={() => setIsMobileMenuOpen(false)} />
-          <div className="relative w-[280px] bg-white/95 backdrop-blur-3xl h-full shadow-2xl flex flex-col" style={{animation:'slideInLeft 0.2s ease-out'}}>
-            <div className="p-6 border-b border-black/5 flex justify-between items-center bg-white/50">
-              <div className="flex items-center gap-2">
-                {currentBrand?.logoUrl ? (
-                  <img src={currentBrand.logoUrl} className="w-6 h-6 rounded object-cover" alt="" />
-                ) : (
-                  <div className="w-6 h-6 rounded flex items-center justify-center text-white text-[10px] font-bold" style={{background: currentBrand?.color || '#171717'}}>{currentBrand ? currentBrand.name.substring(0, 2).toUpperCase() : 'LS'}</div>
-                )}
-                <span className="text-[16px] font-semibold text-[#262626]">{currentBrand ? currentBrand.name : 'LiveSync'}</span>
-              </div>
-              <button onClick={() => setIsMobileMenuOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400"><X size={18} strokeWidth={1.5}/></button>
-            </div>
-
-            <div className="px-5 py-5 border-b border-black/5">
-              {currentUser ? (
-                <div className="flex items-center gap-3 p-3 btn-surface border border-slate-100">
-                  <img src={currentUser.avatar} className="w-9 h-9 rounded-full object-cover shadow-sm" alt="" />
-                  <div>
-                    <p className="text-[13px] font-medium text-[#262626]">{currentUser.name}</p>
-                    <p className="text-[10px] text-[#A3A3A3]">{currentUser.role === 'SUPER_ADMIN' ? 'Super Admin' : currentUser.role === 'MANAGER' ? 'Quản lý' : 'Nhân sự'}</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="p-2 text-[13px] text-[#737373]">Chưa đăng nhập</div>
-              )}
-            </div>
-
-            <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
-              <SidebarItem icon={<Calendar size={18}/>} label="Lịch trực" active={viewMode === 'DASHBOARD'} onClick={() => { setViewMode('DASHBOARD'); setIsMobileMenuOpen(false); }} />
-              <SidebarItem icon={<CheckCircle2 size={18}/>} label="Đăng ký ca" active={viewMode === 'MY_AVAILABILITY'} onClick={() => { setViewMode('MY_AVAILABILITY'); setIsMobileMenuOpen(false); }} />
-              <SidebarItem icon={<Inbox size={18}/>} label="Ca cần hỗ trợ" active={viewMode === 'REQUESTS'} onClick={() => { setViewMode('REQUESTS'); setIsMobileMenuOpen(false); }} badge={pendingCount > 0 ? pendingCount : undefined} />
-              
-              {(currentUser?.role === 'MANAGER' || currentUser?.role === 'SUPER_ADMIN') && (
-                <>
-                  <div className="px-3 pt-6 pb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400">Hệ thống</div>
-                  <SidebarItem icon={<BarChart3 size={18}/>} label="Báo cáo" active={viewMode === 'REPORTS'} onClick={() => { setViewMode('REPORTS'); setIsMobileMenuOpen(false); }} />
-                  <SidebarItem icon={<Users size={18}/>} label="Nhân sự" active={viewMode === 'STAFF_MANAGEMENT'} onClick={() => { setViewMode('STAFF_MANAGEMENT'); setIsMobileMenuOpen(false); }} />
-                  <SidebarItem icon={<Settings size={18}/>} label="Cấu hình" active={viewMode === 'SETTINGS'} onClick={() => { setViewMode('SETTINGS'); setIsMobileMenuOpen(false); }} />
-                </>
-              )}
-            </nav>
-            
-            <div className="p-6 border-t border-black/5 bg-white/50">
-              {currentUser ? (
-                <button onClick={handleLogout} className="flex items-center gap-2 text-red-500 font-medium text-[13px] px-3">
-                  <LogOut size={16} strokeWidth={1.5}/> {currentUser.role === 'SUPER_ADMIN' ? 'Về Panel Quản Trị' : 'Đăng xuất'}
-                </button>
-              ) : (
-                <button onClick={() => { setIsLoginPageOpen(true); setIsMobileMenuOpen(false); }} className="flex items-center gap-2 text-indigo-500 font-medium text-[13px] px-3">
-                  <LogIn size={16} strokeWidth={1.5}/> Đăng nhập
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Desktop Sidebar — minimal strip */}
       <aside className="hidden md:flex w-64 h-screen sticky top-0 flex-col z-30 bg-white/60 backdrop-blur-3xl overflow-y-auto shadow-soft border-r border-[#FFFFFF]">
         {/* Logo */}
         <div className="px-6 pt-10 pb-6 border-b border-black/5">
@@ -2589,30 +2523,81 @@ export default function App() {
 
       {/* ── MOBILE BOTTOM NAVIGATION ── */}
       {currentUser && (
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 w-full bottom-menu shadow-menu px-6 py-4 pb-8 flex justify-between items-center z-50">
-            <button onClick={() => setViewMode('DASHBOARD')} className={`flex flex-col items-center gap-1.5 w-16 transition-transform active:scale-95 ${viewMode === 'DASHBOARD' ? 'text-indigo-500' : 'text-slate-400'}`}>
+        <>
+          {/* More menu popup sheet */}
+          {isMoreMenuOpen && (
+            <div className="md:hidden fixed inset-0 z-[60]" onClick={() => setIsMoreMenuOpen(false)}>
+              <div className="absolute bottom-24 left-4 right-4 bg-white/95 backdrop-blur-3xl rounded-2xl shadow-2xl border border-white/80 p-4 grid grid-cols-3 gap-3">
+                <button onClick={() => { setViewMode('REPORTS'); setIsMoreMenuOpen(false); }} className={`flex flex-col items-center gap-2 py-4 rounded-xl transition-colors ${viewMode === 'REPORTS' ? 'bg-indigo-50 text-indigo-500' : 'text-slate-500 hover:bg-slate-50'}`}>
+                  <BarChart3 size={22} strokeWidth={1.5}/>
+                  <span className="text-[11px] font-medium">Báo cáo</span>
+                </button>
+                <button onClick={() => { setViewMode('STAFF_MANAGEMENT'); setIsMoreMenuOpen(false); }} className={`flex flex-col items-center gap-2 py-4 rounded-xl transition-colors ${viewMode === 'STAFF_MANAGEMENT' ? 'bg-indigo-50 text-indigo-500' : 'text-slate-500 hover:bg-slate-50'}`}>
+                  <Users size={22} strokeWidth={1.5}/>
+                  <span className="text-[11px] font-medium">Nhân sự</span>
+                </button>
+                <button onClick={() => { setViewMode('SETTINGS'); setIsMoreMenuOpen(false); }} className={`flex flex-col items-center gap-2 py-4 rounded-xl transition-colors ${viewMode === 'SETTINGS' ? 'bg-indigo-50 text-indigo-500' : 'text-slate-500 hover:bg-slate-50'}`}>
+                  <Settings size={22} strokeWidth={1.5}/>
+                  <span className="text-[11px] font-medium">Cấu hình</span>
+                </button>
+                {(currentUser.role === 'MANAGER' || currentUser.role === 'SUPER_ADMIN') && (
+                  <button onClick={() => { setIsNotifModalOpen(true); setIsMoreMenuOpen(false); }} className="flex flex-col items-center gap-2 py-4 rounded-xl text-slate-500 hover:bg-slate-50 transition-colors">
+                    <Bell size={22} strokeWidth={1.5}/>
+                    <span className="text-[11px] font-medium">Gửi TB</span>
+                  </button>
+                )}
+                <button onClick={() => { handleLogout(); setIsMoreMenuOpen(false); }} className="flex flex-col items-center gap-2 py-4 rounded-xl text-red-400 hover:bg-red-50 transition-colors">
+                  <LogOut size={22} strokeWidth={1.5}/>
+                  <span className="text-[11px] font-medium">Đăng xuất</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          <nav className="md:hidden fixed bottom-0 left-0 right-0 w-full bottom-menu shadow-menu z-50">
+            <div className="flex justify-around items-center px-2 py-3 pb-8">
+              <button onClick={() => setViewMode('DASHBOARD')} className={`flex flex-col items-center gap-1.5 flex-1 py-1 transition-transform active:scale-95 ${viewMode === 'DASHBOARD' ? 'text-indigo-500' : 'text-slate-400'}`}>
                 <Calendar size={22} strokeWidth={viewMode === 'DASHBOARD' ? 2 : 1.5} />
                 <span className={`text-[10px] ${viewMode === 'DASHBOARD' ? 'font-medium' : 'font-light'}`}>Lịch</span>
-            </button>
-            <button onClick={() => setViewMode('MY_AVAILABILITY')} className={`flex flex-col items-center gap-1.5 w-16 transition-transform active:scale-95 ${viewMode === 'MY_AVAILABILITY' ? 'text-indigo-500' : 'text-slate-400'}`}>
-                <CheckCircle2 size={22} strokeWidth={viewMode === 'MY_AVAILABILITY' ? 2 : 1.5} />
-                <span className={`text-[10px] ${viewMode === 'MY_AVAILABILITY' ? 'font-medium' : 'font-light'}`}>Đăng ký</span>
-            </button>
-            <button onClick={() => setViewMode('REQUESTS')} className={`flex flex-col items-center gap-1.5 w-16 transition-transform active:scale-95 ${viewMode === 'REQUESTS' ? 'text-indigo-500' : 'text-slate-400'}`}>
-                <Inbox size={22} strokeWidth={viewMode === 'REQUESTS' ? 2 : 1.5} />
-                <span className={`text-[10px] ${viewMode === 'REQUESTS' ? 'font-medium' : 'font-light'}`}>Ca xin đổi</span>
-            </button>
-            {(currentUser.role === 'MANAGER' || currentUser.role === 'SUPER_ADMIN') && (
-              <button onClick={() => setViewMode('REPORTS')} className={`flex flex-col items-center gap-1.5 w-16 transition-transform active:scale-95 ${viewMode === 'REPORTS' ? 'text-indigo-500' : 'text-slate-400'}`}>
-                  <BarChart3 size={22} strokeWidth={viewMode === 'REPORTS' ? 2 : 1.5} />
-                  <span className={`text-[10px] ${viewMode === 'REPORTS' ? 'font-medium' : 'font-light'}`}>Báo cáo</span>
               </button>
-            )}
-            <button onClick={handleLogout} className="flex flex-col items-center gap-1.5 text-slate-400 w-16 transition-transform active:scale-95">
-                <LogOut size={22} strokeWidth={1.5} />
-                <span className="text-[10px] font-light">Thoát</span>
-            </button>
-        </nav>
+
+              {(currentUser.role === 'STAFF' || currentUser.role === 'OPERATIONS') && (
+                <button onClick={() => setViewMode('MY_AVAILABILITY')} className={`flex flex-col items-center gap-1.5 flex-1 py-1 transition-transform active:scale-95 ${viewMode === 'MY_AVAILABILITY' ? 'text-indigo-500' : 'text-slate-400'}`}>
+                  <CheckCircle2 size={22} strokeWidth={viewMode === 'MY_AVAILABILITY' ? 2 : 1.5} />
+                  <span className={`text-[10px] ${viewMode === 'MY_AVAILABILITY' ? 'font-medium' : 'font-light'}`}>Đăng ký</span>
+                </button>
+              )}
+
+              <button onClick={() => setViewMode('REQUESTS')} className={`relative flex flex-col items-center gap-1.5 flex-1 py-1 transition-transform active:scale-95 ${viewMode === 'REQUESTS' ? 'text-indigo-500' : 'text-slate-400'}`}>
+                <div className="relative">
+                  <Inbox size={22} strokeWidth={viewMode === 'REQUESTS' ? 2 : 1.5} />
+                  {pendingCount > 0 && <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500"></span>}
+                </div>
+                <span className={`text-[10px] ${viewMode === 'REQUESTS' ? 'font-medium' : 'font-light'}`}>Yêu cầu</span>
+              </button>
+
+              <button onClick={() => setIsNotifPanelOpen(true)} className={`relative flex flex-col items-center gap-1.5 flex-1 py-1 transition-transform active:scale-95 ${isNotifPanelOpen ? 'text-indigo-500' : 'text-slate-400'}`}>
+                <div className="relative">
+                  <Bell size={22} strokeWidth={isNotifPanelOpen ? 2 : 1.5} />
+                  {unreadCount > 0 && <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500"></span>}
+                </div>
+                <span className="text-[10px] font-light">Thông báo</span>
+              </button>
+
+              {(currentUser.role === 'MANAGER' || currentUser.role === 'SUPER_ADMIN') && (
+                <button onClick={() => setViewMode('STAFF_MANAGEMENT')} className={`flex flex-col items-center gap-1.5 flex-1 py-1 transition-transform active:scale-95 ${viewMode === 'STAFF_MANAGEMENT' ? 'text-indigo-500' : 'text-slate-400'}`}>
+                  <Users size={22} strokeWidth={viewMode === 'STAFF_MANAGEMENT' ? 2 : 1.5} />
+                  <span className={`text-[10px] ${viewMode === 'STAFF_MANAGEMENT' ? 'font-medium' : 'font-light'}`}>Nhân sự</span>
+                </button>
+              )}
+
+              <button onClick={() => setIsMoreMenuOpen(!isMoreMenuOpen)} className={`flex flex-col items-center gap-1.5 flex-1 py-1 transition-transform active:scale-95 ${isMoreMenuOpen ? 'text-indigo-500' : 'text-slate-400'}`}>
+                <MoreHorizontal size={22} strokeWidth={isMoreMenuOpen ? 2 : 1.5} />
+                <span className="text-[10px] font-light">Thêm</span>
+              </button>
+            </div>
+          </nav>
+        </>
       )}
 
     </div>
