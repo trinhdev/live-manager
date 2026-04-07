@@ -475,7 +475,7 @@ export default function App() {
            const userObj = lsUser ? JSON.parse(lsUser) : currentUser;
            const isForMe = !newNotif.targetUserIds || newNotif.targetUserIds.includes(userObj?.id || '');
            if (isForMe) {
-               new Notification(newNotif.title, { body: newNotif.message, icon: '/favicon.ico', tag: newNotif.id });
+               new Notification(newNotif.title, { body: newNotif.message, icon: '/icon.jpg', tag: newNotif.id });
            }
         }
       })
