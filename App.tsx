@@ -200,12 +200,19 @@ export default function App() {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [isNotifPanelOpen, setIsNotifPanelOpen] = useState(false);
   const [isNotifModalOpen, setIsNotifModalOpen] = useState(false);
+  const [selectedNotification, setSelectedNotification] = useState<AppNotification | null>(null);
   const [notifFormData, setNotifFormData] = useState({ title: '', message: '' });
 
   // Notification helpers
   const addNotification = async (notif: Omit<AppNotification, 'id' | 'createdAt' | 'readBy'>) => {
     try {
-      await api.createNotification(notif);
+      const newNotif = await api.createNotification(notif);
+      setNotifications(prev => {
+        if (!prev.some(n => n.id === newNotif.id)) {
+           return [newNotif, ...prev];
+        }
+        return prev;
+      });
     } catch (e) {
       console.error(e);
     }
@@ -468,7 +475,7 @@ export default function App() {
            const userObj = lsUser ? JSON.parse(lsUser) : currentUser;
            const isForMe = !newNotif.targetUserIds || newNotif.targetUserIds.includes(userObj?.id || '');
            if (isForMe) {
-               new Notification(newNotif.title, { body: newNotif.message, icon: '/favicon.ico' });
+               new Notification(newNotif.title, { body: newNotif.message, icon: '/favicon.ico', tag: newNotif.id });
            }
         }
       })
@@ -702,14 +709,18 @@ export default function App() {
         await api.createRequest(newReq);
         setRequests([newReq, ...requests]);
         setIsRequestModalOpen(false);
-        // Notify managers about new request
+        // Notify managers and the target user (if SWAP) about new request
         const managerIds = users.filter(u => u.role === 'MANAGER').map(u => u.id);
+        const notifyTargetIds = newReq.targetUserId 
+          ? [...managerIds, newReq.targetUserId] 
+          : managerIds;
+
         addNotification({
           type: 'REQUEST_NEW',
           title: 'Yêu cầu mới',
-          message: `${currentUser.name} ${newReq.type === 'LEAVE' ? 'xin nghỉ' : 'xin đổi'} ca ${shifts.find(s => s.id === newReq.shiftId)?.name || ''} ngày ${DAYS_OF_WEEK[newReq.dayIndex]}.`,
+          message: `${currentUser.name} ${newReq.type === 'LEAVE' ? 'xin nghỉ' : 'xin đổi'} ca ${shifts.find(s => s.id === newReq.shiftId)?.name || ''} ngày ${DAYS_OF_WEEK[newReq.dayIndex]}.${newReq.targetUserId ? ` (Đổi ca với ${newReq.targetUserName})` : ''}`,
           platform: activePlatform,
-          targetUserIds: managerIds,
+          targetUserIds: notifyTargetIds,
           createdBy: currentUser.id,
         });
     } catch (e) {
@@ -997,19 +1008,27 @@ export default function App() {
               <Menu size={18} />
             </button>
             {currentBrand?.logoUrl ? (
-              <img src={currentBrand.logoUrl} className="w-7 h-7 rounded-lg object-cover bg-white" alt="" />
+              <img src={currentBrand.logoUrl} className="w-7 h-7 rounded-lg object-cover bg-white shadow-sm" alt="" />
             ) : (
               <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-[11px] font-black" style={{background: currentBrand?.color || '#171717'}}>{currentBrand ? currentBrand.name.substring(0, 2).toUpperCase() : 'LS'}</div>
             )}
-            <span className="text-[15px] font-bold tracking-tight truncate max-w-[140px]" style={{color:'#171717'}}>{currentBrand ? currentBrand.name : 'LiveSync'}</span>
+            <span className="text-[15px] font-bold tracking-tight truncate max-w-[140px] hidden sm:inline" style={{color:'#171717'}}>{currentBrand ? currentBrand.name : 'LiveSync'}</span>
           </div>
-          <button onClick={() => !currentUser && setIsLoginPageOpen(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-full transition-colors" style={{background:'#F5F5F5',border:'1px solid #E5E5E5'}}>
-            {currentUser ? (
-              <img src={currentUser.avatar} className="w-5 h-5 rounded-full object-cover" alt="" />
-            ) : (
-              <span className="text-[12px] font-medium" style={{color:'#737373'}}>Khách</span>
+          <div className="flex items-center gap-3">
+            {currentUser && currentUser.role !== 'MANAGER' && currentUser.role !== 'SUPER_ADMIN' && (
+              <button onClick={() => setIsNotifPanelOpen(true)} className="relative w-8 h-8 flex items-center justify-center rounded-full hover:bg-[#F5F5F5] transition-colors" style={{color:'#171717'}}>
+                <Bell size={18} />
+                {unreadCount > 0 && <span className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full" style={{background:'#EF4444', border:'2px solid #fff'}}></span>}
+              </button>
             )}
-          </button>
+            <button onClick={() => !currentUser && setIsLoginPageOpen(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-full transition-colors" style={{background:'#F5F5F5',border:'1px solid #E5E5E5'}}>
+              {currentUser ? (
+                <img src={currentUser.avatar} className="w-5 h-5 rounded-full object-cover" alt="" />
+              ) : (
+                <span className="text-[12px] font-medium" style={{color:'#737373'}}>Khách</span>
+              )}
+            </button>
+          </div>
         </div>
       </header>
 
@@ -2388,7 +2407,10 @@ export default function App() {
                       : '#6366F1';
                     return (
                       <div key={notif.id}
-                        onClick={() => !isRead && markNotifRead(notif.id)}
+                        onClick={() => {
+                          if (!isRead) markNotifRead(notif.id);
+                          setSelectedNotification(notif);
+                        }}
                         className="flex gap-3 p-4 cursor-pointer transition-colors hover:bg-slate-50"
                         style={{background: isRead ? 'transparent' : '#FAFBFF'}}
                       >
@@ -2445,6 +2467,33 @@ export default function App() {
             }} icon={<Send size={14} />}>Gửi thông báo</Button>
           </div>
         </div>
+      </Modal>
+
+      {/* ── Detailed Notification Modal ─────────────────────────── */}
+      <Modal isOpen={!!selectedNotification} onClose={() => setSelectedNotification(null)} title="Chi tiết thông báo">
+        {selectedNotification && (
+          <div className="space-y-5">
+            <div className="flex items-center gap-3 pb-4" style={{borderBottom:'1px solid #F0F0F0'}}>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{background: '#EFF6FF'}}>
+                <Bell size={18} style={{color: '#2563EB'}} />
+              </div>
+              <div>
+                <h4 className="text-[15px] font-bold" style={{color:'#171717'}}>{selectedNotification.title}</h4>
+                <p className="text-[11px] mt-0.5" style={{color:'#A3A3A3'}}>
+                  {new Date(selectedNotification.createdAt).toLocaleString('vi-VN', { dateStyle: 'full', timeStyle: 'short' })}
+                </p>
+              </div>
+            </div>
+            
+            <div className="text-[14px] leading-relaxed whitespace-pre-wrap" style={{color:'#404040'}}>
+              {selectedNotification.message}
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <Button onClick={() => setSelectedNotification(null)} className="px-6">Đóng</Button>
+            </div>
+          </div>
+        )}
       </Modal>
 
     </div>
