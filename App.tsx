@@ -1091,9 +1091,20 @@ export default function App() {
               </button>
             )}
             {!currentUser && (
-              <button onClick={() => setIsLoginPageOpen(true)} className="flex items-center gap-1.5 px-3 py-2 btn-surface border border-white/80 shadow-soft text-[#262626]">
-                <LogIn size={14} strokeWidth={1.5}/> <span className="text-[12px] font-medium">Đăng nhập</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsLoginPageOpen(true)}
+                  className="flex items-center gap-1.5 px-3 py-2 btn-surface border border-white/80 shadow-soft text-[#262626]"
+                >
+                  <LogIn size={14} strokeWidth={1.5} /> <span className="text-[12px] font-medium">Đăng nhập</span>
+                </button>
+                <button
+                  onClick={() => (window.location.href = '/huong-dan.html')}
+                  className="flex items-center gap-1.5 px-3 py-2 btn-surface border border-white/80 shadow-soft text-[#262626]"
+                >
+                  <Info size={14} strokeWidth={1.5} /> <span className="text-[12px] font-medium">Hướng dẫn</span>
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -1123,9 +1134,10 @@ export default function App() {
               </div>
             </div>
           ) : (
-            <button onClick={() => setIsLoginPageOpen(true)} className="w-full flex items-center gap-2 px-3 py-3 btn-surface border border-white/50 text-indigo-500">
-              <LogIn size={15} strokeWidth={2}/> <span className="text-[13px] font-medium">Đăng nhập</span>
-            </button>
+            <div className="w-full px-3 py-2">
+              <p className="text-[13px] font-medium text-[#262626]">Chưa đăng nhập</p>
+              <p className="text-[11px] font-light text-[#A3A3A3] mt-1">Dùng nút “Đăng nhập / Hướng dẫn” ở đầu trang.</p>
+            </div>
           )}
         </div>
 
@@ -1160,13 +1172,42 @@ export default function App() {
               <LogOut size={15} strokeWidth={1.5}/> {currentUser.role === 'SUPER_ADMIN' ? 'Về Panel Quản Trị' : 'Đăng xuất'}
             </button>
           ) : (
-            <button onClick={() => setIsLoginPageOpen(true)} className="flex items-center gap-2 text-indigo-500 font-medium text-[13px] px-2 py-2 w-full rounded-xl hover:bg-indigo-50 transition-colors"><LogIn size={15} strokeWidth={1.5}/> Đăng nhập</button>
+            <div className="w-full px-2">
+              <p className="text-[13px] font-medium text-[#262626]">Vui lòng đăng nhập</p>
+              <p className="text-[11px] font-light text-[#A3A3A3] mt-1">Bạn có thể xem hướng dẫn ở đầu trang.</p>
+            </div>
           )}
         </div>
       </aside>
 
       {/* Main Content */}
       <main className="flex-1 p-4 md:p-8 overflow-y-auto w-full relative">
+        {/* Desktop auth bar: đặt nút Đăng nhập/Hướng dẫn ở ngoài vùng lịch */}
+        {!currentUser && (
+          <div className="hidden md:flex sticky top-0 z-40 mb-6 items-center justify-between gap-3 px-2 py-3 rounded-2xl bg-gradient-to-b from-white/75 to-transparent backdrop-blur-[2px] border border-black/5">
+            <div className="min-w-0">
+              <div className="text-[20px] font-semibold tracking-tight text-[#1A1A1A] truncate">
+                {currentBrand ? currentBrand.name : 'LiveSync'}
+              </div>
+              <div className="text-[11px] font-light text-[#A3A3A3] mt-0.5">Chưa đăng nhập</div>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                onClick={() => setIsLoginPageOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-2 btn-surface border border-white/80 shadow-soft text-[#262626]"
+              >
+                <LogIn size={14} strokeWidth={1.5} /> <span className="text-[12px] font-medium">Đăng nhập</span>
+              </button>
+              <button
+                onClick={() => (window.location.href = '/huong-dan.html')}
+                className="flex items-center gap-1.5 px-3 py-2 btn-surface border border-white/80 shadow-soft text-[#262626]"
+              >
+                <Info size={14} strokeWidth={1.5} /> <span className="text-[12px] font-medium">Hướng dẫn</span>
+              </button>
+            </div>
+          </div>
+        )}
+
         {isLoading && (
           <div className="absolute inset-0 z-50 flex items-center justify-center" style={{background:'rgba(250,250,250,0.75)',backdropFilter:'blur(8px)'}}>
             <div className="flex flex-col items-center gap-3">
