@@ -380,12 +380,18 @@ export const api = {
 
   // ── Notifications ──────────────────────────────────────────────────────────
   
-  async getNotifications(): Promise<AppNotification[]> {
-    const { data, error } = await supabase
+  async getNotifications(brandId?: string): Promise<AppNotification[]> {
+    let query = supabase
       .from('notifications')
       .select('*')
       .order('createdAt', { ascending: false })
       .limit(50);
+    
+    if (brandId) {
+      query = query.eq('brand_id', brandId);
+    }
+    
+    const { data, error } = await query;
     
     if (error) {
       console.error('Lỗi khi fetch notifications', error);
@@ -398,6 +404,7 @@ export const api = {
       title: n.title,
       message: n.message,
       platform: n.platform,
+      brandId: n.brand_id,
       targetUserIds: n.targetUserIds,
       createdBy: n.createdBy,
       createdAt: Number(n.createdAt),
@@ -406,7 +413,7 @@ export const api = {
   },
 
   async createNotification(notif: Omit<AppNotification, 'id' | 'createdAt' | 'readBy'>): Promise<AppNotification> {
-    const payload = {
+    const payload: any = {
       type: notif.type,
       title: notif.title,
       message: notif.message,
@@ -416,6 +423,7 @@ export const api = {
       createdAt: Date.now(),
       readBy: []
     };
+    if (notif.brandId) payload.brand_id = notif.brandId;
 
     const { data, error } = await supabase.from('notifications').insert(payload).select().single();
     if (error) {
@@ -432,6 +440,7 @@ export const api = {
       title: data.title,
       message: data.message,
       platform: data.platform,
+      brandId: data.brand_id,
       targetUserIds: data.targetUserIds,
       createdBy: data.createdBy,
       createdAt: Number(data.createdAt),

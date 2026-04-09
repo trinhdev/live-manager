@@ -94,6 +94,7 @@ export interface AppNotification {
   title: string;
   message: string;
   platform?: Platform;
+  brandId?: string;             // brand scope — null = global (super admin)
   targetUserIds?: string[];   // null = all, array = specific users
   createdBy?: string;
   createdAt: number;

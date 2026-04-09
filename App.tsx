@@ -238,21 +238,25 @@ export default function App() {
   const unreadCount = useMemo(() => {
     if (!currentUser) return 0;
     return notifications.filter(n => {
+      // Brand filter: only count notifications for current brand
+      if (activeBrandSlug && n.brandId && n.brandId !== activeBrandSlug) return false;
       const isForMe = !n.targetUserIds || n.targetUserIds.includes(currentUser.id);
       const isRead = (n.readBy || []).includes(currentUser.id);
       return isForMe && !isRead;
     }).length;
-  }, [notifications, currentUser]);
+  }, [notifications, currentUser, activeBrandSlug]);
 
   const myNotifications = useMemo(() => {
     if (!currentUser) return [];
     return notifications.filter(n => {
+      // Brand filter: skip notifications from other brands
+      if (activeBrandSlug && n.brandId && n.brandId !== activeBrandSlug) return false;
       const isGlobal = !n.targetUserIds || n.targetUserIds.length === 0 || (n.targetUserIds as any) === "{}" || (n.targetUserIds as any) === "[]";
       return isGlobal || 
              (n.targetUserIds && (n.targetUserIds as any).includes(currentUser.id)) || 
              n.createdBy === currentUser.id;
     });
-  }, [notifications, currentUser]);
+  }, [notifications, currentUser, activeBrandSlug]);
 
   // Request notification permission on mount
   useEffect(() => {
@@ -399,7 +403,7 @@ export default function App() {
         api.getSchedule(currentWeekId, activeBrandSlug),
         api.getAvailabilities(currentWeekId, activeBrandSlug),
         api.getRequests(currentWeekId, activeBrandSlug),
-        api.getNotifications()
+        api.getNotifications(activeBrandSlug || undefined)
       ]);
       setCurrentBrand(brandData);
       setUsers(uData);
@@ -451,8 +455,12 @@ export default function App() {
         const n = payload.new;
         const newNotif: AppNotification = { 
           id: n.id, type: n.type, title: n.title, message: n.message, platform: n.platform, 
-          targetUserIds: n.targetUserIds, createdBy: n.createdBy, createdAt: Number(n.createdAt), readBy: n.readBy || [] 
+          brandId: n.brand_id, targetUserIds: n.targetUserIds, createdBy: n.createdBy, createdAt: Number(n.createdAt), readBy: n.readBy || [] 
         };
+        
+        // Skip notifications from other brands
+        const lsBrandSlug = getBrandSlugFromURL();
+        if (lsBrandSlug && newNotif.brandId && newNotif.brandId !== lsBrandSlug) return;
         
         setNotifications((prev: AppNotification[]) => {
             if (prev.some(x => x.id === newNotif.id)) return prev;
@@ -645,6 +653,7 @@ export default function App() {
         title: 'Đăng ký lịch rảnh mới',
         message: `${currentUser.name} đã đăng ký lịch rảnh cho ${PLATFORM_CONFIG[activePlatform].label} tuần ${currentWeek}.`,
         platform: activePlatform,
+        brandId: activeBrandSlug || undefined,
         targetUserIds: managerIds,
         createdBy: currentUser.id,
       });
@@ -749,6 +758,7 @@ export default function App() {
           title: 'Yêu cầu mới',
           message: `${currentUser.name} ${newReq.type === 'LEAVE' ? 'xin nghỉ' : 'xin đổi'} ca ${shifts.find(s => s.id === newReq.shiftId)?.name || ''} ngày ${DAYS_OF_WEEK[newReq.dayIndex]}.${newReq.targetUserId ? ` (Đổi ca với ${newReq.targetUserName})` : ''}`,
           platform: activePlatform,
+          brandId: activeBrandSlug || undefined,
           targetUserIds: notifyTargetIds,
           createdBy: currentUser.id,
         });
@@ -816,6 +826,7 @@ export default function App() {
           title: status === 'APPROVED' ? 'Yêu cầu đã duyệt ✅' : 'Yêu cầu bị từ chối ❌',
           message: `Yêu cầu ${req.type === 'LEAVE' ? 'nghỉ ca' : 'đổi ca'} ${shifts.find(s => s.id === req.shiftId)?.name || ''} ngày ${DAYS_OF_WEEK[req.dayIndex]} đã ${status === 'APPROVED' ? 'được duyệt' : 'bị từ chối'}.`,
           platform: req.platform,
+          brandId: activeBrandSlug || undefined,
           targetUserIds: notifTargets,
           createdBy: currentUser?.id,
         });
@@ -2523,6 +2534,7 @@ export default function App() {
                 type: 'ANNOUNCEMENT',
                 title: notifFormData.title,
                 message: notifFormData.message,
+                brandId: activeBrandSlug || undefined,
                 createdBy: currentUser?.id,
               });
               setNotifFormData({ title: '', message: '' });
