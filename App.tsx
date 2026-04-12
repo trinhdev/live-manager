@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Menu, X, Calendar, Search, Filter, Plus, ChevronLeft, ChevronRight, 
   MapPin, Clock, Users, Sun, Moon, CheckCircle2, ChevronDown, Lock,
@@ -321,6 +321,11 @@ export default function App() {
 
   const currentWeekId = useMemo(() => getWeekId(currentDate, currentWeek), [currentDate, currentWeek]);
 
+  // Ref giữ currentWeekId mới nhất — cho phép realtime handlers đọc đúng tuần
+  // mà không cần đưa currentWeekId vào dependency array (tránh tái tạo channel)
+  const currentWeekIdRef = useRef(currentWeekId);
+  useEffect(() => { currentWeekIdRef.current = currentWeekId; }, [currentWeekId]);
+
   // Data State
   const [currentBrand, setCurrentBrand] = useState<Brand | null>(null);
   const [users, setUsers] = useState<User[]>([]);
@@ -505,23 +510,21 @@ export default function App() {
     };
   }, []);
 
-  // Realtime Subscription cho Schedule, Users, Availabilities, Requests, Shifts
-  // Dùng client-side brand filter thay vì server-side filter để đảm bảo hoạt động
-  // ổn định (server filter yêu cầu REPLICA IDENTITY FULL mới hoạt động đầy đủ)
+  // Realtime Subscription — channel chỉ tái tạo khi đổi brand, KHÔNG tái tạo khi đổi tuần.
+  // Dùng currentWeekIdRef để handlers luôn đọc được tuần đúng mà không gây stale closure.
   useEffect(() => {
-    if (!('channel' in supabase)) return; // Offline mode handling
-    if (!activeBrandSlug) return; // Chỉ subscribe khi đang trong brand context
+    if (!('channel' in supabase)) return;
+    if (!activeBrandSlug) return;
 
     const realtimeChannel = (supabase as any)
-      .channel(`realtime_data_${activeBrandSlug}_${currentWeekId}`)
+      .channel(`realtime_data_${activeBrandSlug}`) // Không có currentWeekId trong tên
       // ── Schedule changes ──────────────────────────────────────
       .on('postgres_changes', { event: '*', schema: 'public', table: 'schedule' }, async (payload: any) => {
         const lsBrandSlug = getBrandSlugFromURL();
         if (!lsBrandSlug) return;
-        // Client-side brand filter: bỏ qua event của brand khác
         const row = payload.new || payload.old || {};
         if (row.brand_id && row.brand_id !== lsBrandSlug) return;
-        const lsWeekId = currentWeekId;
+        const lsWeekId = currentWeekIdRef.current; // ← Luôn là giá trị mới nhất
         try {
           const freshSchedule = await api.getSchedule(lsWeekId, lsBrandSlug);
           setSchedule(freshSchedule);
@@ -544,7 +547,7 @@ export default function App() {
         if (!lsBrandSlug) return;
         const row = payload.new || payload.old || {};
         if (row.brand_id && row.brand_id !== lsBrandSlug) return;
-        const lsWeekId = currentWeekId;
+        const lsWeekId = currentWeekIdRef.current; // ← Luôn là giá trị mới nhất
         try {
           const freshAv = await api.getAvailabilities(lsWeekId, lsBrandSlug);
           setAvailabilities(freshAv);
@@ -556,7 +559,7 @@ export default function App() {
         if (!lsBrandSlug) return;
         const row = payload.new || payload.old || {};
         if (row.brand_id && row.brand_id !== lsBrandSlug) return;
-        const lsWeekId = currentWeekId;
+        const lsWeekId = currentWeekIdRef.current;
         try {
           const freshRequests = await api.getRequests(lsWeekId, lsBrandSlug);
           setRequests(freshRequests);
@@ -573,12 +576,14 @@ export default function App() {
           setShifts(freshShifts);
         } catch(e) { console.warn('Realtime shifts refresh failed', e); }
       })
-      .subscribe();
+      .subscribe((status: string, err?: Error) => {
+        if (err) console.warn('Realtime channel error:', err);
+      });
 
     return () => {
       (supabase as any).removeChannel(realtimeChannel);
     };
-  }, [activeBrandSlug, currentWeekId]);
+  }, [activeBrandSlug]); // Chỉ tái tạo khi đổi brand — KHÔNG tái tạo khi đổi tuần
 
   // --- Derived Data ---
   const currentWeekSchedule = useMemo(() => platformSchedule, [platformSchedule]);
