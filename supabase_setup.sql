@@ -43,6 +43,7 @@ create table users (
 );
 alter table users enable row level security;
 create policy "allow_all_users" on users for all using (true) with check (true);
+alter table users add column if not exists platforms jsonb default '["tiktok"]';
 
 -- ─── 4. TABLE: shifts ────────────────────────────────────────
 create table shifts (
@@ -52,6 +53,7 @@ create table shifts (
   end_time    text not null,
   color       text default 'bg-slate-100 text-slate-800 border-slate-200',
   brand_id    text references brands(id) on delete cascade on update cascade,
+  platform    text not null default 'tiktok',
   created_at  timestamptz default now()
 );
 alter table shifts enable row level security;
@@ -68,8 +70,9 @@ create table schedule (
   note                  text,
   is_finalized          boolean default false,
   streamer_assignments  jsonb default '[]',
+  platform              text not null default 'tiktok',
   created_at            timestamptz default now(),
-  unique (brand_id, week_id, day_index, shift_id)
+  unique (brand_id, week_id, day_index, shift_id, platform)
 );
 alter table schedule enable row level security;
 create policy "allow_all_schedule" on schedule for all using (true) with check (true);
@@ -123,6 +126,26 @@ insert into users (id, name, role, rank, password, avatar, brand_id) values
   ('u1', 'Hương Live', 'STAFF', 'S', '123', 'https://picsum.photos/id/64/200/200', 'baselab');
 
 -- Ca live mẫu của BaseLab (thêm GUID đơn giản dể làm shift_id, hoặc dùng string định dạng)
-insert into shifts (id, name, start_time, end_time, color, brand_id) values
-  ('baselab-morning', 'Ca Sáng', '08:00', '12:00', 'bg-orange-100 text-orange-800 border-orange-200', 'baselab'),
-  ('baselab-evening', 'Ca Tối (Prime)', '19:00', '23:00', 'bg-purple-100 text-purple-800 border-purple-200', 'baselab');
+insert into shifts (id, name, start_time, end_time, color, brand_id, platform) values
+  ('baselab-morning', 'Ca Sáng', '08:00', '12:00', 'bg-orange-100 text-orange-800 border-orange-200', 'baselab', 'tiktok'),
+  ('baselab-evening', 'Ca Tối (Prime)', '19:00', '23:00', 'bg-purple-100 text-purple-800 border-purple-200', 'baselab', 'tiktok');
+
+-- ─── 9. REALTIME: Enable for all key tables (safe, idempotent) ─
+-- Dùng DO block để tránh lỗi "already member of publication"
+DO $$
+DECLARE
+  t text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY['schedule','users','availabilities','shifts','notifications','requests']
+  LOOP
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_publication_tables
+      WHERE pubname = 'supabase_realtime' AND tablename = t
+    ) THEN
+      EXECUTE format('ALTER PUBLICATION supabase_realtime ADD TABLE %I', t);
+      RAISE NOTICE 'Added table % to supabase_realtime', t;
+    ELSE
+      RAISE NOTICE 'Table % already in supabase_realtime, skipping', t;
+    END IF;
+  END LOOP;
+END $$;

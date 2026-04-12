@@ -491,6 +491,68 @@ export default function App() {
     };
   }, []);
 
+  // Realtime Subscription cho Schedule, Users, Availabilities, Requests, Shifts
+  useEffect(() => {
+    if (!('channel' in supabase)) return; // Offline mode handling
+    if (!activeBrandSlug) return; // Chỉ subscribe khi đang trong brand context
+
+    const realtimeChannel = (supabase as any)
+      .channel(`realtime_data_${activeBrandSlug}_${currentWeekId}`)
+      // ── Schedule changes ──────────────────────────────────────
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'schedule', filter: `brand_id=eq.${activeBrandSlug}` }, async (_payload: any) => {
+        const lsWeekId = currentWeekId;
+        const lsBrandSlug = getBrandSlugFromURL();
+        if (!lsBrandSlug) return;
+        try {
+          const freshSchedule = await api.getSchedule(lsWeekId, lsBrandSlug);
+          setSchedule(freshSchedule);
+        } catch(e) { console.warn('Realtime schedule refresh failed', e); }
+      })
+      // ── Users changes ─────────────────────────────────────────
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'users', filter: `brand_id=eq.${activeBrandSlug}` }, async (_payload: any) => {
+        const lsBrandSlug = getBrandSlugFromURL();
+        if (!lsBrandSlug) return;
+        try {
+          const freshUsers = await api.getUsers(lsBrandSlug);
+          setUsers(freshUsers);
+        } catch(e) { console.warn('Realtime users refresh failed', e); }
+      })
+      // ── Availabilities changes ────────────────────────────────
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'availabilities', filter: `brand_id=eq.${activeBrandSlug}` }, async (_payload: any) => {
+        const lsWeekId = currentWeekId;
+        const lsBrandSlug = getBrandSlugFromURL();
+        if (!lsBrandSlug) return;
+        try {
+          const freshAv = await api.getAvailabilities(lsWeekId, lsBrandSlug);
+          setAvailabilities(freshAv);
+        } catch(e) { console.warn('Realtime availabilities refresh failed', e); }
+      })
+      // ── Requests changes ──────────────────────────────────────
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'requests', filter: `brand_id=eq.${activeBrandSlug}` }, async (_payload: any) => {
+        const lsWeekId = currentWeekId;
+        const lsBrandSlug = getBrandSlugFromURL();
+        if (!lsBrandSlug) return;
+        try {
+          const freshRequests = await api.getRequests(lsWeekId, lsBrandSlug);
+          setRequests(freshRequests);
+        } catch(e) { console.warn('Realtime requests refresh failed', e); }
+      })
+      // ── Shifts changes ────────────────────────────────────────
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'shifts', filter: `brand_id=eq.${activeBrandSlug}` }, async (_payload: any) => {
+        const lsBrandSlug = getBrandSlugFromURL();
+        if (!lsBrandSlug) return;
+        try {
+          const freshShifts = await api.getShifts(lsBrandSlug);
+          setShifts(freshShifts);
+        } catch(e) { console.warn('Realtime shifts refresh failed', e); }
+      })
+      .subscribe();
+
+    return () => {
+      (supabase as any).removeChannel(realtimeChannel);
+    };
+  }, [activeBrandSlug, currentWeekId]);
+
   // --- Derived Data ---
   const currentWeekSchedule = useMemo(() => platformSchedule, [platformSchedule]);
   const currentWeekAvailabilities = useMemo(() => platformAvailabilities, [platformAvailabilities]);
@@ -843,14 +905,16 @@ export default function App() {
     let newItem: ScheduleItem;
     
     if (existingItem) {
-        newItem = { ...existingItem };
-        const idx = newItem.streamerAssignments.findIndex(s => s.userId === userId);
+        // BUG FIX: Deep copy streamerAssignments để tránh mutate mảng gốc qua splice()
+        const assignmentsCopy = existingItem.streamerAssignments.map(a => ({ ...a }));
+        const idx = assignmentsCopy.findIndex(s => s.userId === userId);
         if (idx > -1) {
-            newItem.streamerAssignments.splice(idx, 1);
+            assignmentsCopy.splice(idx, 1);
         } else {
-            if (newItem.streamerAssignments.length >= 2) return alert('Tối đa 2 Streamer!');
-            newItem.streamerAssignments.push({ userId });
+            if (assignmentsCopy.length >= 2) return alert('Tối đa 2 Streamer!');
+            assignmentsCopy.push({ userId });
         }
+        newItem = { ...existingItem, streamerAssignments: assignmentsCopy };
     } else {
         newItem = {
             id: `${currentWeekId}-${activePlatform}-${editingSlot.day}-${editingSlot.shiftId}`,
@@ -867,7 +931,7 @@ export default function App() {
     try {
         if (newItem.streamerAssignments.length === 0 && !newItem.opsUserId) {
             await api.deleteScheduleItem(newItem.id);
-            setSchedule(schedule.filter(s => s.id !== newItem.id));
+            setSchedule(prev => prev.filter(s => s.id !== newItem.id));
         } else {
             await api.saveScheduleItem(newItem);
             const saved = await api.getSchedule(currentWeekId, activeBrandSlug || undefined);
