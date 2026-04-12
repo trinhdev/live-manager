@@ -328,6 +328,9 @@ export default function App() {
 
   // Data State
   const [currentBrand, setCurrentBrand] = useState<Brand | null>(null);
+  // Ref để notifications handler luôn có brand name mới nhất (tránh stale closure trong [] effect)
+  const currentBrandRef = useRef<Brand | null>(null);
+  useEffect(() => { currentBrandRef.current = currentBrand; }, [currentBrand]);
   const [users, setUsers] = useState<User[]>([]);
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [schedule, setSchedule] = useState<ScheduleItem[]>([]);
@@ -486,24 +489,54 @@ export default function App() {
             return [newNotif, ...prev];
         });
         
-        // Push notification if meant for me
+        // Hiển thị browser notification nếu có quyền và đúng người nhận
         if ('Notification' in window && Notification.permission === 'granted') {
-           // We use the JSON stored currentUser instead of state directly if dependencies become stale
-           const lsUser = localStorage.getItem('ls_user');
-           const userObj = lsUser ? JSON.parse(lsUser) : currentUser;
-           const isGlobal = !newNotif.targetUserIds || newNotif.targetUserIds.length === 0 || (newNotif.targetUserIds as any) === "{}" || (newNotif.targetUserIds as any) === "[]";
-           const isForMe = isGlobal || (newNotif.targetUserIds && (newNotif.targetUserIds as any).includes(userObj?.id || ''));
-           if (isForMe) {
-               const appName = currentBrand ? currentBrand.name : 'LiveSync';
-               new Notification(`${appName} — ${newNotif.title}`, { body: newNotif.message, icon: '/icon.jpg', tag: newNotif.id });
-           }
+          const lsUser = localStorage.getItem('ls_user');
+          const userObj = lsUser ? JSON.parse(lsUser) : null;
+          const targets = newNotif.targetUserIds;
+          // Kiểm tra đúng kiểu Array — trước đây so sánh array với string nên luôn false
+          const isGlobal = !targets || (Array.isArray(targets) && targets.length === 0);
+          const isForMe = isGlobal || (Array.isArray(targets) && targets.includes(userObj?.id || ''));
+          if (isForMe) {
+            const appName = currentBrandRef.current?.name || 'LiveSync'; // Dùng ref, lúc nào cũng đúng
+            try {
+              new Notification(`${appName} — ${newNotif.title}`, { body: newNotif.message, icon: '/icon.jpg', tag: newNotif.id });
+            } catch(e) { console.warn('Browser notification failed:', e); }
+          }
         }
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'notifications' }, (payload: any) => {
           const n = payload.new;
           setNotifications((prev: AppNotification[]) => prev.map(old => old.id === n.id ? { ...old, readBy: n.readBy || [] } : old));
       })
-      .subscribe();
+      .subscribe((status: string, err?: Error) => {
+        if (err) console.warn('Notifications channel error:', err);
+        if (status !== 'SUBSCRIBED') return;
+        // Khi WebSocket kết nối lại (ví dụ: mở màn hình điện thoại), fetch lại thông báo bị nhỡ
+        const slug = getBrandSlugFromURL();
+        api.getNotifications(slug || undefined).then(freshNotifs => {
+          setNotifications(prev => {
+            const existingIds = new Set(prev.map(n => n.id));
+            const missed = freshNotifs.filter(n => !existingIds.has(n.id));
+            if (missed.length === 0) return prev;
+            // Hiển browser notification cho các thông báo bị nhỡ chưa đọc
+            if ('Notification' in window && Notification.permission === 'granted') {
+              const lsUser = localStorage.getItem('ls_user');
+              const u = lsUser ? JSON.parse(lsUser) : null;
+              const appName = currentBrandRef.current?.name || 'LiveSync';
+              missed.forEach(notif => {
+                const targets = notif.targetUserIds;
+                const forMe = !targets || (Array.isArray(targets) && (targets.length === 0 || targets.includes(u?.id || '')));
+                const unread = !(notif.readBy || []).includes(u?.id || '');
+                if (forMe && unread) {
+                  try { new Notification(`${appName} — ${notif.title}`, { body: notif.message, icon: '/icon.jpg', tag: notif.id }); } catch(_) {}
+                }
+              });
+            }
+            return [...missed, ...prev];
+          });
+        }).catch(e => console.warn('Notification reconnect refresh failed', e));
+      });
 
     return () => {
       (supabase as any).removeChannel(channel);
@@ -578,6 +611,21 @@ export default function App() {
       })
       .subscribe((status: string, err?: Error) => {
         if (err) console.warn('Realtime channel error:', err);
+        if (status !== 'SUBSCRIBED') return;
+        // Khi WebSocket kết nối lại (ví dụ: điện thoại mở màn hình sau khi off),
+        // re-fetch data để bắt kịp những thay đổi bị nhỡ trong lúc offline
+        const slug = getBrandSlugFromURL();
+        if (!slug) return;
+        const wid = currentWeekIdRef.current;
+        Promise.all([
+          api.getSchedule(wid, slug),
+          api.getAvailabilities(wid, slug),
+          api.getRequests(wid, slug),
+        ]).then(([sch, avs, reqs]) => {
+          setSchedule(sch);
+          setAvailabilities(avs);
+          setRequests(reqs);
+        }).catch(e => console.warn('Reconnect data refresh failed', e));
       });
 
     return () => {
