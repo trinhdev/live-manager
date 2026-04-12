@@ -271,22 +271,29 @@ export default function App() {
     });
   }, [notifications, currentUser, activeBrandSlug]);
 
-  // Request notification permission on mount
+  // Request notification permission sớm nhất có thể (fallback nhanh nếu OneSignal chưa sẵn sàng)
   useEffect(() => {
     if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission();
+      // Delay nhỏ 500ms để tránh xung đột với OneSignal init
+      const t = setTimeout(() => Notification.requestPermission(), 500);
+      return () => clearTimeout(t);
     }
   }, []);
 
-  // Initialize OneSignal
+  // Initialize OneSignal — gọi showNativePrompt() ngay sau init để giảm delay xuống 1-2s
   useEffect(() => {
     const ONE_SIGNAL_APP_ID = (import.meta as any).env.VITE_ONESIGNAL_APP_ID;
-    if (ONE_SIGNAL_APP_ID && ONE_SIGNAL_APP_ID !== 'CHANGEME_APP_ID') {
-      OneSignal.init({
-        appId: ONE_SIGNAL_APP_ID,
-        allowLocalhostAsSecureOrigin: true, // Cho phép test trên localhost
-      }).catch(err => console.error("OneSignal Init Error:", err));
-    }
+    if (!ONE_SIGNAL_APP_ID || ONE_SIGNAL_APP_ID === 'CHANGEME_APP_ID') return;
+    OneSignal.init({
+      appId: ONE_SIGNAL_APP_ID,
+      allowLocalhostAsSecureOrigin: true,
+      serviceWorkerParam: { scope: '/' }, // Đảm bảo service worker hoạt động ở root scope (quan trọng với PWA)
+    }).then(() => {
+      // Hiện dialog xin quyền NGAY sau khi OneSignal sẵn sàng, không chờ tự động
+      if (Notification.permission === 'default') {
+        OneSignal.showNativePrompt().catch(() => {});
+      }
+    }).catch(err => console.error("OneSignal Init Error:", err));
   }, []);
 
   // Login OneSignal External User ID
