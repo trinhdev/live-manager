@@ -115,6 +115,19 @@ const parseDurationFromLabel = (label: string): number | null => {
    return null;
 };
 
+// ── Tính tuần hiện tại trong tháng (1–5) khớp với logic weekDates ──────────
+const getCurrentWeekOfMonth = (date: Date = new Date()): number => {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const startOfMonth = new Date(year, month, 1);
+  const dayOfWeek = startOfMonth.getDay();
+  const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const firstMonday = new Date(startOfMonth);
+  firstMonday.setDate(startOfMonth.getDate() + diff);
+  const daysDiff = Math.floor((date.getTime() - firstMonday.getTime()) / (1000 * 60 * 60 * 24));
+  return Math.max(1, Math.min(5, Math.floor(daysDiff / 7) + 1));
+};
+
 export default function App() {
   // --- STATE ---
 
@@ -297,7 +310,8 @@ export default function App() {
 
   // Date Management
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [currentWeek, setCurrentWeek] = useState(1);
+  // Tự động hiện đúng tuần hiện tại trong tháng khi app khởi động
+  const [currentWeek, setCurrentWeek] = useState<number>(() => getCurrentWeekOfMonth(new Date()));
 
   const getWeekId = (date: Date, week: number) => {
     const year = date.getFullYear();
@@ -492,6 +506,8 @@ export default function App() {
   }, []);
 
   // Realtime Subscription cho Schedule, Users, Availabilities, Requests, Shifts
+  // Dùng client-side brand filter thay vì server-side filter để đảm bảo hoạt động
+  // ổn định (server filter yêu cầu REPLICA IDENTITY FULL mới hoạt động đầy đủ)
   useEffect(() => {
     if (!('channel' in supabase)) return; // Offline mode handling
     if (!activeBrandSlug) return; // Chỉ subscribe khi đang trong brand context
@@ -499,48 +515,59 @@ export default function App() {
     const realtimeChannel = (supabase as any)
       .channel(`realtime_data_${activeBrandSlug}_${currentWeekId}`)
       // ── Schedule changes ──────────────────────────────────────
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'schedule', filter: `brand_id=eq.${activeBrandSlug}` }, async (_payload: any) => {
-        const lsWeekId = currentWeekId;
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'schedule' }, async (payload: any) => {
         const lsBrandSlug = getBrandSlugFromURL();
         if (!lsBrandSlug) return;
+        // Client-side brand filter: bỏ qua event của brand khác
+        const row = payload.new || payload.old || {};
+        if (row.brand_id && row.brand_id !== lsBrandSlug) return;
+        const lsWeekId = currentWeekId;
         try {
           const freshSchedule = await api.getSchedule(lsWeekId, lsBrandSlug);
           setSchedule(freshSchedule);
         } catch(e) { console.warn('Realtime schedule refresh failed', e); }
       })
       // ── Users changes ─────────────────────────────────────────
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'users', filter: `brand_id=eq.${activeBrandSlug}` }, async (_payload: any) => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, async (payload: any) => {
         const lsBrandSlug = getBrandSlugFromURL();
         if (!lsBrandSlug) return;
+        const row = payload.new || payload.old || {};
+        if (row.brand_id && row.brand_id !== lsBrandSlug) return;
         try {
           const freshUsers = await api.getUsers(lsBrandSlug);
           setUsers(freshUsers);
         } catch(e) { console.warn('Realtime users refresh failed', e); }
       })
       // ── Availabilities changes ────────────────────────────────
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'availabilities', filter: `brand_id=eq.${activeBrandSlug}` }, async (_payload: any) => {
-        const lsWeekId = currentWeekId;
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'availabilities' }, async (payload: any) => {
         const lsBrandSlug = getBrandSlugFromURL();
         if (!lsBrandSlug) return;
+        const row = payload.new || payload.old || {};
+        if (row.brand_id && row.brand_id !== lsBrandSlug) return;
+        const lsWeekId = currentWeekId;
         try {
           const freshAv = await api.getAvailabilities(lsWeekId, lsBrandSlug);
           setAvailabilities(freshAv);
         } catch(e) { console.warn('Realtime availabilities refresh failed', e); }
       })
       // ── Requests changes ──────────────────────────────────────
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'requests', filter: `brand_id=eq.${activeBrandSlug}` }, async (_payload: any) => {
-        const lsWeekId = currentWeekId;
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'requests' }, async (payload: any) => {
         const lsBrandSlug = getBrandSlugFromURL();
         if (!lsBrandSlug) return;
+        const row = payload.new || payload.old || {};
+        if (row.brand_id && row.brand_id !== lsBrandSlug) return;
+        const lsWeekId = currentWeekId;
         try {
           const freshRequests = await api.getRequests(lsWeekId, lsBrandSlug);
           setRequests(freshRequests);
         } catch(e) { console.warn('Realtime requests refresh failed', e); }
       })
       // ── Shifts changes ────────────────────────────────────────
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'shifts', filter: `brand_id=eq.${activeBrandSlug}` }, async (_payload: any) => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'shifts' }, async (payload: any) => {
         const lsBrandSlug = getBrandSlugFromURL();
         if (!lsBrandSlug) return;
+        const row = payload.new || payload.old || {};
+        if (row.brand_id && row.brand_id !== lsBrandSlug) return;
         try {
           const freshShifts = await api.getShifts(lsBrandSlug);
           setShifts(freshShifts);
