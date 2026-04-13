@@ -18,6 +18,9 @@ import { supabase } from './services/supabase';
 import { autoGenerateSchedule } from './services/scheduler';
 import OneSignal from 'react-onesignal';
 
+// Module-level promise — đảm bảo OneSignal.login() luôn chạy SAU init()
+let oneSignalInitPromise: Promise<void> | null = null;
+
 // ── Platform Icon Component ──────────────────────────────────
 const PlatformIcon: React.FC<{ platform: Platform; size?: number; className?: string }> = ({ platform, size = 16, className = '' }) => (
   <span
@@ -280,33 +283,36 @@ export default function App() {
     }
   }, []);
 
-  // Initialize OneSignal — gọi showNativePrompt() ngay sau init để giảm delay xuống 1-2s
+  // Initialize OneSignal — lưu Promise để login() có thể chời sau khi init xong
+  // Trước đây login() chạy song song với init() gây lỗi 'Qe' undefined
   useEffect(() => {
     const ONE_SIGNAL_APP_ID = (import.meta as any).env.VITE_ONESIGNAL_APP_ID;
     if (!ONE_SIGNAL_APP_ID || ONE_SIGNAL_APP_ID === 'CHANGEME_APP_ID') return;
-    OneSignal.init({
+    oneSignalInitPromise = OneSignal.init({
       appId: ONE_SIGNAL_APP_ID,
       allowLocalhostAsSecureOrigin: true,
-      serviceWorkerParam: { scope: '/' }, // Đảm bảo service worker hoạt động ở root scope (quan trọng với PWA)
+      serviceWorkerParam: { scope: '/' },
     }).then(() => {
-      // Hiện dialog xin quyền NGAY sau khi OneSignal sẵn sàng, không chờ tự động
       if (Notification.permission === 'default') {
         OneSignal.showNativePrompt().catch(() => {});
       }
-    }).catch(err => console.error("OneSignal Init Error:", err));
+    }).catch(err => console.error('OneSignal Init Error:', err));
   }, []);
 
-  // Login OneSignal External User ID
+  // Login OneSignal — chời sau init() để tránh lỗi 'Qe' undefined
   useEffect(() => {
-    if (currentUser && currentUser.id) {
-      const ONE_SIGNAL_APP_ID = (import.meta as any).env.VITE_ONESIGNAL_APP_ID;
-      if (ONE_SIGNAL_APP_ID && ONE_SIGNAL_APP_ID !== 'CHANGEME_APP_ID') {
-        OneSignal.login(currentUser.id).catch(err => console.error("OneSignal Login Error:", err));
+    const ONE_SIGNAL_APP_ID = (import.meta as any).env.VITE_ONESIGNAL_APP_ID;
+    if (!ONE_SIGNAL_APP_ID || ONE_SIGNAL_APP_ID === 'CHANGEME_APP_ID') return;
+    const userId = currentUser?.id || null;
+    // Đợi init() xong rồi mới gọi login/logout
+    (oneSignalInitPromise || Promise.resolve()).then(() => {
+      if (userId) {
+        OneSignal.login(userId).catch(err => console.error('OneSignal Login Error:', err));
+      } else {
+        OneSignal.logout().catch(() => {});
       }
-    } else {
-      OneSignal.logout().catch(e => {}); // Ignore error on logout if not initialized
-    }
-  }, [currentUser]);
+    });
+  }, [currentUser?.id]);
 
   // Mobile day selector for schedule grid
   const [selectedDayIndex, setSelectedDayIndex] = useState<number>(() => {
