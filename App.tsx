@@ -517,7 +517,7 @@ export default function App() {
           if (isForMe) {
             const appName = currentBrandRef.current?.name || 'LiveSync'; // Dùng ref, lúc nào cũng đúng
             try {
-              new Notification(`${appName} — ${newNotif.title}`, { body: newNotif.message, icon: '/icon.jpg', tag: newNotif.id });
+              new Notification(newNotif.title, { body: newNotif.message, icon: '/icon.jpg', tag: newNotif.id });
             } catch(e) { console.warn('Browser notification failed:', e); }
           }
         }
@@ -546,7 +546,7 @@ export default function App() {
                 const forMe = !targets || (Array.isArray(targets) && (targets.length === 0 || targets.includes(u?.id || '')));
                 const unread = !(notif.readBy || []).includes(u?.id || '');
                 if (forMe && unread) {
-                  try { new Notification(`${appName} — ${notif.title}`, { body: notif.message, icon: '/icon.jpg', tag: notif.id }); } catch(_) {}
+                  try { new Notification(notif.title, { body: notif.message, icon: '/icon.jpg', tag: notif.id }); } catch(_) {}
                 }
               });
             }
