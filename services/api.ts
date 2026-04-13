@@ -4,37 +4,19 @@ import { User, Brand, Shift, Availability, ScheduleItem, ShiftRequest, Platform,
 import { INITIAL_USERS, INITIAL_SHIFTS } from '../constants';
 
 export const sendOneSignalPush = async (title: string, message: string, targetUserIds?: string[] | null) => {
-  const APP_ID = (import.meta as any).env.VITE_ONESIGNAL_APP_ID;
-  const REST_API_KEY = (import.meta as any).env.VITE_ONESIGNAL_REST_API_KEY;
-
-  if (!APP_ID || APP_ID === 'CHANGEME_APP_ID' || !REST_API_KEY || REST_API_KEY === 'CHANGEME_REST_API_KEY') {
-    return;
-  }
-
-  const payload: any = {
-    app_id: APP_ID,
-    headings: { en: title, vi: title },
-    contents: { en: message, vi: message },
-    target_channel: "push"
-  };
-
-  if (targetUserIds && targetUserIds.length > 0) {
-    payload.include_aliases = { external_id: targetUserIds };
-  } else {
-    payload.included_segments = ["All"];
-  }
-
   try {
-    await fetch('https://onesignal.com/api/v1/notifications', {
+    // Gọi qua Vercel serverless function — REST key được giữ server-side, không expose ra browser
+    const response = await fetch('/api/notify', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Basic ${REST_API_KEY}`
-      },
-      body: JSON.stringify(payload)
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, message, targetUserIds }),
     });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      console.warn('[OneSignal] Push failed:', err);
+    }
   } catch (error) {
-    console.error("Lỗi gửi OneSignal Push:", error);
+    console.error('Lỗi gửi OneSignal Push:', error);
   }
 };
 

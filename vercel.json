@@ -5,7 +5,7 @@
       "destination": "https://openapi.zalo.me/:match*"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
   ]
