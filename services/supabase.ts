@@ -42,6 +42,9 @@ const createOfflineQuery = () => {
 
 const createOfflineClient = () => ({
   from: () => createOfflineQuery(),
+  functions: {
+    invoke: async () => createOfflineResponse(),
+  },
 });
 
 export const supabase = SUPABASE_URL && SUPABASE_ANON_KEY

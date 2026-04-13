@@ -294,7 +294,11 @@ export default function App() {
       serviceWorkerParam: { scope: '/' },
     }).then(() => {
       if (Notification.permission === 'default') {
-        OneSignal.showNativePrompt().catch(() => {});
+        const oneSignalAny = OneSignal as any;
+        const promptFn = oneSignalAny.showNativePrompt || oneSignalAny.showSlidedownPrompt;
+        if (typeof promptFn === 'function') {
+          Promise.resolve(promptFn.call(oneSignalAny)).catch(() => {});
+        }
       }
     }).catch(err => console.error('OneSignal Init Error:', err));
   }, []);
