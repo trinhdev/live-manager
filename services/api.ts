@@ -5,20 +5,15 @@ import { INITIAL_USERS, INITIAL_SHIFTS } from '../constants';
 
 export const sendOneSignalPush = async (title: string, message: string, targetUserIds?: string[] | null) => {
   try {
-    // Gọi qua Vercel serverless function — REST key được giữ server-side, không expose ra browser
-    const response = await fetch('/api/notify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, message, targetUserIds }),
-    });
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      console.warn('[OneSignal] Push failed:', err);
-    }
+    // Gọi Supabase Edge Function — key bảo mật server-side, không bao giờ ra browser
+    const { error } = await supabase.functions.invoke('send-push', {
+      body: { title, message, targetUserIds },
+    })
+    if (error) console.warn('[OneSignal] Edge Function push failed:', error)
   } catch (error) {
-    console.error('Lỗi gửi OneSignal Push:', error);
+    console.error('Lỗi gửi OneSignal Push:', error)
   }
-};
+}
 
 // Helper: map User from DB (snake_case) to App (camelCase)
 const mapUser = (u: any): User => ({
