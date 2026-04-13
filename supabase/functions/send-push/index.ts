@@ -51,14 +51,10 @@ serve(async (req: Request) => {
       headings: { en: title, vi: title },
       contents: { en: message, vi: message },
       target_channel: 'push',
-      // Ưu tiên cao (high-priority FCM) — vượt qua Android Doze Mode
+      // Ưu tiên cao — FCM high-priority để vượt qua Android Doze Mode
       priority: 10,
-      // Thời gian sống 3 ngày (giây) — tránh hết hạn khi device offline lâu
+      // Thời gian sống 3 ngày — tránh hết hạn khi device offline lâu
       ttl: 259200,
-      // Android: đánh thức device ngay lập tức qua FCM high-priority
-      android_channel_id: 'default',
-      // iOS: cho phép background push
-      apns_push_type_background: false,
     }
 
     if (targetUserIds && Array.isArray(targetUserIds) && targetUserIds.length > 0) {
