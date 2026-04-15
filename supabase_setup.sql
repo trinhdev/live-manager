@@ -85,8 +85,9 @@ create table availabilities (
   day_index   int  not null,
   shift_id    text not null references shifts(id) on delete cascade on update cascade,
   brand_id    text references brands(id) on delete cascade on update cascade,
+  platform    text not null default 'tiktok',
   created_at  timestamptz default now(),
-  unique (brand_id, user_id, week_id, day_index, shift_id)
+  unique (brand_id, user_id, week_id, day_index, shift_id, platform)
 );
 alter table availabilities enable row level security;
 create policy "allow_all_availabilities" on availabilities for all using (true) with check (true);
@@ -101,6 +102,7 @@ create table requests (
   day_index        int  not null,
   shift_id         text not null references shifts(id) on delete cascade on update cascade,
   brand_id         text references brands(id) on delete cascade on update cascade,
+  platform         text not null default 'tiktok',
   reason           text not null,
   target_user_id   text references users(id) on delete set null on update cascade,
   target_user_name text,
