@@ -467,7 +467,30 @@ export default function App() {
 
   useEffect(() => {
     fetchData();
-  }, [currentWeekId, activeBrandSlug]); 
+  }, [currentWeekId, activeBrandSlug]);
+
+  // BUG-007 fix: khi tab được active lại từ background → refresh data để tránh stale
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && activeBrandSlug) {
+        const wid = currentWeekIdRef.current;
+        const slug = activeBrandSlug;
+        Promise.all([
+          api.getSchedule(wid, slug),
+          api.getAvailabilities(wid, slug),
+          api.getRequests(wid, slug),
+          api.getNotifications(slug),
+        ]).then(([sch, avs, reqs, notifs]) => {
+          setSchedule(sch);
+          setAvailabilities(avs);
+          setRequests(reqs);
+          setNotifications(notifs);
+        }).catch(e => console.warn('Visibility refresh failed', e));
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [activeBrandSlug]);
 
   // Sync currentUser with latest users data to ensure freshness
   useEffect(() => {
@@ -655,7 +678,7 @@ export default function App() {
   const currentWeekAvailabilities = useMemo(() => platformAvailabilities, [platformAvailabilities]);
   const currentWeekRequests = useMemo(() => platformRequests, [platformRequests]);
   const canManageRequests = currentUser?.role === 'MANAGER' || currentUser?.role === 'SUPER_ADMIN';
-  const pendingCount = useMemo(() => requests.filter(r => r.status === 'PENDING').length, [requests]);
+  const pendingCount = useMemo(() => requests.filter(r => r.status === 'PENDING' && r.platform === activePlatform).length, [requests, activePlatform]);
   const staffUsers = useMemo(() => users.filter(u => u.role !== 'MANAGER'), [users]);
   const submittedCount = useMemo(() => staffUsers.filter(u => u.isAvailabilitySubmitted).length, [staffUsers]);
 
@@ -1091,9 +1114,18 @@ export default function App() {
           return;
       }
       
-      const newAssignments = existingItem.streamerAssignments.map(sa => 
-          sa.userId === bridgeData.userId ? { ...sa, timeLabel: tLabel } : sa
-      );
+      const newAssignments = existingItem.streamerAssignments.map(sa => {
+          if (sa.userId === bridgeData.userId) {
+              const copy = { ...sa };
+              if (tLabel === '') {
+                 delete copy.timeLabel;
+              } else {
+                 copy.timeLabel = tLabel;
+              }
+              return copy;
+          }
+          return sa;
+      });
       
       const newItem = { ...existingItem, streamerAssignments: newAssignments };
       
@@ -1131,6 +1163,15 @@ export default function App() {
               await api.deleteUser(id);
               setUsers(users.filter(u => u.id !== id));
           } catch(e) { alert("Lỗi xóa"); }
+      }
+  };
+
+  const handleResetAvailability = async (id: string) => {
+      if (confirm("Mở lại form đăng ký lịch rảnh (reset) cho nhân sự này?")) {
+          try {
+              await api.updateUser({ id, isAvailabilitySubmitted: false });
+              setUsers(users.map(u => u.id === id ? { ...u, isAvailabilitySubmitted: false } : u));
+          } catch(e) { alert("Lỗi mở lại form"); }
       }
   };
 
@@ -1205,7 +1246,7 @@ export default function App() {
         if (result.success) {
             alert("✅ KẾT NỐI THÀNH CÔNG!\nTin nhắn test đã được gửi đến nhóm Zalo.");
         } else {
-            alert(`❌ KẾT NỐI THẤT BẠI!\nChi tiết lỗi: ${result.message}\n\nHãy kiểm tra lại:\n1. URL Webhook có chính xác không?\n2. Biến môi trường ZALO_BOT_TOKEN trên Vercel đã đúng chưa?`);
+            alert(`❌ KẾT NỐI THẤT BẠI!\nChi tiết lỗi: ${result.message}\n\nHãy kiểm tra lại:\n1. URL Webhook có chính xác không?\n2. Biến môi trường ZALO_BOT_TOKEN trên server đã đúng chưa?`);
         }
     } catch (e) {
         alert("Lỗi không xác định: " + e);
@@ -1678,7 +1719,7 @@ export default function App() {
                             setEditingSlot({ day: selectedDayIndex, shiftId: shift.id });
                             setIsSlotModalOpen(true);
                           } else if (isMyShift) {
-                            setRequestForm({ type: 'SWAP', reason: '', slot: { day: selectedDayIndex, shiftId: shift.id } });
+                            setRequestForm({ type: 'LEAVE', reason: '', slot: { day: selectedDayIndex, shiftId: shift.id } });
                             setIsRequestModalOpen(true);
                           }
                         });
@@ -1780,7 +1821,7 @@ export default function App() {
                                       setEditingSlot({ day: dayIdx, shiftId: shift.id });
                                       setIsSlotModalOpen(true);
                                     } else if (isMyShift) {
-                                      setRequestForm({ type: 'SWAP', reason: '', slot: { day: dayIdx, shiftId: shift.id } });
+                                      setRequestForm({ type: 'LEAVE', reason: '', slot: { day: dayIdx, shiftId: shift.id } });
                                       setIsRequestModalOpen(true);
                                     }
                                   });
@@ -2242,6 +2283,16 @@ export default function App() {
                           >
                             <Edit2 size={15}/>
                           </button>
+                          {u.isAvailabilitySubmitted && (
+                            <button 
+                              onClick={() => handleResetAvailability(u.id)}
+                              className="p-2 rounded-lg transition-all hover:bg-blue-50"
+                              style={{color:'#3B82F6'}}
+                              title="Mở lại form đăng ký"
+                            >
+                              <RefreshCw size={15}/>
+                            </button>
+                          )}
                           <button 
                             onClick={() => handleDeleteUser(u.id)}
                             className="p-2 rounded-lg transition-all hover:bg-red-50"
@@ -2703,6 +2754,7 @@ export default function App() {
                 type: 'ANNOUNCEMENT',
                 title: notifFormData.title,
                 message: notifFormData.message,
+                platform: activePlatform,
                 brandId: activeBrandSlug || undefined,
                 createdBy: currentUser?.id,
               });
