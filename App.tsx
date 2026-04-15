@@ -825,7 +825,7 @@ export default function App() {
     const newItems = autoGenerateSchedule(users, shifts, availabilities, schedule, currentWeekId, activePlatform);
     setIsLoading(true);
     try {
-        await api.clearSchedule(currentWeekId); 
+        await api.clearSchedule(currentWeekId, activeBrandSlug || undefined, activePlatform); 
         for (const item of newItems) {
             await api.saveScheduleItem(item);
         }
