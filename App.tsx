@@ -827,7 +827,6 @@ export default function App() {
     // Sync to backend
     try {
       await api.updateUser({ id: currentUser.id, isAvailabilitySubmitted: true });
-      alert('✅ Đã gửi đăng ký! Admin sẽ nhận được thông báo.');
       // Notify managers
       const managerIds = users.filter(u => u.role === 'MANAGER').map(u => u.id);
       addNotification({
@@ -839,10 +838,16 @@ export default function App() {
         targetUserIds: managerIds,
         createdBy: currentUser.id,
       });
-    } catch (e) {
-      alert('✅ Đã lưu đăng ký! (Chế độ offline)');
+      alert('✅ Đã gửi đăng ký thành công! Admin sẽ nhận được thông báo.');
+    } catch (e: any) {
+      // Rollback optimistic update nếu lỗi
+      setCurrentUser(currentUser);
+      setUsers(users.map(u => u.id === currentUser.id ? currentUser : u));
+      localStorage.setItem('ls_user', JSON.stringify(currentUser));
+      alert(`❌ Gửi đăng ký thất bại: ${e?.message || e}\n\nVui lòng thử lại.`);
     }
   };
+
 
   const handleAutoSchedule = async () => {
     const rawItems = autoGenerateSchedule(users, shifts, availabilities, schedule, currentWeekId, activePlatform);

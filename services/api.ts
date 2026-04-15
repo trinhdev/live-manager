@@ -107,7 +107,6 @@ export const api = {
 
   async updateUser(user: Partial<User>, oldId?: string): Promise<User> {
     const dbUser: any = { id: user.id };
-    // Chỉ đưa field vào payload khi được cung cấp rõ ràng (tránh overwrite NOT NULL)
     if (user.name !== undefined)                    dbUser.name = user.name;
     if (user.role !== undefined)                    dbUser.role = user.role;
     if (user.password !== undefined)                dbUser.password = user.password;
@@ -126,15 +125,19 @@ export const api = {
       const { data, error: err2 } = await supabase.from('users').select().eq('id', user.id).single();
       if (err2) throw err2;
       return mapUser(data);
+    } else if (user.name) {
+      // Full user object (có name) → upsert an toàn vì đủ NOT NULL fields
+      const { data, error } = await supabase.from('users').upsert(dbUser).select().single();
+      if (error) throw error;
+      return mapUser(data);
     } else {
-      // Create hoặc partial update: upsert chỉ các column được cung cấp
-      const { data, error } = await supabase.from('users')
-        .upsert(dbUser, { onConflict: 'id', ignoreDuplicates: false })
-        .select().single();
+      // Partial update (chỉ có vài field như isAvailabilitySubmitted) → dùng update().eq()
+      const { data, error } = await supabase.from('users').update(dbUser).eq('id', user.id!).select().single();
       if (error) throw error;
       return mapUser(data);
     }
   },
+
 
   async deleteUser(userId: string): Promise<void> {
     const { error } = await supabase.from('users').delete().eq('id', userId);
