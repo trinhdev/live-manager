@@ -845,14 +845,23 @@ export default function App() {
   };
 
   const handleAutoSchedule = async () => {
-    const newItems = autoGenerateSchedule(users, shifts, availabilities, schedule, currentWeekId, activePlatform);
+    const rawItems = autoGenerateSchedule(users, shifts, availabilities, schedule, currentWeekId, activePlatform);
+    // Inject brandId into every generated item (scheduler.ts không có context brand)
+    const newItems = rawItems.map(item => ({
+      ...item,
+      brandId: activeBrandSlug || undefined,
+    }));
     setIsLoading(true);
     try {
-        await api.clearSchedule(currentWeekId, activeBrandSlug || undefined, activePlatform); 
+        await api.clearSchedule(currentWeekId, activeBrandSlug || undefined, activePlatform);
         for (const item of newItems) {
             await api.saveScheduleItem(item);
         }
-        setSchedule(newItems);
+        // Merge: giữ lịch của platform khác, chỉ cập nhật platform đang chọn
+        setSchedule(prev => [
+          ...prev.filter(s => !(s.weekId === currentWeekId && s.platform === activePlatform)),
+          ...newItems
+        ]);
     } catch(e) {
         console.error(e);
         alert("Lỗi lưu lịch tự động");
@@ -2240,7 +2249,10 @@ export default function App() {
                     <tr key={u.id} className="group transition-colors" style={{borderTop: idx > 0 ? '1px solid #F5F5F5' : 'none'}}>
                       <td className="p-4">
                         <div className="flex items-center gap-3">
-                          <img src={u.avatar} className="w-9 h-9 rounded-full object-cover flex-shrink-0" style={{border:'2px solid #F5F5F5'}} alt=""/>
+                          <img src={u.avatar} className="w-9 h-9 rounded-full object-cover flex-shrink-0" style={{
+                            border: u.isAvailabilitySubmitted ? '2px solid #22C55E' : '2px solid #F5F5F5',
+                            boxShadow: u.isAvailabilitySubmitted ? '0 0 0 3px #DCFCE7' : 'none'
+                          }} alt="" title={u.isAvailabilitySubmitted ? 'Đã nộp lịch' : 'Chưa nộp lịch'}/>
                           <div className="min-w-0">
                             <p className="font-semibold text-[13.5px] truncate" style={{color:'#171717'}}>{u.name}</p>
                             <p className="text-[11px]" style={{color:'#A3A3A3'}}>{u.zaloPhone || 'N/A'}</p>
