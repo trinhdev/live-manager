@@ -932,8 +932,13 @@ export default function App() {
         if (!req) return;
 
         if (status === 'APPROVED') {
-            const freshSchedule = await api.getSchedule(currentWeekId, activeBrandSlug || undefined);
-            const existingItem = freshSchedule.find(s => s.dayIndex === req.dayIndex && s.shiftId === req.shiftId && s.weekId === req.weekId);
+            const freshSchedule = await api.getSchedule(req.weekId, activeBrandSlug || undefined);
+            const existingItem = freshSchedule.find(s =>
+              s.dayIndex === req.dayIndex &&
+              s.shiftId === req.shiftId &&
+              s.weekId === req.weekId &&
+              s.platform === req.platform
+            );
             if (!existingItem) {
                 alert('Không tìm thấy ca cần xử lý. Có thể lịch đã thay đổi, vui lòng tải lại và kiểm tra lại.');
                 return;
@@ -969,12 +974,15 @@ export default function App() {
             }
 
             await api.saveScheduleItem(newItem);
-            const newSch = await api.getSchedule(currentWeekId, activeBrandSlug || undefined);
-            setSchedule(newSch);
+            // Chỉ refresh schedule UI nếu đang xem đúng tuần của request
+            if (req.weekId === currentWeekId) {
+              const newSch = await api.getSchedule(currentWeekId, activeBrandSlug || undefined);
+              setSchedule(newSch);
+            }
         }
 
         await api.updateRequestStatus(reqId, status);
-        const newReqs = await api.getRequests(currentWeekId, activeBrandSlug || undefined);
+        const newReqs = await api.getRequests(req.weekId, activeBrandSlug || undefined);
         setRequests(newReqs);
 
         // Notify the requesting user
