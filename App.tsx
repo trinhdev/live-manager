@@ -205,17 +205,14 @@ export default function App() {
   // Notification helpers
   const addNotification = async (notif: Omit<AppNotification, 'id' | 'createdAt' | 'readBy'>) => {
     try {
-      const newNotif = await api.createNotification(notif);
-      setNotifications(prev => {
-        if (!prev.some(n => n.id === newNotif.id)) {
-           return [newNotif, ...prev];
-        }
-        return prev;
-      });
+      // Chỉ insert vào DB — Realtime subscription sẽ tự cập nhật UI state
+      // Không set state ở đây để tránh duplicate khi cả addNotification và Realtime đều thêm
+      await api.createNotification(notif);
     } catch (e) {
-      console.error(e);
+      console.error('addNotification failed:', e);
     }
   };
+
 
   const markNotifRead = async (notifId: string) => {
     if (!currentUser) return;
