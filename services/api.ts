@@ -106,25 +106,31 @@ export const api = {
   },
 
   async updateUser(user: Partial<User>, oldId?: string): Promise<User> {
-    const dbUser: any = {
-      ...user,
-      brand_id: user.brandId,
-      platforms: user.platforms || ['tiktok'],
-      zalo_phone: user.zaloPhone,
-      is_availability_submitted: user.isAvailabilitySubmitted,
-    };
-    delete dbUser.brandId;
-    delete dbUser.zaloPhone;
-    delete dbUser.isAvailabilitySubmitted;
+    const dbUser: any = { id: user.id };
+    // Chỉ đưa field vào payload khi được cung cấp rõ ràng (tránh overwrite NOT NULL)
+    if (user.name !== undefined)                    dbUser.name = user.name;
+    if (user.role !== undefined)                    dbUser.role = user.role;
+    if (user.password !== undefined)                dbUser.password = user.password;
+    if (user.rank !== undefined)                    dbUser.rank = user.rank;
+    if (user.avatar !== undefined)                  dbUser.avatar = user.avatar;
+    if (user.revenue !== undefined)                 dbUser.revenue = user.revenue;
+    if (user.platforms !== undefined)               dbUser.platforms = user.platforms;
+    if (user.brandId !== undefined)                 dbUser.brand_id = user.brandId;
+    if (user.zaloPhone !== undefined)               dbUser.zalo_phone = user.zaloPhone;
+    if (user.isAvailabilitySubmitted !== undefined) dbUser.is_availability_submitted = user.isAvailabilitySubmitted;
 
     if (oldId && oldId !== user.id) {
+      // Đổi ID: update theo ID cũ
       const { error } = await supabase.from('users').update(dbUser).eq('id', oldId);
       if (error) throw error;
       const { data, error: err2 } = await supabase.from('users').select().eq('id', user.id).single();
       if (err2) throw err2;
       return mapUser(data);
     } else {
-      const { data, error } = await supabase.from('users').upsert(dbUser).select().single();
+      // Create hoặc partial update: upsert chỉ các column được cung cấp
+      const { data, error } = await supabase.from('users')
+        .upsert(dbUser, { onConflict: 'id', ignoreDuplicates: false })
+        .select().single();
       if (error) throw error;
       return mapUser(data);
     }
