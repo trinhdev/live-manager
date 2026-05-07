@@ -1439,23 +1439,25 @@ export default function App() {
         {/* Nav */}
         <nav className="flex-1 px-4 py-2 space-y-1 overflow-y-auto">
           <SidebarItem icon={<Calendar size={18}/>} label="Lịch" active={viewMode === 'DASHBOARD'} onClick={() => setViewMode('DASHBOARD')} />
-          {currentUser && (currentUser.role === 'STAFF' || currentUser.role === 'OPERATIONS') && (
+          {currentUser && currentUser.role === 'STAFF' && (
             <SidebarItem icon={<CheckCircle2 size={18}/>} label="Đăng ký" active={viewMode === 'MY_AVAILABILITY'} onClick={() => setViewMode('MY_AVAILABILITY')} />
           )}
           {currentUser && currentUser.role === 'STAFF' && (
             <SidebarItem icon={<TrendingUp size={18}/>} label="Lương của tôi" active={viewMode === 'MY_SALARY'} onClick={() => setViewMode('MY_SALARY')} />
           )}
           {currentUser && (
-            <SidebarItem icon={<Inbox size={18}/>} label="Yêu cầu" active={viewMode === 'REQUESTS'} onClick={() => setViewMode('REQUESTS')} badge={(currentUser.role === 'MANAGER' || currentUser.role === 'SUPER_ADMIN') && pendingCount > 0 ? pendingCount : undefined}/>
+            <SidebarItem icon={<Inbox size={18}/>} label="Yêu cầu" active={viewMode === 'REQUESTS'} onClick={() => setViewMode('REQUESTS')} badge={(currentUser.role === 'MANAGER' || currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'OPERATIONS') && pendingCount > 0 ? pendingCount : undefined}/>
           )}
           {currentUser && (
             <SidebarItem icon={<Bell size={18}/>} label="Thông báo" active={isNotifPanelOpen} onClick={() => setIsNotifPanelOpen(!isNotifPanelOpen)} badge={unreadCount > 0 ? unreadCount : undefined} />
           )}
-          {(currentUser?.role === 'MANAGER' || currentUser?.role === 'SUPER_ADMIN') && (
+          {(currentUser?.role === 'MANAGER' || currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'OPERATIONS') && (
             <>
               <div className="px-3 pt-6 pb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400">Hệ thống</div>
               <SidebarItem icon={<Users size={18}/>} label="Nhân sự" active={viewMode === 'STAFF_MANAGEMENT'} onClick={() => setViewMode('STAFF_MANAGEMENT')} />
-              <SidebarItem icon={<CalendarCheck size={18}/>} label="Chấm công" active={viewMode === 'TIMEKEEPING'} onClick={() => { setViewMode('TIMEKEEPING'); }} />
+              {(currentUser?.role === 'MANAGER' || currentUser?.role === 'SUPER_ADMIN') && (
+                <SidebarItem icon={<CalendarCheck size={18}/>} label="Chấm công" active={viewMode === 'TIMEKEEPING'} onClick={() => { setViewMode('TIMEKEEPING'); }} />
+              )}
               <SidebarItem icon={<BarChart3 size={18}/>} label="Báo cáo" active={viewMode === 'REPORTS'} onClick={() => setViewMode('REPORTS')} />
               <SidebarItem icon={<Settings size={18}/>} label="Cấu hình" active={viewMode === 'SETTINGS'} onClick={() => setViewMode('SETTINGS')} />
             </>
@@ -2415,6 +2417,7 @@ export default function App() {
                               <RefreshCw size={15}/>
                             </button>
                           )}
+                          {(currentUser?.role === 'MANAGER' || currentUser?.role === 'SUPER_ADMIN') && (
                           <button 
                             onClick={() => handleDeleteUser(u.id)}
                             className="p-2 rounded-lg transition-all hover:bg-red-50"
@@ -2423,6 +2426,7 @@ export default function App() {
                           >
                             <Trash2 size={15}/>
                           </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -2433,7 +2437,7 @@ export default function App() {
           </div>
         )}
 
-        {viewMode === 'SETTINGS' && currentUser?.role === 'MANAGER' && (
+        {viewMode === 'SETTINGS' && (currentUser?.role === 'MANAGER' || currentUser?.role === 'OPERATIONS') && (
           <div className="space-y-6">
             {/* Shifts Management Section */}
             <div className="bg-white rounded-2xl border p-6" style={{borderColor:'#E5E5E5'}}>
@@ -3461,6 +3465,7 @@ export default function App() {
           </div>
 
           {/* ── Vai trò & Rank ── */}
+          {(currentUser?.role === 'MANAGER' || currentUser?.role === 'SUPER_ADMIN') && (
           <div className="flex gap-4 mb-5 flex-wrap">
             <div className="flex-1 min-w-[180px] space-y-2">
               <p className="text-[10px] font-semibold uppercase tracking-widest" style={{color:'#A3A3A3'}}>Vai trò</p>
@@ -3520,8 +3525,10 @@ export default function App() {
               </div>
             )}
           </div>
+          )}
 
           {/* ── Nền tảng live ── */}
+          {(currentUser?.role === 'MANAGER' || currentUser?.role === 'SUPER_ADMIN') && (
           <div className="space-y-2 mb-5">
             <p className="text-[10px] font-semibold uppercase tracking-widest" style={{color:'#A3A3A3'}}>Nền tảng live</p>
             <div className="grid grid-cols-2 gap-2">
@@ -3557,9 +3564,10 @@ export default function App() {
               })}
             </div>
           </div>
+          )}
 
           {/* ── Lương (chỉ khi STAFF) ── */}
-          {userFormData.role === 'STAFF' && (
+          {(currentUser?.role === 'MANAGER' || currentUser?.role === 'SUPER_ADMIN') && userFormData.role === 'STAFF' && (
             <div className="space-y-2 mb-5">
               <p className="text-[10px] font-semibold uppercase tracking-widest" style={{color:'#A3A3A3'}}>Thông tin lương</p>
               <div className="p-4 rounded-2xl" style={{background:'linear-gradient(135deg,#F0FDF4,#DCFCE7)', border:'1.5px solid #BBF7D0'}}>
@@ -3901,9 +3909,10 @@ export default function App() {
                     {isStaff && (
                       <SheetItem icon={<Bell size={18}/>} label={`Thông báo${unreadCount > 0 ? ` (${unreadCount})` : ''}`} onClick={() => { setIsNotifPanelOpen(true); setIsMoreMenuOpen(false); }}/>
                     )}
-                    {isOps && (
+                    {isOps && (<>
+                      <SheetItem icon={<Settings size={18}/>} label="Cấu hình" onClick={() => { setViewMode('SETTINGS'); setIsMoreMenuOpen(false); }}/>
                       <SheetItem icon={<Bell size={18}/>} label={`Thông báo${unreadCount > 0 ? ` (${unreadCount})` : ''}`} onClick={() => { setIsNotifPanelOpen(true); setIsMoreMenuOpen(false); }}/>
-                    )}
+                    </>)}
                   </div>
 
                   {/* Logout — always last */}
@@ -3939,9 +3948,9 @@ export default function App() {
                 {/* ── OPERATIONS ── */}
                 {isOps && (<>
                   <Tab icon={<Calendar size={21} strokeWidth={viewMode==='DASHBOARD'&&!isMoreMenuOpen?2:1.5}/>} label="Lịch" active={viewMode==='DASHBOARD'&&!isMoreMenuOpen} onClick={()=>{setViewMode('DASHBOARD');setIsMoreMenuOpen(false);}}/>
-                  <Tab icon={<CheckCircle2 size={21} strokeWidth={viewMode==='MY_AVAILABILITY'&&!isMoreMenuOpen?2:1.5}/>} label="Đăng ký" active={viewMode==='MY_AVAILABILITY'&&!isMoreMenuOpen} onClick={()=>{setViewMode('MY_AVAILABILITY');setIsMoreMenuOpen(false);}}/>
+                  <Tab icon={<Users size={21} strokeWidth={viewMode==='STAFF_MANAGEMENT'&&!isMoreMenuOpen?2:1.5}/>} label="Nhân sự" active={viewMode==='STAFF_MANAGEMENT'&&!isMoreMenuOpen} onClick={()=>{setViewMode('STAFF_MANAGEMENT');setIsMoreMenuOpen(false);}}/>
                   <Tab icon={<Inbox size={21} strokeWidth={viewMode==='REQUESTS'&&!isMoreMenuOpen?2:1.5}/>} label="Yêu cầu" active={viewMode==='REQUESTS'&&!isMoreMenuOpen} onClick={()=>{setViewMode('REQUESTS');setIsMoreMenuOpen(false);}} badge={pendingCount}/>
-                  <Tab icon={<Bell size={21} strokeWidth={isNotifPanelOpen&&!isMoreMenuOpen?2:1.5}/>} label="Thông báo" active={isNotifPanelOpen&&!isMoreMenuOpen} onClick={()=>{setIsNotifPanelOpen(true);setIsMoreMenuOpen(false);}} badge={unreadCount}/>
+                  <Tab icon={<BarChart3 size={21} strokeWidth={viewMode==='REPORTS'&&!isMoreMenuOpen?2:1.5}/>} label="Báo cáo" active={viewMode==='REPORTS'&&!isMoreMenuOpen} onClick={()=>{setViewMode('REPORTS');setIsMoreMenuOpen(false);}}/>
                   <Tab icon={<MoreHorizontal size={21} strokeWidth={isMoreMenuOpen?2:1.5}/>} label="Thêm" active={isMoreMenuOpen} onClick={()=>setIsMoreMenuOpen(!isMoreMenuOpen)}/>
                 </>)}
 
