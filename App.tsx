@@ -3842,28 +3842,43 @@ export default function App() {
           {/* More popup sheet - slide up animation */}
           {isMoreMenuOpen && (
             <div className="md:hidden fixed inset-0 z-[60]" onClick={() => setIsMoreMenuOpen(false)}>
-              <div className="more-popup absolute bottom-[72px] left-3 right-3 bg-white/96 backdrop-blur-3xl rounded-2xl border border-slate-100 p-4" style={{boxShadow:'0 -4px 40px rgba(0,0,0,0.08)'}}>
-                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-3 px-1">Thêm</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {(currentUser.role === 'MANAGER' || currentUser.role === 'SUPER_ADMIN') && (
-                    <button onClick={() => { setViewMode('REPORTS'); setIsMoreMenuOpen(false); }} className={`flex flex-col items-center gap-2 py-3 rounded-xl transition-colors ${viewMode === 'REPORTS' ? 'bg-indigo-50 text-indigo-500' : 'text-slate-500'}`}>
-                      <BarChart3 size={20} strokeWidth={1.5}/>
-                      <span className="text-[10px] font-medium">Báo cáo</span>
+                <div className="more-popup absolute bottom-[72px] left-3 right-3 bg-white/96 backdrop-blur-3xl rounded-2xl border border-slate-100 p-4" style={{boxShadow:'0 -4px 40px rgba(0,0,0,0.08)'}}>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-3 px-1">Thêm</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {/* Chấm công - Manager/Admin */}
+                    {(currentUser.role === 'MANAGER' || currentUser.role === 'SUPER_ADMIN') && (
+                      <button onClick={() => { setViewMode('TIMEKEEPING'); setIsMoreMenuOpen(false); }} className={`flex flex-col items-center gap-2 py-3 rounded-xl transition-colors ${viewMode === 'TIMEKEEPING' ? 'bg-indigo-50 text-indigo-500' : 'text-slate-500'}`}>
+                        <CalendarCheck size={20} strokeWidth={1.5}/>
+                        <span className="text-[10px] font-medium">Chấm công</span>
+                      </button>
+                    )}
+                    {/* Lương của tôi - Staff */}
+                    {currentUser.role === 'STAFF' && (
+                      <button onClick={() => { setViewMode('MY_SALARY'); setIsMoreMenuOpen(false); }} className={`flex flex-col items-center gap-2 py-3 rounded-xl transition-colors ${viewMode === 'MY_SALARY' ? 'bg-emerald-50 text-emerald-500' : 'text-slate-500'}`}>
+                        <TrendingUp size={20} strokeWidth={1.5}/>
+                        <span className="text-[10px] font-medium">Lương của tôi</span>
+                      </button>
+                    )}
+                    {(currentUser.role === 'MANAGER' || currentUser.role === 'SUPER_ADMIN') && (
+                      <button onClick={() => { setViewMode('REPORTS'); setIsMoreMenuOpen(false); }} className={`flex flex-col items-center gap-2 py-3 rounded-xl transition-colors ${viewMode === 'REPORTS' ? 'bg-indigo-50 text-indigo-500' : 'text-slate-500'}`}>
+                        <BarChart3 size={20} strokeWidth={1.5}/>
+                        <span className="text-[10px] font-medium">Báo cáo</span>
+                      </button>
+                    )}
+                    {(currentUser.role === 'MANAGER' || currentUser.role === 'SUPER_ADMIN') && (
+                      <button onClick={() => { setViewMode('SETTINGS'); setIsMoreMenuOpen(false); }} className={`flex flex-col items-center gap-2 py-3 rounded-xl transition-colors ${viewMode === 'SETTINGS' ? 'bg-indigo-50 text-indigo-500' : 'text-slate-500'}`}>
+                        <Settings size={20} strokeWidth={1.5}/>
+                        <span className="text-[10px] font-medium">Cấu hình</span>
+                      </button>
+                    )}
+                    <button onClick={() => { handleLogout(); setIsMoreMenuOpen(false); }} className="flex flex-col items-center gap-2 py-3 rounded-xl text-red-400 animate-in fade-in zoom-in duration-200">
+                      <LogOut size={20} strokeWidth={1.5}/>
+                      <span className="text-[10px] font-medium">Đăng xuất</span>
                     </button>
-                  )}
-                  {(currentUser.role === 'MANAGER' || currentUser.role === 'SUPER_ADMIN') && (
-                    <button onClick={() => { setViewMode('SETTINGS'); setIsMoreMenuOpen(false); }} className={`flex flex-col items-center gap-2 py-3 rounded-xl transition-colors ${viewMode === 'SETTINGS' ? 'bg-indigo-50 text-indigo-500' : 'text-slate-500'}`}>
-                      <Settings size={20} strokeWidth={1.5}/>
-                      <span className="text-[10px] font-medium">Cấu hình</span>
-                    </button>
-                  )}
-                  <button onClick={() => { handleLogout(); setIsMoreMenuOpen(false); }} className="flex flex-col items-center gap-2 py-3 rounded-xl text-red-400 animate-in fade-in zoom-in duration-200">
-                    <LogOut size={20} strokeWidth={1.5}/>
-                    <span className="text-[10px] font-medium">Đăng xuất</span>
-                  </button>
+                  </div>
                 </div>
               </div>
-            </div>
+
           )}
 
           <nav className="md:hidden fixed bottom-0 left-0 right-0 w-full bottom-menu z-50">
