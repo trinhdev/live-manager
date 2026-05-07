@@ -2,16 +2,15 @@
 import React, { useState } from 'react';
 import { User } from '../types';
 import { api } from '../services/api';
-import { Button } from './Button';
-import { User as UserIcon, Lock, AlertCircle, Loader2, ShieldCheck } from 'lucide-react';
+import { User as UserIcon, Lock, AlertCircle, Loader2, ShieldCheck, Sparkles } from 'lucide-react';
 
 interface LoginPageProps {
   onLogin: (user: User) => void;
-  users: User[];           // brand users (empty for super admin login)
+  users: User[];
   loading?: boolean;
   onBack: () => void;
-  brandSlug?: string;      // set when logging into a brand (e.g. 'gimmetee')
-  isSuperAdminLogin?: boolean; // true when at root /
+  brandSlug?: string;
+  isSuperAdminLogin?: boolean;
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({
@@ -29,7 +28,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 
     try {
       if (isSuperAdminLogin) {
-        // For super admin, query DB directly (no brand filter)
         const allUsers = await api.getUsers();
         const user = allUsers.find(u => u.id === username && u.password === password && u.role === 'SUPER_ADMIN');
         if (user) {
@@ -38,10 +36,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           setError('ID hoặc mật khẩu Super Admin không đúng');
         }
       } else {
-        // Brand user login — check local brand users list first
         let user = users.find(u => u.id === username && u.password === password);
         if (!user && brandSlug) {
-          // Fallback: query DB directly with brand filter
           const brandUsers = await api.getUsers(brandSlug);
           user = brandUsers.find(u => u.id === username && u.password === password);
         }
@@ -59,124 +55,165 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   };
 
   const isBusy = loading || submitting;
+  const accentColor = isSuperAdminLogin ? '#4F46E5' : (brandSlug ? '#4F46E5' : '#4F46E5');
 
   return (
-    <div className="min-h-screen dot-grid-bg flex items-center justify-center p-4 relative">
-      {/* Soft ambient orbs */}
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
+      style={{ background: '#F3F4F6', fontFamily: "'Inter', sans-serif" }}>
+
+      {/* Aurora mesh blobs */}
+      <div className="aurora-mesh">
+        <div className="blob-1" />
+        <div className="blob-2" />
+        <div className="blob-3" />
+      </div>
+
+      {/* Extra ambient orbs for login page depth */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-[#2563EB]/5 blur-3xl" />
-        <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full bg-[#171717]/4 blur-3xl" />
+        <div className="absolute top-1/4 left-1/4 w-72 h-72 rounded-full opacity-30 blur-3xl"
+          style={{ background: 'radial-gradient(circle, #C7D2FE 0%, transparent 70%)' }} />
+        <div className="absolute bottom-1/4 right-1/4 w-60 h-60 rounded-full opacity-25 blur-3xl"
+          style={{ background: 'radial-gradient(circle, #FBCFE8 0%, transparent 70%)' }} />
       </div>
 
       <div className="relative z-10 w-full max-w-sm animate-fade-in">
-        {/* Card */}
-        <div className="bg-white border border-[#E5E5E5] rounded-2xl p-8 shadow-[0_4px_24px_rgba(0,0,0,0.07)]">
-          {/* Logo + Brand context */}
+        {/* Glass card */}
+        <div className="rounded-3xl p-8 shadow-2xl"
+          style={{
+            background: 'rgba(255,255,255,0.72)',
+            backdropFilter: 'blur(24px)',
+            WebkitBackdropFilter: 'blur(24px)',
+            border: '1px solid rgba(255,255,255,0.9)',
+          }}>
+
+          {/* Logo header */}
           <div className="flex items-center gap-3 mb-8">
-            <div
-              className="w-9 h-9 rounded-lg flex items-center justify-center text-white text-[13px] font-black flex-shrink-0"
-              style={{ background: '#171717' }}
-            >
+            <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-white text-[13px] font-semibold flex-shrink-0 shadow-md"
+              style={{ background: accentColor, boxShadow: `0 4px 16px ${accentColor}40` }}>
               LS
             </div>
             <div>
-              <p className="text-[15px] font-bold text-[#171717] tracking-tight leading-tight">LiveSync</p>
+              <p className="text-[15px] font-semibold tracking-tight" style={{ color: '#1A1A1A' }}>LiveSync</p>
               {isSuperAdminLogin ? (
-                <p className="text-[11px] text-[#737373] flex items-center gap-1">
+                <p className="text-[11px] flex items-center gap-1 font-medium" style={{ color: accentColor }}>
                   <ShieldCheck size={10} /> Cổng Super Admin
                 </p>
               ) : brandSlug ? (
-                <p className="text-[11px] font-mono" style={{ color: '#2563EB' }}>/{brandSlug}</p>
+                <p className="text-[11px] font-mono font-medium" style={{ color: accentColor }}>/{brandSlug}</p>
               ) : (
-                <p className="text-[11px] text-[#737373]">Quản lý mẫu live</p>
+                <p className="text-[11px] font-light" style={{ color: '#A3A3A3' }}>Quản lý mẫu live</p>
               )}
             </div>
           </div>
 
-          <h1 className="text-[22px] font-bold text-[#171717] tracking-tight mb-1">
-            {isSuperAdminLogin ? 'Super Admin' : 'Đăng nhập'}
-          </h1>
-          <p className="text-[13px] text-[#737373] mb-7">
-            {isSuperAdminLogin
-              ? 'Đăng nhập để quản lý toàn bộ hệ thống.'
-              : 'Nhập thông tin tài khoản để tiếp tục.'}
-          </p>
+          {/* Title */}
+          <div className="mb-7">
+            <h1 className="text-[24px] font-semibold tracking-tight mb-1" style={{ color: '#1A1A1A' }}>
+              {isSuperAdminLogin ? 'Super Admin' : 'Đăng nhập'}
+            </h1>
+            <p className="text-[13px] font-light" style={{ color: '#737373' }}>
+              {isSuperAdminLogin
+                ? 'Đăng nhập để quản lý toàn bộ hệ thống.'
+                : 'Nhập thông tin tài khoản để tiếp tục.'}
+            </p>
+          </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Username */}
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold uppercase tracking-widest text-[#A3A3A3]">
+              <label className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: '#A3A3A3' }}>
                 {isSuperAdminLogin ? 'Admin ID' : 'ID Nhân sự'}
               </label>
               <div className="relative">
-                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A3A3A3]">
-                  {isSuperAdminLogin ? <ShieldCheck size={15} strokeWidth={2} /> : <UserIcon size={15} strokeWidth={2} />}
+                <div className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: '#A3A3A3' }}>
+                  {isSuperAdminLogin ? <ShieldCheck size={15} strokeWidth={1.8} /> : <UserIcon size={15} strokeWidth={1.8} />}
                 </div>
                 <input
                   type="text"
-                  className="input-minimal pl-9"
                   placeholder={isSuperAdminLogin ? 'superadmin' : 'Ví dụ: u1'}
                   value={username}
                   onChange={e => { setUsername(e.target.value); setError(''); }}
                   autoComplete="username"
                   autoFocus
+                  className="w-full pl-10 pr-4 py-3 rounded-xl text-[13.5px] font-medium outline-none transition-all"
+                  style={{
+                    background: 'rgba(255,255,255,0.6)',
+                    border: '1px solid rgba(0,0,0,0.1)',
+                    color: '#1A1A1A',
+                  }}
+                  onFocus={e => { e.currentTarget.style.border = `1px solid ${accentColor}`; e.currentTarget.style.boxShadow = `0 0 0 3px ${accentColor}18`; e.currentTarget.style.background = '#fff'; }}
+                  onBlur={e => { e.currentTarget.style.border = '1px solid rgba(0,0,0,0.1)'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.background = 'rgba(255,255,255,0.6)'; }}
                 />
               </div>
             </div>
 
             {/* Password */}
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold uppercase tracking-widest text-[#A3A3A3]">
+              <label className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: '#A3A3A3' }}>
                 Mật khẩu
               </label>
               <div className="relative">
-                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A3A3A3]">
-                  <Lock size={15} strokeWidth={2} />
+                <div className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: '#A3A3A3' }}>
+                  <Lock size={15} strokeWidth={1.8} />
                 </div>
                 <input
                   type="password"
-                  className="input-minimal pl-9"
                   placeholder="••••••••"
                   value={password}
                   onChange={e => { setPassword(e.target.value); setError(''); }}
                   autoComplete="current-password"
+                  className="w-full pl-10 pr-4 py-3 rounded-xl text-[13.5px] font-medium outline-none transition-all"
+                  style={{
+                    background: 'rgba(255,255,255,0.6)',
+                    border: '1px solid rgba(0,0,0,0.1)',
+                    color: '#1A1A1A',
+                  }}
+                  onFocus={e => { e.currentTarget.style.border = `1px solid ${accentColor}`; e.currentTarget.style.boxShadow = `0 0 0 3px ${accentColor}18`; e.currentTarget.style.background = '#fff'; }}
+                  onBlur={e => { e.currentTarget.style.border = '1px solid rgba(0,0,0,0.1)'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.background = 'rgba(255,255,255,0.6)'; }}
                 />
               </div>
             </div>
 
             {/* Error */}
             {error && (
-              <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-100 text-red-600 rounded-lg text-[12px] font-medium">
+              <div className="flex items-center gap-2 p-3 rounded-xl text-[12px] font-medium"
+                style={{ background: '#FEF2F2', border: '1px solid #FECACA', color: '#DC2626' }}>
                 <AlertCircle size={14} strokeWidth={2} />
                 {error}
               </div>
             )}
 
-            <Button
+            {/* Submit button */}
+            <button
               type="submit"
-              variant="mono"
-              className="w-full h-10 text-[13.5px] mt-1 rounded-lg"
               disabled={isBusy}
+              className="w-full py-3 rounded-xl text-[14px] font-semibold flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-[0.98] mt-1"
+              style={{
+                background: accentColor,
+                color: '#fff',
+                opacity: isBusy ? 0.7 : 1,
+                boxShadow: `0 4px 20px ${accentColor}35`,
+              }}
             >
-              {isBusy ? <Loader2 className="animate-spin" size={16} /> : 'Đăng nhập'}
-            </Button>
+              {isBusy
+                ? <Loader2 className="animate-spin" size={16} />
+                : <>
+                    {isSuperAdminLogin && <Sparkles size={14} />}
+                    Đăng nhập
+                  </>
+              }
+            </button>
           </form>
         </div>
 
-        {brandSlug && (
-          <p className="text-center text-[11px] text-[#A3A3A3] mt-6">
-            Quên mật khẩu?{' '}
-            <span className="text-[#2563EB] cursor-pointer hover:underline font-medium">
-              Liên hệ quản lý
-            </span>
-          </p>
-        )}
-
-        {isSuperAdminLogin && (
-          <p className="text-center text-[11px] text-[#A3A3A3] mt-6">
-            LiveSync v2.0 · Multi-Brand Edition
-          </p>
-        )}
+        {/* Footer text */}
+        <p className="text-center text-[11px] mt-5 font-light" style={{ color: '#A3A3A3' }}>
+          {isSuperAdminLogin
+            ? 'LiveSync v2.0 · Multi-Brand Edition'
+            : brandSlug
+              ? <>Quên mật khẩu? <span className="font-medium cursor-pointer hover:underline" style={{ color: accentColor }}>Liên hệ quản lý</span></>
+              : 'LiveSync · Hệ thống quản lý livestream'}
+        </p>
       </div>
     </div>
   );
