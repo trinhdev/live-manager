@@ -2758,7 +2758,7 @@ export default function App() {
               </div>
 
               {/* Grand total strip */}
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {[
                   {label:'Tổng lương cơ bản',value:grandBase>0?`${fmt(Math.round(grandBase))}đ`:'—',color:'#737373'},
                   {label:'Tổng hỗ trợ',value:grandBonus>0?`+${fmt(grandBonus)}đ`:'—',color:'#059669'},
@@ -2772,10 +2772,10 @@ export default function App() {
               </div>
 
               {/* Tab switcher */}
-              <div className="flex gap-1 p-1 rounded-xl w-fit" style={{background:'#F5F5F5',border:'1px solid #E5E5E5'}}>
+              <div className="flex gap-1 p-1 rounded-xl" style={{background:'#F5F5F5',border:'1px solid #E5E5E5'}}>
                 {[{key:'summary',label:'Tổng hợp nhân sự'},{key:'daily',label:'Theo từng ngày'}].map(t=>(
                   <button key={t.key} onClick={()=>setTkTab(t.key as 'summary'|'daily')}
-                    className="px-4 py-2 rounded-lg text-[13px] font-semibold transition-all"
+                    className="flex-1 px-3 py-2 rounded-lg text-[12px] font-semibold transition-all"
                     style={tkTab===t.key?{background:'#fff',color:'#171717',boxShadow:'0 1px 3px rgba(0,0,0,0.08)'}:{color:'#A3A3A3'}}>
                     {t.label}
                   </button>
@@ -2850,7 +2850,7 @@ export default function App() {
                     return (
                       <div className="bg-white rounded-2xl border overflow-hidden" style={{borderColor:'#BFDBFE',boxShadow:'0 0 0 3px rgba(37,99,235,0.06)'}}>
                         {/* Panel header */}
-                        <div className="px-5 py-4 flex items-center justify-between" style={{background:'#EFF6FF',borderBottom:'1px solid #BFDBFE'}}>
+                        <div className="px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3 justify-between" style={{background:'#EFF6FF',borderBottom:'1px solid #BFDBFE'}}>
                           <div className="flex items-center gap-3">
                             <img src={stat.u.avatar} className="w-10 h-10 rounded-full object-cover" style={{border:'2px solid #BFDBFE'}} alt=""/>
                             <div>
@@ -2858,14 +2858,14 @@ export default function App() {
                               <p className="text-[11px]" style={{color:'#6B7280'}}>Bảng công chi tiết · Tháng {timekeepingMonth}/{timekeepingYear}</p>
                             </div>
                           </div>
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center justify-between sm:justify-end gap-3">
                             {/* Summary pills */}
-                            <div className="flex gap-2">
-                              <span className="px-3 py-1.5 rounded-xl text-[11px] font-semibold" style={{background:'#F0F0FF',color:'#4F46E5'}}>{stat.cnt} ca</span>
-                              <span className="px-3 py-1.5 rounded-xl text-[11px] font-semibold" style={{background:'#F0FDF4',color:'#059669'}}>{fmtH(stat.hrs)}</span>
-                              {stat.otMin>0&&<span className="px-3 py-1.5 rounded-xl text-[11px] font-semibold" style={{background:'#FEF3C7',color:'#D97706'}}>+{stat.otMin}ph OT</span>}
+                            <div className="flex gap-1.5 flex-wrap">
+                              <span className="px-2.5 py-1 rounded-xl text-[11px] font-semibold" style={{background:'#F0F0FF',color:'#4F46E5'}}>{stat.cnt} ca</span>
+                              <span className="px-2.5 py-1 rounded-xl text-[11px] font-semibold" style={{background:'#F0FDF4',color:'#059669'}}>{fmtH(stat.hrs)}</span>
+                              {stat.otMin>0&&<span className="px-2.5 py-1 rounded-xl text-[11px] font-semibold" style={{background:'#FEF3C7',color:'#D97706'}}>+{stat.otMin}ph OT</span>}
                             </div>
-                            <button onClick={()=>setTimekeepingDetailUserId(null)} className="w-8 h-8 rounded-full flex items-center justify-center" style={{background:'#E0E7FF',color:'#4F46E5'}}>✕</button>
+                            <button onClick={()=>setTimekeepingDetailUserId(null)} className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{background:'#E0E7FF',color:'#4F46E5'}}>✕</button>
                           </div>
                         </div>
 
@@ -2950,7 +2950,7 @@ export default function App() {
                             </div>
 
                             {/* Total preview */}
-                            <div className="flex items-center justify-between pt-2" style={{borderTop:'1px solid #D1FAE5'}}>
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-3 justify-between pt-2" style={{borderTop:'1px solid #D1FAE5'}}>
                               <div className="text-[12px]" style={{color:'#065F46'}}>
                                 <span className="font-medium">Lương cơ bản: </span>
                                 <span className="font-bold tabular-nums">{stat.base>0?`${fmt(Math.round(stat.base))}đ`:'—'}</span>
@@ -2962,7 +2962,7 @@ export default function App() {
                                   = {fmt(Math.round(stat.base + draft.bonusAmount))}đ
                                 </span>
                                 <button onClick={()=>saveBonus(stat.u.id)} disabled={timekeepingSaving===stat.u.id}
-                                  className="px-5 py-2.5 rounded-xl text-[13px] font-bold flex items-center gap-2"
+                                  className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl text-[13px] font-bold flex items-center justify-center gap-2"
                                   style={{background:'#059669',color:'#fff',boxShadow:'0 2px 8px rgba(5,150,105,0.3)'}}>
                                   {timekeepingSaving===stat.u.id?<Loader2 size={14} className="animate-spin"/>:<Save size={14}/>}
                                   Lưu hỗ trợ
@@ -3084,11 +3084,11 @@ export default function App() {
                     <p className="text-[12px]" style={{color:'#A3A3A3'}}>{(me.hourlyRate||0)>0?`${fmts(me.hourlyRate!)}đ/giờ`:'Chưa thiết lập lương/giờ'}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <select className="px-3 py-2 rounded-xl text-[13px] font-medium outline-none" style={{background:'#F5F5F5',border:'1px solid #E5E5E5'}} value={timekeepingMonth} onChange={e=>setTimekeepingMonth(Number(e.target.value))}>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <select className="flex-1 min-w-[100px] px-3 py-2 rounded-xl text-[13px] font-medium outline-none" style={{background:'#F5F5F5',border:'1px solid #E5E5E5'}} value={timekeepingMonth} onChange={e=>setTimekeepingMonth(Number(e.target.value))}>
                     {months3.map(m=><option key={m} value={m}>Tháng {m}</option>)}
                   </select>
-                  <select className="px-3 py-2 rounded-xl text-[13px] font-medium outline-none" style={{background:'#F5F5F5',border:'1px solid #E5E5E5'}} value={timekeepingYear} onChange={e=>setTimekeepingYear(Number(e.target.value))}>
+                  <select className="flex-1 min-w-[80px] px-3 py-2 rounded-xl text-[13px] font-medium outline-none" style={{background:'#F5F5F5',border:'1px solid #E5E5E5'}} value={timekeepingYear} onChange={e=>setTimekeepingYear(Number(e.target.value))}>
                     {years3.map(y=><option key={y} value={y}>{y}</option>)}
                   </select>
                   <button onClick={async()=>{if(!activeBrandSlug)return;const r=await api.getTimekeeping(activeBrandSlug,timekeepingMonth,timekeepingYear);setTimekeepingRecords(r);}}
@@ -3122,6 +3122,7 @@ export default function App() {
                     <Clock size={26}/><p className="text-[13px] mt-3" style={{color:'#A3A3A3'}}>Chưa có ca nào trong tháng {timekeepingMonth}/{timekeepingYear}</p>
                   </div>
                 ):(
+                  <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
                       <tr style={{background:'#FAFAFA',borderBottom:'1px solid #F0F0F0'}}>
@@ -3157,6 +3158,7 @@ export default function App() {
                       </tr>
                     </tfoot>
                   </table>
+                  </div>
                 )}
               </div>
               {bonusAmt>0&&(
