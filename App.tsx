@@ -520,6 +520,22 @@ export default function App() {
     }
   }, [users, currentUser]);
 
+  // Auto-load timekeeping bonus when entering Timekeeping view or changing month/year
+  useEffect(() => {
+    if (viewMode === 'TIMEKEEPING' && activeBrandSlug) {
+      setTimekeepingLoading(true);
+      api.getTimekeeping(activeBrandSlug, timekeepingMonth, timekeepingYear)
+        .then(recs => {
+          setTimekeepingRecords(recs);
+          const draft: Record<string,{bonusAmount:number;note:string}> = {};
+          recs.forEach(r => { draft[r.userId] = {bonusAmount:r.bonusAmount,note:r.note||''}; });
+          setTimekeepingDraft(draft);
+        })
+        .catch(e => console.warn('Auto-load timekeeping failed', e))
+        .finally(() => setTimekeepingLoading(false));
+    }
+  }, [viewMode, timekeepingMonth, timekeepingYear, activeBrandSlug]);
+
   // Realtime Notifications Subscription
   useEffect(() => {
     if (!('channel' in supabase)) return; // Offline mode handling
@@ -2734,45 +2750,45 @@ export default function App() {
 
           return (
             <div className="space-y-5">
-              {/* Header */}
+              {/* â”€â”€ Header â”€â”€ */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <h3 className="text-[17px] font-semibold flex items-center gap-2" style={{color:'#171717'}}>
-                    <CalendarCheck size={18} style={{color:'#4F46E5'}}/> Chấm công
-                    <span className="text-[11px] font-normal px-2 py-0.5 rounded-full ml-1" style={{background:'#F0FDF4',color:'#059669',border:'1px solid #BBF7D0'}}>● Real-time</span>
+                    <CalendarCheck size={18} style={{color:'#4F46E5'}}/> Cháº¥m cÃ´ng
+                    {timekeepingLoading
+                      ? <Loader2 size={13} className="animate-spin ml-1" style={{color:'#4F46E5'}}/>
+                      : <span className="text-[11px] font-normal px-2 py-0.5 rounded-full ml-1" style={{background:'#F0FDF4',color:'#059669',border:'1px solid #BBF7D0'}}>â— Real-time</span>
+                    }
                   </h3>
-                  <p className="text-[12px] mt-0.5" style={{color:'#A3A3A3'}}>Tháng {timekeepingMonth}/{timekeepingYear} · Dữ liệu cập nhật liên tục theo lịch live</p>
+                  <p className="text-[12px] mt-0.5" style={{color:'#A3A3A3'}}>ThÃ¡ng {timekeepingMonth}/{timekeepingYear} Â· Dá»¯ liá»‡u cáº­p nháº­t liÃªn tá»¥c theo lá»‹ch live</p>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <select className="px-3 py-2 rounded-xl text-[13px] font-medium outline-none" style={{background:'#F5F5F5',border:'1px solid #E5E5E5'}} value={timekeepingMonth} onChange={e=>setTimekeepingMonth(Number(e.target.value))}>
-                    {months2.map(m=><option key={m} value={m}>Tháng {m}</option>)}
+                    {months2.map(m=><option key={m} value={m}>ThÃ¡ng {m}</option>)}
                   </select>
                   <select className="px-3 py-2 rounded-xl text-[13px] font-medium outline-none" style={{background:'#F5F5F5',border:'1px solid #E5E5E5'}} value={timekeepingYear} onChange={e=>setTimekeepingYear(Number(e.target.value))}>
                     {years2.map(y=><option key={y} value={y}>{y}</option>)}
                   </select>
-                  <button onClick={loadBonus} className="px-3 py-2 rounded-xl text-[13px] font-semibold flex items-center gap-1.5" style={{background:'#F5F5F5',border:'1px solid #E5E5E5',color:'#4F46E5'}}>
-                    {timekeepingLoading?<Loader2 size={13} className="animate-spin"/>:<RefreshCw size={13}/>} Tải hỗ trợ
-                  </button>
                 </div>
               </div>
 
-              {/* Grand total strip */}
+              {/* â”€â”€ KPI strip â”€â”€ */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {[
-                  {label:'Tổng lương cơ bản',value:grandBase>0?`${fmt(Math.round(grandBase))}đ`:'—',color:'#737373'},
-                  {label:'Tổng hỗ trợ',value:grandBonus>0?`+${fmt(grandBonus)}đ`:'—',color:'#059669'},
-                  {label:'Tổng chi lương',value:grandTotal>0?`${fmt(Math.round(grandTotal))}đ`:'—',color:'#D97706'},
+                  {label:'LÆ°Æ¡ng cÆ¡ báº£n',value:grandBase>0?`${fmt(Math.round(grandBase))}Ä‘`:'â€”',color:'#737373',bg:'#FAFAFA'},
+                  {label:'Tá»•ng há»— trá»£',value:grandBonus>0?`+${fmt(grandBonus)}Ä‘`:'â€”',color:'#059669',bg:'#F0FDF4'},
+                  {label:'Tá»•ng chi lÆ°Æ¡ng',value:grandTotal>0?`${fmt(Math.round(grandTotal))}Ä‘`:'â€”',color:'#D97706',bg:'#FFFBEB'},
                 ].map((s,i)=>(
-                  <div key={i} className="p-4 rounded-2xl" style={{background:'#fff',border:'1px solid #F0F0F0',boxShadow:'0 1px 6px rgba(0,0,0,0.04)'}}>
+                  <div key={i} className="p-4 rounded-2xl" style={{background:s.bg,border:'1px solid #F0F0F0',boxShadow:'0 1px 4px rgba(0,0,0,0.04)'}}>
                     <p className="text-[10px] font-semibold uppercase tracking-widest mb-1" style={{color:s.color}}>{s.label}</p>
                     <p className="text-[20px] font-bold tabular-nums" style={{color:'#171717'}}>{s.value}</p>
                   </div>
                 ))}
               </div>
 
-              {/* Tab switcher */}
+              {/* â”€â”€ Tab switcher â”€â”€ */}
               <div className="flex gap-1 p-1 rounded-xl" style={{background:'#F5F5F5',border:'1px solid #E5E5E5'}}>
-                {[{key:'summary',label:'Tổng hợp nhân sự'},{key:'daily',label:'Theo từng ngày'}].map(t=>(
+                {[{key:'summary',label:'Tá»•ng há»£p nhÃ¢n sá»±'},{key:'daily',label:'Theo tá»«ng ngÃ y'}].map(t=>(
                   <button key={t.key} onClick={()=>setTkTab(t.key as 'summary'|'daily')}
                     className="flex-1 px-3 py-2 rounded-lg text-[12px] font-semibold transition-all"
                     style={tkTab===t.key?{background:'#fff',color:'#171717',boxShadow:'0 1px 3px rgba(0,0,0,0.08)'}:{color:'#A3A3A3'}}>
@@ -2781,209 +2797,50 @@ export default function App() {
                 ))}
               </div>
 
-              {/* SUMMARY TAB */}
+              {/* â”€â”€ SUMMARY TAB â”€â”€ */}
               {tkTab==='summary' && (
-                <div className="space-y-3">
-                  {/* Staff list table */}
-                  <div className="bg-white rounded-2xl border overflow-hidden" style={{borderColor:'#E5E5E5'}}>
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead>
-                          <tr style={{background:'#FAFAFA',borderBottom:'1px solid #F0F0F0'}}>
-                            {['Nhân sự','Số ca','Tổng giờ','OT','Lương cơ bản','Hỗ trợ','Tổng nhận',''].map(h=>(
-                              <th key={h} className="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-widest whitespace-nowrap" style={{color:'#A3A3A3'}}>{h}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {staffStats.map((stat,i)=>{
-                            const isOpen = timekeepingDetailUserId === stat.u.id;
-                            const draft = timekeepingDraft[stat.u.id]||{bonusAmount:stat.bonusAmt,note:stat.bonusNote};
-                            return (
-                              <tr key={stat.u.id} style={{borderTop:i>0?'1px solid #F5F5F5':'none',background:isOpen?'#F8FBFF':'transparent'}}>
-                                <td className="px-4 py-3">
-                                  <div className="flex items-center gap-2.5">
-                                    <img src={stat.u.avatar} className="w-8 h-8 rounded-full object-cover flex-shrink-0" style={{border:'1.5px solid #F0F0F0'}} alt=""/>
-                                    <div>
-                                      <p className="text-[13px] font-semibold" style={{color:'#171717'}}>{stat.u.name}</p>
-                                      <p className="text-[10px]" style={{color:'#A3A3A3'}}>{(stat.u.hourlyRate||0)>0?`${fmt(stat.u.hourlyRate!)}đ/h`:'Chưa thiết lập'}</p>
-                                    </div>
-                                  </div>
-                                </td>
-                                <td className="px-4 py-3 text-[13px] font-semibold tabular-nums" style={{color:'#171717'}}>{stat.cnt}</td>
-                                <td className="px-4 py-3 text-[13px] font-semibold tabular-nums" style={{color:'#171717'}}>{fmtH(stat.hrs)}</td>
-                                <td className="px-4 py-3">{stat.otMin>0?<span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{background:'#FEF3C7',color:'#D97706'}}>+{stat.otMin}ph</span>:<span style={{color:'#D4D4D4'}}>—</span>}</td>
-                                <td className="px-4 py-3 text-[13px] font-semibold tabular-nums" style={{color:stat.base>0?'#171717':'#D4D4D4'}}>{stat.base>0?`${fmt(Math.round(stat.base))}đ`:'—'}</td>
-                                <td className="px-4 py-3">
-                                  {draft.bonusAmount>0
-                                    ? <span className="text-[12px] font-bold tabular-nums" style={{color:'#059669'}}>+{fmt(draft.bonusAmount)}đ</span>
-                                    : <span style={{color:'#D4D4D4'}}>—</span>
-                                  }
-                                </td>
-                                <td className="px-4 py-3"><span className="text-[14px] font-bold tabular-nums" style={{color:stat.total>0?'#059669':'#D4D4D4'}}>{stat.total>0?`${fmt(Math.round(stat.total))}đ`:'—'}</span></td>
-                                <td className="px-4 py-3">
-                                  <button
-                                    onClick={()=>setTimekeepingDetailUserId(isOpen ? null : stat.u.id)}
-                                    className="px-3 py-1.5 rounded-lg text-[11px] font-semibold flex items-center gap-1 whitespace-nowrap transition-all"
-                                    style={isOpen
-                                      ? {background:'#EFF6FF',color:'#2563EB',border:'1px solid #BFDBFE'}
-                                      : {background:'#F5F5F5',color:'#4F46E5',border:'1px solid #E5E5E5'}
-                                    }>
-                                    Chi tiết {isOpen ? '▲' : '▼'}
-                                  </button>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                      {staffList.length===0&&<div className="py-12 text-center" style={{color:'#D4D4D4'}}>Chưa có nhân sự mẫu live</div>}
-                    </div>
-                  </div>
-
-                  {/* Detail panel — shows when a user is selected */}
-                  {timekeepingDetailUserId && (() => {
-                    const stat = staffStats.find(s=>s.u.id===timekeepingDetailUserId);
-                    if (!stat) return null;
-                    const draft = timekeepingDraft[stat.u.id]||{bonusAmount:stat.bonusAmt,note:stat.bonusNote};
-                    return (
-                      <div className="bg-white rounded-2xl border overflow-hidden" style={{borderColor:'#BFDBFE',boxShadow:'0 0 0 3px rgba(37,99,235,0.06)'}}>
-                        {/* Panel header */}
-                        <div className="px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3 justify-between" style={{background:'#EFF6FF',borderBottom:'1px solid #BFDBFE'}}>
-                          <div className="flex items-center gap-3">
-                            <img src={stat.u.avatar} className="w-10 h-10 rounded-full object-cover" style={{border:'2px solid #BFDBFE'}} alt=""/>
-                            <div>
-                              <p className="text-[15px] font-bold" style={{color:'#171717'}}>{stat.u.name}</p>
-                              <p className="text-[11px]" style={{color:'#6B7280'}}>Bảng công chi tiết · Tháng {timekeepingMonth}/{timekeepingYear}</p>
+                <div className="bg-white rounded-2xl border overflow-hidden" style={{borderColor:'#E5E5E5'}}>
+                  {staffList.length===0
+                    ? <div className="py-14 text-center" style={{color:'#D4D4D4'}}><CalendarCheck size={28} className="mx-auto mb-3"/><p className="text-[13px]" style={{color:'#A3A3A3'}}>ChÆ°a cÃ³ nhÃ¢n sá»± máº«u live</p></div>
+                    : <div className="divide-y" style={{borderColor:'#F5F5F5'}}>
+                        {staffStats.map(stat=>{
+                          const draft = timekeepingDraft[stat.u.id]||{bonusAmount:stat.bonusAmt,note:stat.bonusNote};
+                          return (
+                            <div key={stat.u.id} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors">
+                              <img src={stat.u.avatar} className="w-9 h-9 rounded-full object-cover flex-shrink-0" style={{border:'1.5px solid #F0F0F0'}} alt=""/>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[13px] font-semibold truncate" style={{color:'#171717'}}>{stat.u.name}</p>
+                                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                  <span className="text-[11px]" style={{color:'#A3A3A3'}}>{stat.cnt} ca Â· {fmtH(stat.hrs)}</span>
+                                  {stat.otMin>0&&<span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{background:'#FEF3C7',color:'#D97706'}}>OT</span>}
+                                  {draft.bonusAmount>0&&<span className="text-[10px] font-bold" style={{color:'#059669'}}>+{fmt(draft.bonusAmount)}Ä‘ HT</span>}
+                                </div>
+                              </div>
+                              <div className="text-right flex-shrink-0 mr-3">
+                                <p className="text-[13px] font-bold tabular-nums" style={{color:stat.total>0?'#059669':'#D4D4D4'}}>{stat.total>0?`${fmt(Math.round(stat.total))}Ä‘`:'â€”'}</p>
+                                <p className="text-[10px]" style={{color:'#A3A3A3'}}>{(stat.u.hourlyRate||0)>0?`${fmt(stat.u.hourlyRate!)}Ä‘/h`:'ChÆ°a thiáº¿t láº­p'}</p>
+                              </div>
+                              <button
+                                onClick={()=>setTimekeepingDetailUserId(stat.u.id)}
+                                className="flex-shrink-0 px-3 py-2 rounded-xl text-[12px] font-semibold transition-all active:scale-95"
+                                style={{background:'#EFF6FF',color:'#4F46E5',border:'1px solid #C7D2FE'}}>
+                                Chi tiáº¿t
+                              </button>
                             </div>
-                          </div>
-                          <div className="flex items-center justify-between sm:justify-end gap-3">
-                            {/* Summary pills */}
-                            <div className="flex gap-1.5 flex-wrap">
-                              <span className="px-2.5 py-1 rounded-xl text-[11px] font-semibold" style={{background:'#F0F0FF',color:'#4F46E5'}}>{stat.cnt} ca</span>
-                              <span className="px-2.5 py-1 rounded-xl text-[11px] font-semibold" style={{background:'#F0FDF4',color:'#059669'}}>{fmtH(stat.hrs)}</span>
-                              {stat.otMin>0&&<span className="px-2.5 py-1 rounded-xl text-[11px] font-semibold" style={{background:'#FEF3C7',color:'#D97706'}}>+{stat.otMin}ph OT</span>}
-                            </div>
-                            <button onClick={()=>setTimekeepingDetailUserId(null)} className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{background:'#E0E7FF',color:'#4F46E5'}}>✕</button>
-                          </div>
-                        </div>
-
-                        <div className="p-5 space-y-5">
-                          {/* Shift-by-shift table */}
-                          <div>
-                            <p className="text-[12px] font-semibold mb-3 flex items-center gap-2" style={{color:'#737373'}}>
-                              <CalendarCheck size={13}/> Chi tiết từng ca
-                            </p>
-                            {stat.dayRows.length===0 ? (
-                              <p className="text-[12px] text-center py-6" style={{color:'#D4D4D4'}}>Chưa có ca nào trong tháng này</p>
-                            ) : (
-                              <div className="rounded-xl border overflow-hidden" style={{borderColor:'#E5E5E5'}}>
-                                <table className="w-full">
-                                  <thead>
-                                    <tr style={{background:'#FAFAFA',borderBottom:'1px solid #F0F0F0'}}>
-                                      {['Ngày','Tên ca','Giờ live','OT','Thành tiền'].map(h=>(
-                                        <th key={h} className="px-3 py-2.5 text-left text-[9px] font-semibold uppercase tracking-widest" style={{color:'#A3A3A3'}}>{h}</th>
-                                      ))}
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {stat.dayRows.map((row,ri)=>{
-                                      const isToday3 = new Date().toDateString()===row.date.toDateString();
-                                      return (
-                                        <tr key={ri} style={{borderTop:ri>0?'1px solid #F5F5F5':'none',background:isToday3?'#F8FBFF':'transparent'}}>
-                                          <td className="px-3 py-2.5">
-                                            <p className="text-[12px] font-bold tabular-nums" style={{color:isToday3?'#2563EB':'#171717'}}>
-                                              {row.date.getDate()}/{row.date.getMonth()+1}
-                                              {isToday3&&<span className="ml-1 text-[8px] font-bold px-1 rounded" style={{background:'#EFF6FF',color:'#2563EB'}}>Hôm nay</span>}
-                                            </p>
-                                            <p className="text-[10px]" style={{color:'#A3A3A3'}}>{dayNames[row.date.getDay()]}</p>
-                                          </td>
-                                          <td className="px-3 py-2.5 text-[12px] font-medium" style={{color:'#737373'}}>{row.shiftName}</td>
-                                          <td className="px-3 py-2.5 text-[12px] font-semibold tabular-nums" style={{color:'#171717'}}>{fmtH(row.hrs)}</td>
-                                          <td className="px-3 py-2.5">{row.otMin>0?<span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{background:'#FEF3C7',color:'#D97706'}}>+{row.otMin}ph</span>:<span style={{color:'#E5E5E5'}}>—</span>}</td>
-                                          <td className="px-3 py-2.5 text-[12px] font-bold tabular-nums" style={{color:row.salary>0?'#059669':'#D4D4D4'}}>{row.salary>0?`${fmt(Math.round(row.salary))}đ`:'—'}</td>
-                                        </tr>
-                                      );
-                                    })}
-                                  </tbody>
-                                  <tfoot>
-                                    <tr style={{borderTop:'2px solid #E5E5E5',background:'#FAFAFA'}}>
-                                      <td colSpan={2} className="px-3 py-2.5"><span className="text-[11px] font-semibold" style={{color:'#737373'}}>Tổng</span></td>
-                                      <td className="px-3 py-2.5 text-[12px] font-bold" style={{color:'#171717'}}>{fmtH(stat.hrs)}</td>
-                                      <td className="px-3 py-2.5 text-[11px] font-bold" style={{color:'#D97706'}}>{stat.otMin>0?`+${stat.otMin}ph`:''}</td>
-                                      <td className="px-3 py-2.5 text-[13px] font-bold" style={{color:stat.base>0?'#171717':'#D4D4D4'}}>{stat.base>0?`${fmt(Math.round(stat.base))}đ`:'—'}</td>
-                                    </tr>
-                                  </tfoot>
-                                </table>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Bonus input section */}
-                          <div className="rounded-2xl p-4 space-y-3" style={{background:'#F8FFF8',border:'1px solid #BBF7D0'}}>
-                            <p className="text-[12px] font-semibold flex items-center gap-2" style={{color:'#065F46'}}>
-                              <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="#059669" strokeWidth="1.5"/><path d="M8 5v3l2 1" stroke="#059669" strokeWidth="1.5" strokeLinecap="round"/></svg>
-                              Tiền hỗ trợ tháng {timekeepingMonth}/{timekeepingYear}
-                            </p>
-                            <div className="flex gap-3 flex-wrap">
-                              <div className="flex-1 min-w-[160px]">
-                                <label className="text-[10px] font-semibold uppercase tracking-widest block mb-1.5" style={{color:'#6B7280'}}>Số tiền hỗ trợ (đ)</label>
-                                <input type="number" min={0} step={10000}
-                                  className="w-full px-3 py-2.5 rounded-xl text-[14px] font-bold tabular-nums outline-none"
-                                  style={{background:'#fff',border:'2px solid #BBF7D0',color:'#059669'}}
-                                  value={draft.bonusAmount||''} placeholder="0"
-                                  onChange={e=>setTimekeepingDraft(prev=>({...prev,[stat.u.id]:{...draft,bonusAmount:Number(e.target.value)}}))}
-                                  onFocus={e=>{e.currentTarget.style.border='2px solid #34D399';}}
-                                  onBlur={e=>{e.currentTarget.style.border='2px solid #BBF7D0';}}/>
-                              </div>
-                              <div className="flex-1 min-w-[160px]">
-                                <label className="text-[10px] font-semibold uppercase tracking-widest block mb-1.5" style={{color:'#6B7280'}}>Ghi chú</label>
-                                <input type="text"
-                                  className="w-full px-3 py-2.5 rounded-xl text-[13px] outline-none"
-                                  style={{background:'#fff',border:'2px solid #E5E5E5',color:'#737373'}}
-                                  value={draft.note||''} placeholder="Lý do hỗ trợ..."
-                                  onChange={e=>setTimekeepingDraft(prev=>({...prev,[stat.u.id]:{...draft,note:e.target.value}}))}
-                                  onFocus={e=>{e.currentTarget.style.border='2px solid #A5B4FC';}}
-                                  onBlur={e=>{e.currentTarget.style.border='2px solid #E5E5E5';}}/>
-                              </div>
-                            </div>
-
-                            {/* Total preview */}
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-3 justify-between pt-2" style={{borderTop:'1px solid #D1FAE5'}}>
-                              <div className="text-[12px]" style={{color:'#065F46'}}>
-                                <span className="font-medium">Lương cơ bản: </span>
-                                <span className="font-bold tabular-nums">{stat.base>0?`${fmt(Math.round(stat.base))}đ`:'—'}</span>
-                                {draft.bonusAmount>0&&<span className="mx-1">+</span>}
-                                {draft.bonusAmount>0&&<span className="font-bold tabular-nums" style={{color:'#059669'}}>{fmt(draft.bonusAmount)}đ hỗ trợ</span>}
-                              </div>
-                              <div className="flex items-center gap-3">
-                                <span className="text-[15px] font-bold tabular-nums" style={{color:'#059669'}}>
-                                  = {fmt(Math.round(stat.base + draft.bonusAmount))}đ
-                                </span>
-                                <button onClick={()=>saveBonus(stat.u.id)} disabled={timekeepingSaving===stat.u.id}
-                                  className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl text-[13px] font-bold flex items-center justify-center gap-2"
-                                  style={{background:'#059669',color:'#fff',boxShadow:'0 2px 8px rgba(5,150,105,0.3)'}}>
-                                  {timekeepingSaving===stat.u.id?<Loader2 size={14} className="animate-spin"/>:<Save size={14}/>}
-                                  Lưu hỗ trợ
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
+                          );
+                        })}
                       </div>
-                    );
-                  })()}
+                  }
                 </div>
               )}
 
-
-              {/* DAILY TAB */}
+              {/* â”€â”€ DAILY TAB â”€â”€ */}
               {tkTab==='daily' && (
                 <div className="space-y-3">
                   {dailyTKRows.length===0 ? (
                     <div className="bg-white rounded-2xl border py-14 text-center" style={{borderColor:'#E5E5E5',color:'#D4D4D4'}}>
                       <CalendarCheck size={28} className="mx-auto mb-3"/>
-                      <p className="text-[13px]" style={{color:'#A3A3A3'}}>Chưa có ca live nào trong tháng {timekeepingMonth}/{timekeepingYear}</p>
+                      <p className="text-[13px]" style={{color:'#A3A3A3'}}>ChÆ°a cÃ³ ca live nÃ o trong thÃ¡ng {timekeepingMonth}/{timekeepingYear}</p>
                     </div>
                   ) : dailyTKRows.map((day,di)=>{
                     const isToday2=new Date().toDateString()===day.date.toDateString();
@@ -2991,31 +2848,31 @@ export default function App() {
                     const dayHrs=day.items.reduce((s,r)=>s+r.hrs,0);
                     return (
                       <div key={di} className="bg-white rounded-2xl border overflow-hidden" style={{borderColor:isToday2?'#BFDBFE':'#E5E5E5',boxShadow:isToday2?'0 0 0 2px #DBEAFE':'none'}}>
-                        <div className="px-5 py-3 flex items-center justify-between" style={{background:isToday2?'#EFF6FF':'#FAFAFA',borderBottom:'1px solid #F0F0F0'}}>
+                        <div className="px-4 py-3 flex items-center justify-between" style={{background:isToday2?'#EFF6FF':'#FAFAFA',borderBottom:'1px solid #F0F0F0'}}>
                           <div className="flex items-center gap-3">
-                            <div className="flex flex-col items-center w-10">
-                              <span className="text-[20px] font-bold tabular-nums leading-none" style={{color:isToday2?'#2563EB':'#171717'}}>{day.date.getDate()}</span>
+                            <div className="flex flex-col items-center w-9">
+                              <span className="text-[18px] font-bold tabular-nums leading-none" style={{color:isToday2?'#2563EB':'#171717'}}>{day.date.getDate()}</span>
                               <span className="text-[9px] font-semibold uppercase tracking-wider" style={{color:isToday2?'#3B82F6':'#A3A3A3'}}>{dayNames[day.date.getDay()]}</span>
                             </div>
-                            <div className="w-px h-8" style={{background:'#E5E5E5'}}/>
+                            <div className="w-px h-7" style={{background:'#E5E5E5'}}/>
                             <div>
-                              <p className="text-[12px] font-semibold" style={{color:'#171717'}}>{day.items.length} ca · {fmtH(dayHrs)}</p>
-                              <p className="text-[11px]" style={{color:'#A3A3A3'}}>{day.date.getDate()}/{day.date.getMonth()+1}/{day.date.getFullYear()}</p>
+                              <p className="text-[12px] font-semibold" style={{color:'#171717'}}>{day.items.length} ca Â· {fmtH(dayHrs)}</p>
+                              <p className="text-[10px]" style={{color:'#A3A3A3'}}>{day.date.getDate()}/{day.date.getMonth()+1}/{day.date.getFullYear()}</p>
                             </div>
                           </div>
-                          {dayTotal>0&&<span className="text-[13px] font-bold tabular-nums" style={{color:'#059669'}}>{fmt(Math.round(dayTotal))}đ</span>}
+                          {dayTotal>0&&<span className="text-[13px] font-bold tabular-nums" style={{color:'#059669'}}>{fmt(Math.round(dayTotal))}Ä‘</span>}
                         </div>
                         <div className="divide-y" style={{borderColor:'#F5F5F5'}}>
                           {day.items.map((item,ii)=>(
-                            <div key={ii} className="px-5 py-3 flex items-center gap-3">
+                            <div key={ii} className="px-4 py-2.5 flex items-center gap-3">
                               <img src={item.user.avatar} className="w-7 h-7 rounded-full object-cover flex-shrink-0" style={{border:'1.5px solid #F0F0F0'}} alt=""/>
                               <div className="flex-1 min-w-0">
-                                <p className="text-[13px] font-semibold truncate" style={{color:'#171717'}}>{item.user.name}</p>
+                                <p className="text-[12px] font-semibold truncate" style={{color:'#171717'}}>{item.user.name}</p>
                                 <p className="text-[11px]" style={{color:'#A3A3A3'}}>{item.shiftName}</p>
                               </div>
                               <div className="text-right flex-shrink-0">
-                                <p className="text-[12px] font-semibold" style={{color:'#171717'}}>{fmtH(item.hrs)}{item.otMin>0&&<span className="ml-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{background:'#FEF3C7',color:'#D97706'}}>+{item.otMin}ph</span>}</p>
-                                <p className="text-[11px] font-bold tabular-nums" style={{color:item.salary>0?'#059669':'#D4D4D4'}}>{item.salary>0?`${fmt(Math.round(item.salary))}đ`:'—'}</p>
+                                <p className="text-[12px] font-semibold" style={{color:'#171717'}}>{fmtH(item.hrs)}{item.otMin>0&&<span className="ml-1 text-[9px] font-bold px-1 py-0.5 rounded" style={{background:'#FEF3C7',color:'#D97706'}}>OT</span>}</p>
+                                <p className="text-[11px] font-bold tabular-nums" style={{color:item.salary>0?'#059669':'#D4D4D4'}}>{item.salary>0?`${fmt(Math.round(item.salary))}Ä‘`:'â€”'}</p>
                               </div>
                             </div>
                           ))}
@@ -3026,10 +2883,127 @@ export default function App() {
                 </div>
               )}
 
+              {/* â”€â”€ Info bar â”€â”€ */}
               <div className="flex items-start gap-2 p-3 rounded-xl" style={{background:'#EFF6FF',border:'1px solid #BFDBFE'}}>
                 <Info size={14} style={{color:'#2563EB',marginTop:1,flexShrink:0}}/>
-                <p className="text-[11px] leading-relaxed" style={{color:'#1D4ED8'}}>Dữ liệu giờ live cập nhật <strong>real-time</strong> theo lịch. Nhấn <strong>"Tải hỗ trợ"</strong> để nạp tiền hỗ trợ đã lưu cho tháng đã chọn. Nhân sự sẽ thấy tiền hỗ trợ trong trang <strong>"Lương của tôi"</strong>.</p>
+                <p className="text-[11px] leading-relaxed" style={{color:'#1D4ED8'}}>Dá»¯ liá»‡u giá» live cáº­p nháº­t <strong>real-time</strong> theo lá»‹ch. Báº¥m <strong>"Chi tiáº¿t"</strong> Ä‘á»ƒ xem báº£ng cÃ´ng tá»«ng ca vÃ  nháº­p tiá»n há»— trá»£ cho tá»«ng nhÃ¢n sá»±.</p>
               </div>
+
+              {/* â”€â”€ DETAIL MODAL â”€â”€ */}
+              {timekeepingDetailUserId && (() => {
+                const stat = staffStats.find(s=>s.u.id===timekeepingDetailUserId);
+                if (!stat) return null;
+                const draft = timekeepingDraft[stat.u.id]||{bonusAmount:stat.bonusAmt,note:stat.bonusNote};
+                return (
+                  <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center" onClick={()=>setTimekeepingDetailUserId(null)}>
+                    {/* Backdrop */}
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm"/>
+                    {/* Modal card */}
+                    <div
+                      className="relative w-full sm:max-w-xl sm:mx-4 bg-white sm:rounded-3xl rounded-t-3xl overflow-hidden"
+                      style={{maxHeight:'92vh',boxShadow:'0 24px 80px rgba(0,0,0,0.2)'}}
+                      onClick={e=>e.stopPropagation()}
+                    >
+                      {/* Drag handle (mobile) */}
+                      <div className="flex justify-center pt-3 pb-0 sm:hidden">
+                        <div className="w-10 h-1 rounded-full bg-slate-200"/>
+                      </div>
+                      {/* Header */}
+                      <div className="px-5 py-4 flex items-center gap-3" style={{background:'linear-gradient(135deg,#4F46E5,#6366F1)',color:'#fff'}}>
+                        <img src={stat.u.avatar} className="w-11 h-11 rounded-2xl object-cover flex-shrink-0" style={{border:'2px solid rgba(255,255,255,0.3)'}} alt=""/>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[16px] font-bold truncate">{stat.u.name}</p>
+                          <p className="text-[11px] opacity-80">Báº£ng cÃ´ng Â· ThÃ¡ng {timekeepingMonth}/{timekeepingYear}</p>
+                        </div>
+                        <div className="flex gap-1.5 flex-wrap justify-end">
+                          <span className="text-[10px] font-bold px-2 py-1 rounded-lg" style={{background:'rgba(255,255,255,0.2)'}}>{stat.cnt} ca</span>
+                          <span className="text-[10px] font-bold px-2 py-1 rounded-lg" style={{background:'rgba(255,255,255,0.2)'}}>{fmtH(stat.hrs)}</span>
+                          {stat.otMin>0&&<span className="text-[10px] font-bold px-2 py-1 rounded-lg" style={{background:'rgba(251,191,36,0.3)',color:'#FEF3C7'}}>OT</span>}
+                        </div>
+                        <button onClick={()=>setTimekeepingDetailUserId(null)} className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ml-1" style={{background:'rgba(255,255,255,0.15)'}}>
+                          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1 1l8 8M9 1L1 9" stroke="white" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                        </button>
+                      </div>
+                      {/* Scrollable body */}
+                      <div className="overflow-y-auto" style={{maxHeight:'calc(92vh - 80px)'}}>
+                        {/* Shift table */}
+                        <div className="px-4 pt-4 pb-2">
+                          <p className="text-[11px] font-semibold uppercase tracking-widest mb-3 flex items-center gap-2" style={{color:'#A3A3A3'}}>
+                            <CalendarCheck size={12}/> Chi tiáº¿t tá»«ng ca
+                          </p>
+                          {stat.dayRows.length===0
+                            ? <p className="text-[13px] text-center py-8" style={{color:'#D4D4D4'}}>ChÆ°a cÃ³ ca nÃ o trong thÃ¡ng nÃ y</p>
+                            : <div className="rounded-2xl border overflow-hidden" style={{borderColor:'#F0F0F0'}}>
+                                {stat.dayRows.map((row,ri)=>{
+                                  const isT=new Date().toDateString()===row.date.toDateString();
+                                  return (
+                                    <div key={ri} className="flex items-center gap-3 px-3 py-2.5" style={{borderTop:ri>0?'1px solid #F5F5F5':'none',background:isT?'#F8FBFF':'transparent'}}>
+                                      <div className="w-10 flex-shrink-0 text-center">
+                                        <p className="text-[13px] font-bold tabular-nums" style={{color:isT?'#2563EB':'#171717'}}>{row.date.getDate()}/{row.date.getMonth()+1}</p>
+                                        <p className="text-[9px]" style={{color:'#A3A3A3'}}>{dayNames[row.date.getDay()]}</p>
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-[12px] font-medium truncate" style={{color:'#737373'}}>{row.shiftName}</p>
+                                      </div>
+                                      <div className="text-right flex-shrink-0">
+                                        <p className="text-[12px] font-semibold" style={{color:'#171717'}}>{fmtH(row.hrs)}{row.otMin>0&&<span className="ml-1 text-[9px] font-bold px-1 rounded" style={{background:'#FEF3C7',color:'#D97706'}}>+{row.otMin}ph</span>}</p>
+                                        <p className="text-[11px] font-bold tabular-nums" style={{color:row.salary>0?'#059669':'#D4D4D4'}}>{row.salary>0?`${fmt(Math.round(row.salary))}Ä‘`:'â€”'}</p>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                                {/* Footer total */}
+                                <div className="flex items-center px-3 py-3 gap-3" style={{borderTop:'2px solid #E5E5E5',background:'#FAFAFA'}}>
+                                  <span className="text-[11px] font-semibold w-10 flex-shrink-0" style={{color:'#737373'}}>Tá»•ng</span>
+                                  <span className="flex-1 text-[12px] font-bold" style={{color:'#171717'}}>{fmtH(stat.hrs)}{stat.otMin>0&&<span className="ml-2 text-[10px] font-bold" style={{color:'#D97706'}}>+{stat.otMin}ph</span>}</span>
+                                  <span className="text-[13px] font-bold tabular-nums" style={{color:stat.base>0?'#171717':'#D4D4D4'}}>{stat.base>0?`${fmt(Math.round(stat.base))}Ä‘`:'â€”'}</span>
+                                </div>
+                              </div>
+                          }
+                        </div>
+                        {/* Bonus section */}
+                        <div className="mx-4 mb-4 mt-2 rounded-2xl p-4 space-y-3" style={{background:'#F8FFF8',border:'1px solid #BBF7D0'}}>
+                          <p className="text-[11px] font-semibold uppercase tracking-widest" style={{color:'#059669'}}>Tiá»n há»— trá»£ thÃ¡ng {timekeepingMonth}/{timekeepingYear}</p>
+                          <div className="flex gap-3 flex-wrap">
+                            <div className="flex-1 min-w-[140px]">
+                              <label className="text-[10px] font-semibold block mb-1" style={{color:'#6B7280'}}>Sá»‘ tiá»n (Ä‘)</label>
+                              <input type="number" min={0} step={10000}
+                                className="w-full px-3 py-2.5 rounded-xl text-[15px] font-bold tabular-nums outline-none"
+                                style={{background:'#fff',border:'2px solid #BBF7D0',color:'#059669'}}
+                                value={draft.bonusAmount||''} placeholder="0"
+                                onChange={e=>setTimekeepingDraft(prev=>({...prev,[stat.u.id]:{...draft,bonusAmount:Number(e.target.value)}}))}
+                                onFocus={e=>{e.currentTarget.style.border='2px solid #34D399';}}
+                                onBlur={e=>{e.currentTarget.style.border='2px solid #BBF7D0';}}/>
+                            </div>
+                            <div className="flex-1 min-w-[140px]">
+                              <label className="text-[10px] font-semibold block mb-1" style={{color:'#6B7280'}}>Ghi chÃº</label>
+                              <input type="text"
+                                className="w-full px-3 py-2.5 rounded-xl text-[13px] outline-none"
+                                style={{background:'#fff',border:'2px solid #E5E5E5',color:'#737373'}}
+                                value={draft.note||''} placeholder="LÃ½ do há»— trá»£..."
+                                onChange={e=>setTimekeepingDraft(prev=>({...prev,[stat.u.id]:{...draft,note:e.target.value}}))}
+                                onFocus={e=>{e.currentTarget.style.border='2px solid #A5B4FC';}}
+                                onBlur={e=>{e.currentTarget.style.border='2px solid #E5E5E5';}}/>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between pt-2" style={{borderTop:'1px solid #D1FAE5'}}>
+                            <p className="text-[12px]" style={{color:'#065F46'}}>
+                              {fmt(Math.round(stat.base))}Ä‘ {draft.bonusAmount>0&&<span style={{color:'#059669'}}>+ {fmt(draft.bonusAmount)}Ä‘</span>}
+                              <strong className="ml-1">= {fmt(Math.round(stat.base+draft.bonusAmount))}Ä‘</strong>
+                            </p>
+                            <button onClick={()=>saveBonus(stat.u.id)} disabled={timekeepingSaving===stat.u.id}
+                              className="px-5 py-2.5 rounded-xl text-[13px] font-bold flex items-center gap-2"
+                              style={{background:'#059669',color:'#fff',boxShadow:'0 2px 8px rgba(5,150,105,0.25)'}}>
+                              {timekeepingSaving===stat.u.id?<Loader2 size={14} className="animate-spin"/>:<Save size={14}/>}
+                              LÆ°u há»— trá»£
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           );
         })()}
