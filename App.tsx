@@ -3111,11 +3111,11 @@ export default function App() {
         {/* ─────── MY_SALARY VIEW (Staff) ─────── */}
         {viewMode === 'MY_SALARY' && currentUser?.role === 'STAFF' && (() => {
           const me = currentUser;
-          const parseHs = (t: string) => { const m = t?.trim().match(/^(\d{1,2})(?:[:h](\d{1,2}))?/); return m ? parseInt(m[1]) + (m[2] ? parseInt(m[2]) : 0) / 60 : 0; };
+          const ps = (t: string) => { const m = t?.trim().match(/^(\d{1,2})(?:[:h](\d{1,2}))?/); return m ? parseInt(m[1]) + (m[2] ? parseInt(m[2]) : 0) / 60 : 0; };
           const calcHs = (shift: Shift, sa: { timeLabel?: string; overtimeMinutes?: number }) => {
             let base = 0;
-            if (sa.timeLabel) { const p = sa.timeLabel.split(/\s*-\s*/); if (p.length===2) { const s=parseHs(p[0]); const e=parseHs(p[1]); base=e-s; if(base<0) base+=24; } }
-            else { const s=parseHs(shift.startTime); const e=parseHs(shift.endTime); base=e-s; if(base<0) base+=24; if(base===0) base=4; }
+            if (sa.timeLabel) { const p2 = sa.timeLabel.split(/\s*-\s*/); if (p2.length===2) { const s2=ps(p2[0]); const e2=ps(p2[1]); base=e2-s2; if(base<0) base+=24; } }
+            else { const s2=ps(shift.startTime); const e2=ps(shift.endTime); base=e2-s2; if(base<0) base+=24; if(base===0) base=4; }
             return base + (sa.overtimeMinutes||0)/60;
           };
           const getSDs = (item: ScheduleItem): Date|null => {
@@ -3126,10 +3126,21 @@ export default function App() {
             const mon1=new Date(yr,mo,1-dow+(wk-1)*7);
             return new Date(mon1.getTime()+item.dayIndex*86400000);
           };
+          // isShiftDone — only count completed shifts
+          const isShiftDone2 = (item: ScheduleItem, shift: Shift): boolean => {
+            const d = getSDs(item); if (!d) return false;
+            const endH = ps(shift.endTime); const startH = ps(shift.startTime);
+            const endDate = new Date(d);
+            if (endH <= startH) endDate.setDate(endDate.getDate() + 1);
+            endDate.setHours(Math.floor(endH), Math.round((endH % 1) * 60), 0, 0);
+            return endDate.getTime() <= Date.now();
+          };
           const myItems = schedule.filter(item => {
             const sa = item.streamerAssignments.find(a => a.userId === me.id); if (!sa) return false;
             const d = getSDs(item);
-            return d && d.getMonth()===timekeepingMonth-1 && d.getFullYear()===timekeepingYear;
+            if (!d || d.getMonth()!==timekeepingMonth-1 || d.getFullYear()!==timekeepingYear) return false;
+            const shift = shifts.find(s => s.id===item.shiftId);
+            return shift ? isShiftDone2(item, shift) : false;
           });
           let totalH=0; let totalOT=0;
           const rows = myItems.map(item => {
@@ -3138,103 +3149,106 @@ export default function App() {
             const hrs = calcHs(shift,sa); totalH+=hrs; totalOT+=sa.overtimeMinutes||0;
             return { shift, sa, hrs, date: getSDs(item), salary: hrs*(me.hourlyRate||0) };
           }).sort((a,b)=>(a.date?.getTime()||0)-(b.date?.getTime()||0));
-          const bonus = timekeepingRecords.find(r=>r.userId===me.id&&r.month===timekeepingMonth&&r.year===timekeepingYear);
-          const bonusAmt = bonus?.bonusAmount||0;
           const baseSal = totalH*(me.hourlyRate||0);
-          const totalSal = baseSal+bonusAmt;
           const fmts = (n:number) => n.toLocaleString('vi-VN');
           const fmtHs = (h:number) => h%1===0?`${h}h`:`${h.toFixed(1)}h`;
           const months3 = Array.from({length:12},(_,i)=>i+1);
           const years3 = [new Date().getFullYear()-1, new Date().getFullYear()];
+          const dayN = ['CN','T2','T3','T4','T5','T6','T7'];
+          let runningTotal = 0;
+
           return (
-            <div className="space-y-5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <img src={me.avatar} className="w-10 h-10 rounded-full object-cover" style={{border:'2px solid #E5E5E5'}} alt=""/>
-                  <div>
-                    <h3 className="text-[17px] font-semibold" style={{color:'#171717'}}>Lương của {me.name.split(' ').pop()}</h3>
-                    <p className="text-[12px]" style={{color:'#A3A3A3'}}>{(me.hourlyRate||0)>0?`${fmts(me.hourlyRate!)}đ/giờ`:'Chưa thiết lập lương/giờ'}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <select className="flex-1 min-w-[100px] px-3 py-2 rounded-xl text-[13px] font-medium outline-none" style={{background:'#F5F5F5',border:'1px solid #E5E5E5'}} value={timekeepingMonth} onChange={e=>setTimekeepingMonth(Number(e.target.value))}>
-                    {months3.map(m=><option key={m} value={m}>Tháng {m}</option>)}
-                  </select>
-                  <select className="flex-1 min-w-[80px] px-3 py-2 rounded-xl text-[13px] font-medium outline-none" style={{background:'#F5F5F5',border:'1px solid #E5E5E5'}} value={timekeepingYear} onChange={e=>setTimekeepingYear(Number(e.target.value))}>
-                    {years3.map(y=><option key={y} value={y}>{y}</option>)}
-                  </select>
-                  <button onClick={async()=>{if(!activeBrandSlug)return;const r=await api.getTimekeeping(activeBrandSlug,timekeepingMonth,timekeepingYear);setTimekeepingRecords(r);}}
-                    className="px-4 py-2 rounded-xl text-[13px] font-semibold flex items-center gap-1.5" style={{background:'#4F46E5',color:'#fff'}}>
-                    <RefreshCw size={13}/> Tải
-                  </button>
+            <div className="space-y-4">
+              {/* Header */}
+              <div className="flex items-center gap-3">
+                <img src={me.avatar} className="w-10 h-10 rounded-2xl object-cover flex-shrink-0" style={{border:'2px solid #E5E5E5'}} alt=""/>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-[16px] font-bold truncate" style={{color:'#171717'}}>Lương của {me.name.split(' ').pop()}</h3>
+                  <p className="text-[11px]" style={{color:'#A3A3A3'}}>{(me.hourlyRate||0)>0?`${fmts(me.hourlyRate!)}đ/giờ`:'Chưa cài lương'}</p>
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-3">
+
+              {/* Month selector */}
+              <div className="flex gap-2">
+                <select className="flex-1 px-3 py-2.5 rounded-xl text-[13px] font-medium outline-none" style={{background:'#fff',border:'1px solid #E5E5E5'}} value={timekeepingMonth} onChange={e=>setTimekeepingMonth(Number(e.target.value))}>
+                  {months3.map(m=><option key={m} value={m}>Tháng {m}</option>)}
+                </select>
+                <select className="px-3 py-2.5 rounded-xl text-[13px] font-medium outline-none" style={{background:'#fff',border:'1px solid #E5E5E5'}} value={timekeepingYear} onChange={e=>setTimekeepingYear(Number(e.target.value))}>
+                  {years3.map(y=><option key={y} value={y}>{y}</option>)}
+                </select>
+              </div>
+
+              {/* KPI strip */}
+              <div className="grid grid-cols-3 gap-2">
                 {[
-                  {label:'Số ca',value:`${rows.length} ca`,color:'#4F46E5'},
+                  {label:'Số ca',value:`${rows.length}`,color:'#4F46E5'},
                   {label:'Tổng giờ',value:fmtHs(totalH),sub:totalOT>0?`+${totalOT}ph OT`:undefined,color:'#0891B2'},
-                  {label:'Lương cơ bản',value:(me.hourlyRate||0)>0?`${fmts(Math.round(baseSal))}đ`:'—',color:'#059669'},
+                  {label:'Thu nhập',value:baseSal>0?`${fmts(Math.round(baseSal/1000))}k`:'—',color:'#059669'},
                 ].map((s,i)=>(
-                  <div key={i} className="p-3 rounded-2xl text-center" style={{background:'#fff',border:'1px solid #F0F0F0',boxShadow:'0 1px 4px rgba(0,0,0,0.03)'}}>
-                    <p className="text-[18px] font-bold tabular-nums" style={{color:s.color}}>{s.value}</p>
-                    <p className="text-[9px] font-semibold uppercase tracking-widest" style={{color:'#A3A3A3'}}>{s.label}</p>
-                    {s.sub&&<p className="text-[9px] mt-0.5" style={{color:s.color}}>{s.sub}</p>}
+                  <div key={i} className="py-2.5 px-2 rounded-xl text-center" style={{background:'#fff',border:'1px solid #F0F0F0'}}>
+                    <p className="text-[18px] font-bold tabular-nums leading-tight" style={{color:s.color}}>{s.value}</p>
+                    <p className="text-[8px] font-semibold uppercase tracking-widest mt-0.5" style={{color:'#A3A3A3'}}>{s.label}</p>
+                    {s.sub&&<p className="text-[8px] mt-0.5" style={{color:'#D97706'}}>{s.sub}</p>}
                   </div>
                 ))}
               </div>
-              <div className="bg-white rounded-2xl border overflow-hidden" style={{borderColor:'#E5E5E5'}}>
-                <div className="px-5 py-4 flex items-center justify-between" style={{borderBottom:'1px solid #F0F0F0'}}>
-                  <p className="text-[13px] font-semibold" style={{color:'#171717'}}>Chi tiết từng ca</p>
-                  <span className="text-[11px] px-2 py-1 rounded-full" style={{background:'#F5F5F5',color:'#737373'}}>{rows.length} ca</span>
-                </div>
-                {rows.length===0?(
-                  <div className="py-14 flex flex-col items-center" style={{color:'#D4D4D4'}}>
-                    <Clock size={26}/><p className="text-[13px] mt-3" style={{color:'#A3A3A3'}}>Chưa có ca nào trong tháng {timekeepingMonth}/{timekeepingYear}</p>
-                  </div>
-                ):(
-                  <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr style={{background:'#FAFAFA',borderBottom:'1px solid #F0F0F0'}}>
-                        {['Ngày','Ca','Giờ live','Số giờ','Thành tiền'].map(h=>(
-                          <th key={h} className="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-widest" style={{color:'#A3A3A3'}}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {rows.map(({shift,sa,hrs,date,salary},i)=>(
-                        <tr key={i} style={{borderTop:i>0?'1px solid #F5F5F5':'none'}}>
-                          <td className="px-4 py-3">
-                            <p className="text-[13px] font-semibold" style={{color:'#171717'}}>{date?`${date.getDate()}/${date.getMonth()+1}`:'—'}</p>
-                            <p className="text-[10px]" style={{color:'#A3A3A3'}}>{date?DAYS_OF_WEEK[date.getDay()===0?6:date.getDay()-1]:''}</p>
-                          </td>
-                          <td className="px-4 py-3 text-[13px] font-semibold" style={{color:'#171717'}}>{shift.name}</td>
-                          <td className="px-4 py-3">
-                            <span className="text-[12px] font-mono" style={{color:'#737373'}}>{sa.timeLabel||`${shift.startTime}–${shift.endTime}`}</span>
-                            {(sa.overtimeMinutes||0)>0&&<span className="ml-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{background:'#FEF3C7',color:'#D97706'}}>+{sa.overtimeMinutes}ph</span>}
-                          </td>
-                          <td className="px-4 py-3 text-[13px] font-semibold tabular-nums" style={{color:'#171717'}}>{fmtHs(hrs)}</td>
-                          <td className="px-4 py-3 text-[13px] font-semibold tabular-nums" style={{color:(me.hourlyRate||0)>0?'#059669':'#D4D4D4'}}>
-                            {(me.hourlyRate||0)>0?`${fmts(Math.round(salary))}đ`:'—'}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                    <tfoot>
-                      <tr style={{borderTop:'2px solid #E5E5E5',background:'#FAFAFA'}}>
-                        <td colSpan={3} className="px-4 py-3"><span className="text-[12px] font-semibold" style={{color:'#737373'}}>Tổng</span></td>
-                        <td className="px-4 py-3 text-[14px] font-bold tabular-nums" style={{color:'#171717'}}>{fmtHs(totalH)}</td>
-                        <td className="px-4 py-3">{(me.hourlyRate||0)>0&&<span className="text-[14px] font-bold tabular-nums" style={{color:'#059669'}}>{fmts(Math.round(baseSal))}đ</span>}</td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                  </div>
-                )}
-              </div>
 
+              {/* Shift list — card style */}
+              {rows.length===0 ? (
+                <div className="bg-white rounded-2xl border py-12 text-center" style={{borderColor:'#E5E5E5'}}>
+                  <Clock size={24} className="mx-auto mb-2" style={{color:'#D4D4D4'}}/>
+                  <p className="text-[12px]" style={{color:'#A3A3A3'}}>Chưa có ca hoàn thành trong tháng {timekeepingMonth}/{timekeepingYear}</p>
+                  <p className="text-[10px] mt-1" style={{color:'#D4D4D4'}}>Chỉ hiển thị ca đã kết thúc</p>
+                </div>
+              ) : (
+                <div className="bg-white rounded-2xl border overflow-hidden" style={{borderColor:'#E5E5E5'}}>
+                  <div className="px-4 py-2.5 flex items-center justify-between" style={{borderBottom:'1px solid #F0F0F0'}}>
+                    <p className="text-[10px] font-semibold uppercase tracking-widest" style={{color:'#A3A3A3'}}>Ca đã hoàn thành</p>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full" style={{background:'#F0FDF4',color:'#059669'}}>{rows.length} ca</span>
+                  </div>
+                  {rows.map((r,i)=>{
+                    runningTotal += r.salary;
+                    const isT = r.date && new Date().toDateString()===r.date.toDateString();
+                    return (
+                      <div key={i} className="flex items-center gap-2.5 px-3 py-2.5" style={{borderTop:i>0?'1px solid #F5F5F5':'none',borderLeft:isT?'3px solid #4F46E5':'3px solid transparent'}}>
+                        {/* Date */}
+                        <div className="w-9 flex-shrink-0 text-center">
+                          <p className="text-[13px] font-bold tabular-nums leading-tight" style={{color:isT?'#4F46E5':'#171717'}}>{r.date?.getDate()}</p>
+                          <p className="text-[8px] font-semibold uppercase" style={{color:'#A3A3A3'}}>{r.date?dayN[r.date.getDay()]:''}</p>
+                        </div>
+                        <div className="w-px h-7 flex-shrink-0" style={{background:'#E5E5E5'}}/>
+                        {/* Shift info */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[12px] font-semibold truncate" style={{color:'#171717'}}>{r.shift.name}</p>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="text-[10px] font-mono" style={{color:'#A3A3A3'}}>{r.sa.timeLabel||`${r.shift.startTime}–${r.shift.endTime}`}</span>
+                            {(r.sa.overtimeMinutes||0)>0&&<span className="text-[7px] font-bold px-1 py-0.5 rounded" style={{background:'#FEF3C7',color:'#D97706'}}>+{r.sa.overtimeMinutes}ph</span>}
+                          </div>
+                        </div>
+                        {/* Hours + salary */}
+                        <div className="flex-shrink-0 text-right">
+                          <p className="text-[12px] font-bold tabular-nums" style={{color:r.salary>0?'#059669':'#D4D4D4'}}>{r.salary>0?`${fmts(Math.round(r.salary))}đ`:'—'}</p>
+                          <p className="text-[9px] tabular-nums" style={{color:'#A3A3A3'}}>{fmtHs(r.hrs)}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {/* Footer total */}
+                  <div className="flex items-center justify-between px-4 py-3" style={{borderTop:'2px solid #E5E5E5',background:'#FAFAFA'}}>
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-widest" style={{color:'#A3A3A3'}}>Tổng thu nhập</p>
+                      <p className="text-[10px]" style={{color:'#D4D4D4'}}>{rows.length} ca · {fmtHs(totalH)}</p>
+                    </div>
+                    <p className="text-[18px] font-bold tabular-nums" style={{color:'#059669'}}>{baseSal>0?`${fmts(Math.round(baseSal))}đ`:'—'}</p>
+                  </div>
+                </div>
+              )}
             </div>
           );
         })()}
+
+
+
 
       </main>
 
