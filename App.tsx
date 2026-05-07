@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+﻿import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Menu, X, Calendar, Search, Filter, Plus, ChevronLeft, ChevronRight, 
   MapPin, Clock, Users, Sun, Moon, CheckCircle2, ChevronDown, Lock,
@@ -3837,103 +3837,127 @@ export default function App() {
       </Modal>
 
       {/* ── MOBILE BOTTOM NAVIGATION ── */}
-      {currentUser && (
-        <>
-          {/* More popup sheet - slide up animation */}
-          {isMoreMenuOpen && (
-            <div className="md:hidden fixed inset-0 z-[60]" onClick={() => setIsMoreMenuOpen(false)}>
-                <div className="more-popup absolute bottom-[72px] left-3 right-3 bg-white/96 backdrop-blur-3xl rounded-2xl border border-slate-100 p-4" style={{boxShadow:'0 -4px 40px rgba(0,0,0,0.08)'}}>
-                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-3 px-1">Thêm</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {/* Chấm công - Manager/Admin */}
-                    {(currentUser.role === 'MANAGER' || currentUser.role === 'SUPER_ADMIN') && (
-                      <button onClick={() => { setViewMode('TIMEKEEPING'); setIsMoreMenuOpen(false); }} className={`flex flex-col items-center gap-2 py-3 rounded-xl transition-colors ${viewMode === 'TIMEKEEPING' ? 'bg-indigo-50 text-indigo-500' : 'text-slate-500'}`}>
-                        <CalendarCheck size={20} strokeWidth={1.5}/>
-                        <span className="text-[10px] font-medium">Chấm công</span>
-                      </button>
-                    )}
-                    {/* Lương của tôi - Staff */}
-                    {currentUser.role === 'STAFF' && (
-                      <button onClick={() => { setViewMode('MY_SALARY'); setIsMoreMenuOpen(false); }} className={`flex flex-col items-center gap-2 py-3 rounded-xl transition-colors ${viewMode === 'MY_SALARY' ? 'bg-emerald-50 text-emerald-500' : 'text-slate-500'}`}>
-                        <TrendingUp size={20} strokeWidth={1.5}/>
-                        <span className="text-[10px] font-medium">Lương của tôi</span>
-                      </button>
-                    )}
-                    {(currentUser.role === 'MANAGER' || currentUser.role === 'SUPER_ADMIN') && (
-                      <button onClick={() => { setViewMode('REPORTS'); setIsMoreMenuOpen(false); }} className={`flex flex-col items-center gap-2 py-3 rounded-xl transition-colors ${viewMode === 'REPORTS' ? 'bg-indigo-50 text-indigo-500' : 'text-slate-500'}`}>
-                        <BarChart3 size={20} strokeWidth={1.5}/>
-                        <span className="text-[10px] font-medium">Báo cáo</span>
-                      </button>
-                    )}
-                    {(currentUser.role === 'MANAGER' || currentUser.role === 'SUPER_ADMIN') && (
-                      <button onClick={() => { setViewMode('SETTINGS'); setIsMoreMenuOpen(false); }} className={`flex flex-col items-center gap-2 py-3 rounded-xl transition-colors ${viewMode === 'SETTINGS' ? 'bg-indigo-50 text-indigo-500' : 'text-slate-500'}`}>
-                        <Settings size={20} strokeWidth={1.5}/>
-                        <span className="text-[10px] font-medium">Cấu hình</span>
-                      </button>
-                    )}
-                    <button onClick={() => { handleLogout(); setIsMoreMenuOpen(false); }} className="flex flex-col items-center gap-2 py-3 rounded-xl text-red-400 animate-in fade-in zoom-in duration-200">
-                      <LogOut size={20} strokeWidth={1.5}/>
-                      <span className="text-[10px] font-medium">Đăng xuất</span>
+      {currentUser && (() => {
+        const isManager = currentUser.role === 'MANAGER' || currentUser.role === 'SUPER_ADMIN';
+        const isStaff = currentUser.role === 'STAFF';
+        const isOps = currentUser.role === 'OPERATIONS';
+
+        // Helper: tab button
+        const Tab = ({ icon, label, active, onClick, badge }: { icon: React.ReactNode; label: string; active: boolean; onClick: () => void; badge?: number }) => (
+          <button
+            onClick={onClick}
+            className={`flex flex-col items-center gap-[3px] flex-1 py-1.5 mx-0.5 rounded-xl transition-all active:scale-95 ${active ? 'text-indigo-500' : 'text-slate-400'}`}
+          >
+            <span className="relative">
+              {icon}
+              {badge && badge > 0 ? <span className="absolute -top-1 -right-1.5 w-2 h-2 rounded-full bg-red-500 border border-white"/> : null}
+            </span>
+            <span className={`text-[9px] leading-none mt-0.5 ${active ? 'font-semibold' : 'font-normal'}`}>{label}</span>
+          </button>
+        );
+
+        // Action sheet row item
+        const SheetItem = ({ icon, label, color, onClick }: { icon: React.ReactNode; label: string; color?: string; onClick: () => void }) => (
+          <button
+            onClick={onClick}
+            className="w-full flex items-center gap-4 px-4 py-3.5 active:bg-slate-50 transition-colors text-left"
+            style={{ color: color || '#262626' }}
+          >
+            <span style={{ color: color || '#4F46E5', opacity: 0.85 }}>{icon}</span>
+            <span className="text-[14px] font-medium">{label}</span>
+          </button>
+        );
+
+        return (
+          <>
+            {/* Action sheet backdrop */}
+            {isMoreMenuOpen && (
+              <div
+                className="md:hidden fixed inset-0 z-[60] bg-black/20 backdrop-blur-[1px]"
+                onClick={() => setIsMoreMenuOpen(false)}
+              >
+                <div
+                  className="absolute bottom-[68px] left-3 right-3 rounded-2xl overflow-hidden"
+                  style={{ background: 'rgba(255,255,255,0.98)', boxShadow: '0 -2px 32px rgba(0,0,0,0.12)', border: '1px solid rgba(0,0,0,0.06)' }}
+                  onClick={e => e.stopPropagation()}
+                >
+                  {/* Sheet handle */}
+                  <div className="flex justify-center pt-3 pb-1">
+                    <div className="w-8 h-1 rounded-full bg-slate-200"/>
+                  </div>
+
+                  {/* User info row */}
+                  <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-100">
+                    <img src={currentUser.avatar} className="w-9 h-9 rounded-full object-cover" alt=""/>
+                    <div>
+                      <p className="text-[13px] font-semibold text-slate-800">{currentUser.name}</p>
+                      <p className="text-[11px] text-slate-400">{isManager ? 'Quản lý' : isStaff ? 'Mẫu live' : 'Vận hành'}</p>
+                    </div>
+                    <button onClick={() => setIsMoreMenuOpen(false)} className="ml-auto w-7 h-7 rounded-full flex items-center justify-center bg-slate-100 text-slate-500">
+                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1 1l8 8M9 1L1 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
                     </button>
+                  </div>
+
+                  {/* Menu items — depends on role */}
+                  <div className="py-1 divide-y divide-slate-50">
+                    {isManager && (
+                      <SheetItem icon={<Settings size={18}/>} label="Cấu hình" onClick={() => { setViewMode('SETTINGS'); setIsMoreMenuOpen(false); }}/>
+                    )}
+                    {isManager && (
+                      <SheetItem icon={<Inbox size={18}/>} label={`Yêu cầu${pendingCount > 0 ? ` (${pendingCount})` : ''}`} onClick={() => { setViewMode('REQUESTS'); setIsMoreMenuOpen(false); }}/>
+                    )}
+                    {isManager && (
+                      <SheetItem icon={<Bell size={18}/>} label={`Thông báo${unreadCount > 0 ? ` (${unreadCount})` : ''}`} onClick={() => { setIsNotifPanelOpen(true); setIsMoreMenuOpen(false); }}/>
+                    )}
+                    {(isOps) && (
+                      <SheetItem icon={<Bell size={18}/>} label={`Thông báo${unreadCount > 0 ? ` (${unreadCount})` : ''}`} onClick={() => { setIsNotifPanelOpen(true); setIsMoreMenuOpen(false); }}/>
+                    )}
+                  </div>
+
+                  {/* Logout — always last */}
+                  <div className="border-t border-slate-100">
+                    <SheetItem icon={<LogOut size={18}/>} label="Đăng xuất" color="#EF4444" onClick={() => { handleLogout(); setIsMoreMenuOpen(false); }}/>
                   </div>
                 </div>
               </div>
+            )}
 
-          )}
+            {/* Bottom tab bar */}
+            <nav className="md:hidden fixed bottom-0 left-0 right-0 w-full bottom-menu z-50">
+              <div className="bottom-nav-bar flex justify-around items-center px-1 pt-1.5">
 
-          <nav className="md:hidden fixed bottom-0 left-0 right-0 w-full bottom-menu z-50">
-            <div className="bottom-nav-bar flex justify-around items-center px-1 pt-2">
+                {/* ── MANAGER / SUPER_ADMIN ── */}
+                {isManager && (<>
+                  <Tab icon={<Calendar size={21} strokeWidth={viewMode==='DASHBOARD'&&!isMoreMenuOpen?2:1.5}/>} label="Lịch" active={viewMode==='DASHBOARD'&&!isMoreMenuOpen} onClick={()=>{setViewMode('DASHBOARD');setIsMoreMenuOpen(false);}}/>
+                  <Tab icon={<Users size={21} strokeWidth={viewMode==='STAFF_MANAGEMENT'&&!isMoreMenuOpen?2:1.5}/>} label="Nhân sự" active={viewMode==='STAFF_MANAGEMENT'&&!isMoreMenuOpen} onClick={()=>{setViewMode('STAFF_MANAGEMENT');setIsMoreMenuOpen(false);}}/>
+                  <Tab icon={<CalendarCheck size={21} strokeWidth={viewMode==='TIMEKEEPING'&&!isMoreMenuOpen?2:1.5}/>} label="Chấm công" active={viewMode==='TIMEKEEPING'&&!isMoreMenuOpen} onClick={()=>{setViewMode('TIMEKEEPING');setIsMoreMenuOpen(false);}}/>
+                  <Tab icon={<BarChart3 size={21} strokeWidth={viewMode==='REPORTS'&&!isMoreMenuOpen?2:1.5}/>} label="Báo cáo" active={viewMode==='REPORTS'&&!isMoreMenuOpen} onClick={()=>{setViewMode('REPORTS');setIsMoreMenuOpen(false);}}/>
+                  <Tab icon={<MoreHorizontal size={21} strokeWidth={isMoreMenuOpen?2:1.5}/>} label="Thêm" active={isMoreMenuOpen} onClick={()=>setIsMoreMenuOpen(!isMoreMenuOpen)}/>
+                </>)}
 
-              {/* Lịch - tất cả role */}
-              <button onClick={() => { setViewMode('DASHBOARD'); setIsMoreMenuOpen(false); }} className={`flex flex-col items-center gap-1 flex-1 py-1.5 mx-0.5 rounded-xl transition-all active:scale-95 ${viewMode === 'DASHBOARD' && !isMoreMenuOpen ? 'text-indigo-500 bg-indigo-50' : 'text-slate-400'}`}>
-                <Calendar size={21} strokeWidth={viewMode === 'DASHBOARD' ? 2 : 1.5} />
-                <span className={`text-[9px] leading-tight ${viewMode === 'DASHBOARD' && !isMoreMenuOpen ? 'font-medium' : 'font-light'}`}>Lịch</span>
-              </button>
+                {/* ── STAFF ── */}
+                {isStaff && (<>
+                  <Tab icon={<Calendar size={21} strokeWidth={viewMode==='DASHBOARD'?2:1.5}/>} label="Lịch" active={viewMode==='DASHBOARD'} onClick={()=>setViewMode('DASHBOARD')}/>
+                  <Tab icon={<CheckCircle2 size={21} strokeWidth={viewMode==='MY_AVAILABILITY'?2:1.5}/>} label="Đăng ký" active={viewMode==='MY_AVAILABILITY'} onClick={()=>setViewMode('MY_AVAILABILITY')}/>
+                  <Tab icon={<TrendingUp size={21} strokeWidth={viewMode==='MY_SALARY'?2:1.5}/>} label="Lương" active={viewMode==='MY_SALARY'} onClick={()=>setViewMode('MY_SALARY')}/>
+                  <Tab icon={<Inbox size={21} strokeWidth={viewMode==='REQUESTS'?2:1.5}/>} label="Yêu cầu" active={viewMode==='REQUESTS'} onClick={()=>setViewMode('REQUESTS')} badge={pendingCount}/>
+                  <Tab icon={<Bell size={21} strokeWidth={isNotifPanelOpen?2:1.5}/>} label="Thông báo" active={isNotifPanelOpen} onClick={()=>setIsNotifPanelOpen(true)} badge={unreadCount}/>
+                </>)}
 
-              {/* Đăng ký - chỉ Staff/Operations */}
-              {(currentUser.role === 'STAFF' || currentUser.role === 'OPERATIONS') && (
-                <button onClick={() => { setViewMode('MY_AVAILABILITY'); setIsMoreMenuOpen(false); }} className={`flex flex-col items-center gap-1 flex-1 py-1.5 mx-0.5 rounded-xl transition-all active:scale-95 ${viewMode === 'MY_AVAILABILITY' && !isMoreMenuOpen ? 'text-indigo-500 bg-indigo-50' : 'text-slate-400'}`}>
-                  <CheckCircle2 size={21} strokeWidth={viewMode === 'MY_AVAILABILITY' ? 2 : 1.5} />
-                  <span className={`text-[9px] leading-tight ${viewMode === 'MY_AVAILABILITY' && !isMoreMenuOpen ? 'font-medium' : 'font-light'}`}>Đăng ký</span>
-                </button>
-              )}
+                {/* ── OPERATIONS ── */}
+                {isOps && (<>
+                  <Tab icon={<Calendar size={21} strokeWidth={viewMode==='DASHBOARD'&&!isMoreMenuOpen?2:1.5}/>} label="Lịch" active={viewMode==='DASHBOARD'&&!isMoreMenuOpen} onClick={()=>{setViewMode('DASHBOARD');setIsMoreMenuOpen(false);}}/>
+                  <Tab icon={<CheckCircle2 size={21} strokeWidth={viewMode==='MY_AVAILABILITY'&&!isMoreMenuOpen?2:1.5}/>} label="Đăng ký" active={viewMode==='MY_AVAILABILITY'&&!isMoreMenuOpen} onClick={()=>{setViewMode('MY_AVAILABILITY');setIsMoreMenuOpen(false);}}/>
+                  <Tab icon={<Inbox size={21} strokeWidth={viewMode==='REQUESTS'&&!isMoreMenuOpen?2:1.5}/>} label="Yêu cầu" active={viewMode==='REQUESTS'&&!isMoreMenuOpen} onClick={()=>{setViewMode('REQUESTS');setIsMoreMenuOpen(false);}} badge={pendingCount}/>
+                  <Tab icon={<Bell size={21} strokeWidth={isNotifPanelOpen&&!isMoreMenuOpen?2:1.5}/>} label="Thông báo" active={isNotifPanelOpen&&!isMoreMenuOpen} onClick={()=>{setIsNotifPanelOpen(true);setIsMoreMenuOpen(false);}} badge={unreadCount}/>
+                  <Tab icon={<MoreHorizontal size={21} strokeWidth={isMoreMenuOpen?2:1.5}/>} label="Thêm" active={isMoreMenuOpen} onClick={()=>setIsMoreMenuOpen(!isMoreMenuOpen)}/>
+                </>)}
 
-              {/* Yêu cầu - tất cả role */}
-              <button onClick={() => { setViewMode('REQUESTS'); setIsMoreMenuOpen(false); }} className={`relative flex flex-col items-center gap-1 flex-1 py-1.5 mx-0.5 rounded-xl transition-all active:scale-95 ${viewMode === 'REQUESTS' && !isMoreMenuOpen ? 'text-indigo-500 bg-indigo-50' : 'text-slate-400'}`}>
-                <div className="relative">
-                  <Inbox size={21} strokeWidth={viewMode === 'REQUESTS' ? 2 : 1.5} />
-                  {pendingCount > 0 && <span className="absolute -top-1 -right-1.5 w-2 h-2 rounded-full bg-red-500 border border-white"></span>}
-                </div>
-                <span className={`text-[9px] leading-tight ${viewMode === 'REQUESTS' && !isMoreMenuOpen ? 'font-medium' : 'font-light'}`}>Yêu cầu</span>
-              </button>
-
-              {/* Thông báo - tất cả role */}
-              <button onClick={() => { setIsNotifPanelOpen(true); setIsMoreMenuOpen(false); }} className={`relative flex flex-col items-center gap-1 flex-1 py-1.5 mx-0.5 rounded-xl transition-all active:scale-95 ${isNotifPanelOpen && !isMoreMenuOpen ? 'text-indigo-500 bg-indigo-50' : 'text-slate-400'}`}>
-                <div className="relative">
-                  <Bell size={21} strokeWidth={isNotifPanelOpen ? 2 : 1.5} />
-                  {unreadCount > 0 && <span className="absolute -top-1 -right-1.5 w-2 h-2 rounded-full bg-red-500 border border-white"></span>}
-                </div>
-                <span className={`text-[9px] leading-tight ${isNotifPanelOpen && !isMoreMenuOpen ? 'font-medium' : 'font-light'}`}>Thông báo</span>
-              </button>
-
-              {/* Nhân sự - chỉ Manager/Admin */}
-              {(currentUser.role === 'MANAGER' || currentUser.role === 'SUPER_ADMIN') && (
-                <button onClick={() => { setViewMode('STAFF_MANAGEMENT'); setIsMoreMenuOpen(false); }} className={`flex flex-col items-center gap-1 flex-1 py-1.5 mx-0.5 rounded-xl transition-all active:scale-95 ${viewMode === 'STAFF_MANAGEMENT' && !isMoreMenuOpen ? 'text-indigo-500 bg-indigo-50' : 'text-slate-400'}`}>
-                  <Users size={21} strokeWidth={viewMode === 'STAFF_MANAGEMENT' ? 2 : 1.5} />
-                  <span className={`text-[9px] leading-tight ${viewMode === 'STAFF_MANAGEMENT' && !isMoreMenuOpen ? 'font-medium' : 'font-light'}`}>Nhân sự</span>
-                </button>
-              )}
-
-              {/* Thêm - mở popup */}
-              <button onClick={() => setIsMoreMenuOpen(!isMoreMenuOpen)} className={`flex flex-col items-center gap-1 flex-1 py-1.5 mx-0.5 rounded-xl transition-all active:scale-95 ${isMoreMenuOpen ? 'text-indigo-500 bg-indigo-50' : 'text-slate-400'}`}>
-                <MoreHorizontal size={21} strokeWidth={isMoreMenuOpen ? 2 : 1.5} />
-                <span className={`text-[9px] leading-tight ${isMoreMenuOpen ? 'font-medium' : 'font-light'}`}>Thêm</span>
-              </button>
-
-            </div>
-          </nav>
-        </>
-      )}
+              </div>
+            </nav>
+          </>
+        );
+      })()}
 
     </div>
 
