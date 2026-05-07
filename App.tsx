@@ -3433,153 +3433,91 @@ export default function App() {
       </Modal>
 
       <Modal isOpen={isUserModalOpen} onClose={() => setIsUserModalOpen(false)} title="">
-        <div className="space-y-0 -mt-2">
-
-          {/* ── Header: Avatar + tên ── */}
-          <div className="flex flex-col items-center pb-5 mb-5" style={{borderBottom:'1px solid #F0F0F0'}}>
-            {/* Avatar preview */}
-            <div className="relative mb-3">
-              {userFormData.avatar ? (
-                <img
-                  src={userFormData.avatar}
-                  className="w-16 h-16 rounded-2xl object-cover"
-                  style={{border:'2px solid #E5E5E5', boxShadow:'0 4px 12px rgba(0,0,0,0.08)'}}
-                  alt=""
-                  onError={e => { (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/initials/svg?seed=${userFormData.name || 'U'}`; }}
-                />
-              ) : (
-                <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-[22px] font-bold"
-                  style={{background:'linear-gradient(135deg,#EEF2FF,#E0E7FF)', color:'#4F46E5'}}>
-                  {userFormData.name ? userFormData.name.charAt(0).toUpperCase() : '?'}
+        {(() => {
+          const isAdmin = currentUser?.role === 'MANAGER' || currentUser?.role === 'SUPER_ADMIN';
+          const inputStyle = {background:'#F8F8F8', border:'1.5px solid #EBEBEB', color:'#171717'};
+          const focusH = (e: React.FocusEvent<HTMLInputElement>) => { e.currentTarget.style.border='1.5px solid #4F46E5'; e.currentTarget.style.background='#fff'; };
+          const blurH = (e: React.FocusEvent<HTMLInputElement>) => { e.currentTarget.style.border='1.5px solid #EBEBEB'; e.currentTarget.style.background='#F8F8F8'; };
+          return (
+          <div className="space-y-0 -mt-2">
+            {/* Avatar + Name header */}
+            <div className="flex items-center gap-3 pb-4 mb-4" style={{borderBottom:'1px solid #F0F0F0'}}>
+              <div className="relative flex-shrink-0">
+                {userFormData.avatar ? (
+                  <img src={userFormData.avatar} className="w-14 h-14 rounded-2xl object-cover" style={{border:'2px solid #E5E5E5'}} alt=""
+                    onError={e => { (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/initials/svg?seed=${userFormData.name || 'U'}`; }}/>
+                ) : (
+                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-[20px] font-bold"
+                    style={{background:'linear-gradient(135deg,#EEF2FF,#E0E7FF)', color:'#4F46E5'}}>
+                    {userFormData.name ? userFormData.name.charAt(0).toUpperCase() : '?'}
+                  </div>
+                )}
+                <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center"
+                  style={{background:'#4F46E5', border:'2px solid #fff'}}>
+                  <ImageIcon size={9} color="#fff"/>
                 </div>
-              )}
-              <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center"
-                style={{background:'#4F46E5', border:'2px solid #fff'}}>
-                <ImageIcon size={9} color="#fff"/>
               </div>
-            </div>
-            <p className="text-[15px] font-semibold tracking-tight" style={{color:'#171717'}}>
-              {userFormData.name || (isEditUser ? 'Chỉnh sửa nhân sự' : 'Nhân sự mới')}
-            </p>
-            {userFormData.id && (
-              <p className="text-[11px] font-mono mt-0.5" style={{color:'#A3A3A3'}}>ID: {userFormData.id}</p>
-            )}
-          </div>
-
-          {/* ── Thông tin cơ bản ── */}
-          <div className="space-y-3 mb-5">
-            <p className="text-[10px] font-semibold uppercase tracking-widest" style={{color:'#A3A3A3'}}>Thông tin cơ bản</p>
-
-            {/* Họ tên */}
-            <div className="relative">
-              <label className="absolute left-3.5 top-2 text-[9px] font-semibold uppercase tracking-wider" style={{color:'#A3A3A3'}}>Họ và tên</label>
-              <input
-                type="text"
-                className="w-full pt-7 pb-2.5 px-3.5 rounded-xl text-[14px] font-medium outline-none transition-all"
-                style={{background:'#F8F8F8', border:'1.5px solid #EBEBEB', color:'#171717'}}
-                value={userFormData.name || ''}
-                onChange={e => setUserFormData({...userFormData, name: e.target.value})}
-                placeholder="Nguyễn Thị A"
-                onFocus={e => { e.currentTarget.style.border='1.5px solid #4F46E5'; e.currentTarget.style.background='#fff'; }}
-                onBlur={e => { e.currentTarget.style.border='1.5px solid #EBEBEB'; e.currentTarget.style.background='#F8F8F8'; }}
-              />
-            </div>
-
-            {/* ID + Mật khẩu */}
-            <div className="grid grid-cols-2 gap-2.5">
-              <div className="relative">
-                <label className="absolute left-3.5 top-2 text-[9px] font-semibold uppercase tracking-wider" style={{color:'#A3A3A3'}}>Mã đăng nhập</label>
-                <input
-                  type="text"
-                  className="w-full pt-7 pb-2.5 px-3.5 rounded-xl text-[13px] font-mono outline-none transition-all"
-                  style={{background:'#F8F8F8', border:'1.5px solid #EBEBEB', color:'#171717'}}
-                  value={userFormData.id || ''}
-                  onChange={e => setUserFormData({...userFormData, id: e.target.value})}
-                  placeholder="vd: u1"
-                  onFocus={e => { e.currentTarget.style.border='1.5px solid #4F46E5'; e.currentTarget.style.background='#fff'; }}
-                  onBlur={e => { e.currentTarget.style.border='1.5px solid #EBEBEB'; e.currentTarget.style.background='#F8F8F8'; }}
-                />
-              </div>
-              <div className="relative">
-                <label className="absolute left-3.5 top-2 text-[9px] font-semibold uppercase tracking-wider" style={{color:'#A3A3A3'}}>Mật khẩu</label>
-                <input
-                  type="text"
-                  className="w-full pt-7 pb-2.5 px-3.5 rounded-xl text-[13px] font-mono outline-none transition-all"
-                  style={{background:'#F8F8F8', border:'1.5px solid #EBEBEB', color:'#171717'}}
-                  value={userFormData.password || ''}
-                  onChange={e => setUserFormData({...userFormData, password: e.target.value})}
-                  placeholder="••••••"
-                  onFocus={e => { e.currentTarget.style.border='1.5px solid #4F46E5'; e.currentTarget.style.background='#fff'; }}
-                  onBlur={e => { e.currentTarget.style.border='1.5px solid #EBEBEB'; e.currentTarget.style.background='#F8F8F8'; }}
-                />
+              <div className="flex-1 min-w-0">
+                <p className="text-[15px] font-bold truncate" style={{color:'#171717'}}>
+                  {userFormData.name || (isEditUser ? 'Chỉnh sửa' : 'Nhân sự mới')}
+                </p>
+                {userFormData.id && <p className="text-[11px] font-mono" style={{color:'#A3A3A3'}}>@{userFormData.id}</p>}
+                <p className="text-[10px] mt-0.5" style={{color:'#D4D4D4'}}>{isEditUser ? 'Chỉnh sửa thông tin' : 'Tạo tài khoản mới'}</p>
               </div>
             </div>
 
-            {/* Zalo */}
-            <div className="relative">
-              <label className="absolute left-3.5 top-2 text-[9px] font-semibold uppercase tracking-wider" style={{color:'#A3A3A3'}}>Số Zalo</label>
-              <input
-                type="text"
-                className="w-full pt-7 pb-2.5 px-3.5 rounded-xl text-[14px] font-medium outline-none transition-all"
-                style={{background:'#F8F8F8', border:'1.5px solid #EBEBEB', color:'#171717'}}
-                value={userFormData.zaloPhone || ''}
-                onChange={e => setUserFormData({...userFormData, zaloPhone: e.target.value})}
-                placeholder="0901 234 567"
-                onFocus={e => { e.currentTarget.style.border='1.5px solid #4F46E5'; e.currentTarget.style.background='#fff'; }}
-                onBlur={e => { e.currentTarget.style.border='1.5px solid #EBEBEB'; e.currentTarget.style.background='#F8F8F8'; }}
-              />
+            {/* Section 1: Thông tin cơ bản */}
+            <div className="space-y-2.5 mb-4">
+              <div className="flex items-center gap-1.5">
+                <Edit2 size={11} style={{color:'#A3A3A3'}}/>
+                <p className="text-[9px] font-semibold uppercase tracking-widest" style={{color:'#A3A3A3'}}>Thông tin cơ bản</p>
+              </div>
+              <input type="text" className="w-full py-2.5 px-3.5 rounded-xl text-[13px] font-medium outline-none transition-all" style={inputStyle}
+                value={userFormData.name || ''} onChange={e => setUserFormData({...userFormData, name: e.target.value})}
+                placeholder="Họ và tên" onFocus={focusH} onBlur={blurH}/>
+              <div className="grid grid-cols-2 gap-2">
+                <input type="text" className="w-full py-2.5 px-3.5 rounded-xl text-[13px] font-mono outline-none transition-all" style={inputStyle}
+                  value={userFormData.id || ''} onChange={e => setUserFormData({...userFormData, id: e.target.value})}
+                  placeholder="Mã đăng nhập" onFocus={focusH} onBlur={blurH}/>
+                <input type="text" className="w-full py-2.5 px-3.5 rounded-xl text-[13px] font-mono outline-none transition-all" style={inputStyle}
+                  value={userFormData.password || ''} onChange={e => setUserFormData({...userFormData, password: e.target.value})}
+                  placeholder="Mật khẩu" onFocus={focusH} onBlur={blurH}/>
+              </div>
+              <input type="text" className="w-full py-2.5 px-3.5 rounded-xl text-[12px] font-medium outline-none transition-all" style={inputStyle}
+                value={userFormData.avatar || ''} onChange={e => setUserFormData({...userFormData, avatar: e.target.value})}
+                placeholder="Link ảnh đại diện (https://...)" onFocus={focusH} onBlur={blurH}/>
+              <input type="text" className="w-full py-2.5 px-3.5 rounded-xl text-[13px] font-medium outline-none transition-all" style={inputStyle}
+                value={userFormData.zaloPhone || ''} onChange={e => setUserFormData({...userFormData, zaloPhone: e.target.value})}
+                placeholder="Số Zalo (tuỳ chọn)" onFocus={focusH} onBlur={blurH}/>
             </div>
 
-            {/* Avatar URL */}
-            <div className="relative">
-              <label className="absolute left-3.5 top-2 text-[9px] font-semibold uppercase tracking-wider" style={{color:'#A3A3A3'}}>Link ảnh đại diện</label>
-              <input
-                type="text"
-                className="w-full pt-7 pb-2.5 px-3.5 rounded-xl text-[12px] font-medium outline-none transition-all"
-                style={{background:'#F8F8F8', border:'1.5px solid #EBEBEB', color:'#171717'}}
-                value={userFormData.avatar || ''}
-                onChange={e => setUserFormData({...userFormData, avatar: e.target.value})}
-                placeholder="https://..."
-                onFocus={e => { e.currentTarget.style.border='1.5px solid #4F46E5'; e.currentTarget.style.background='#fff'; }}
-                onBlur={e => { e.currentTarget.style.border='1.5px solid #EBEBEB'; e.currentTarget.style.background='#F8F8F8'; }}
-              />
-            </div>
-          </div>
-
-          {/* ── Vai trò & Rank ── */}
-          {(currentUser?.role === 'MANAGER' || currentUser?.role === 'SUPER_ADMIN') && (
-          <div className="flex gap-4 mb-5 flex-wrap">
-            <div className="flex-1 min-w-[180px] space-y-2">
-              <p className="text-[10px] font-semibold uppercase tracking-widest" style={{color:'#A3A3A3'}}>Vai trò</p>
-              <div className="grid grid-cols-3 gap-1.5">
+            {/* Section 2: Vai trò & Rank — admin only */}
+            {isAdmin && (
+            <div className="mb-4 space-y-2.5" style={{paddingTop:'12px',borderTop:'1px solid #F0F0F0'}}>
+              <div className="flex items-center gap-1.5">
+                <Award size={11} style={{color:'#A3A3A3'}}/>
+                <p className="text-[9px] font-semibold uppercase tracking-widest" style={{color:'#A3A3A3'}}>Vai trò & Rank</p>
+              </div>
+              {/* Role chips */}
+              <div className="flex gap-1.5">
                 {([
-                  { value: 'STAFF', label: 'Mẫu Live', icon: <Video size={13}/>, color: '#4F46E5', bg: '#EEF2FF' },
-                  { value: 'OPERATIONS', label: 'Kỹ thuật', icon: <Wrench size={13}/>, color: '#D97706', bg: '#FEF3C7' },
-                  { value: 'MANAGER', label: 'Quản lý', icon: <Shield size={13}/>, color: '#059669', bg: '#DCFCE7' },
+                  { value: 'STAFF', label: 'Mẫu Live', icon: <Video size={12}/>, color: '#4F46E5', bg: '#EEF2FF' },
+                  { value: 'OPERATIONS', label: 'Kỹ thuật', icon: <Wrench size={12}/>, color: '#D97706', bg: '#FEF3C7' },
+                  { value: 'MANAGER', label: 'Quản lý', icon: <Shield size={12}/>, color: '#059669', bg: '#DCFCE7' },
                 ] as const).map(({ value, label, icon, color, bg }) => {
                   const active = userFormData.role === value;
                   return (
-                    <button
-                      key={value}
-                      onClick={() => setUserFormData({...userFormData, role: value as Role})}
-                      className="flex flex-col items-center gap-1 py-2.5 rounded-xl transition-all"
-                      style={{
-                        background: active ? bg : '#F8F8F8',
-                        border: active ? `2px solid ${color}` : '2px solid transparent',
-                        color: active ? color : '#A3A3A3',
-                      }}
-                    >
-                      {icon}
-                      <span className="text-[10px] font-semibold">{label}</span>
+                    <button key={value} onClick={() => setUserFormData({...userFormData, role: value as Role})}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold transition-all"
+                      style={{background: active ? bg : '#F5F5F5', border: active ? `1.5px solid ${color}` : '1.5px solid transparent', color: active ? color : '#A3A3A3'}}>
+                      {icon}{label}
                     </button>
                   );
                 })}
               </div>
-            </div>
-            {userFormData.role === 'STAFF' && (
-              <div className="flex-1 min-w-[180px] space-y-2">
-                <p className="text-[10px] font-semibold uppercase tracking-widest" style={{color:'#A3A3A3'}}>Rank</p>
-                <div className="grid grid-cols-4 gap-1.5">
+              {/* Rank chips — only for STAFF */}
+              {userFormData.role === 'STAFF' && (
+                <div className="flex gap-1.5">
                   {([
                     { r: 'S', label: 'Super', color: '#9333EA', bg: '#F5F3FF' },
                     { r: 'A', label: 'Pro', color: '#2563EB', bg: '#EFF6FF' },
@@ -3588,124 +3526,91 @@ export default function App() {
                   ] as const).map(({ r, label, color, bg }) => {
                     const active = userFormData.rank === r;
                     return (
-                      <button
-                        key={r}
-                        onClick={() => setUserFormData({...userFormData, rank: r as Rank})}
-                        className="flex flex-col items-center gap-0.5 py-2.5 rounded-xl transition-all"
-                        style={{
-                          background: active ? bg : '#F8F8F8',
-                          border: active ? `2px solid ${color}` : '2px solid transparent',
-                          color: active ? color : '#C3C3C3',
-                        }}
-                      >
-                        <span className="text-[16px] font-black leading-none">{r}</span>
-                        <span className="text-[8px] font-semibold uppercase tracking-wide">{label}</span>
+                      <button key={r} onClick={() => setUserFormData({...userFormData, rank: r as Rank})}
+                        className="flex-1 flex flex-col items-center py-2 rounded-xl transition-all"
+                        style={{background: active ? bg : '#F8F8F8', border: active ? `1.5px solid ${color}` : '1.5px solid transparent', color: active ? color : '#C3C3C3'}}>
+                        <span className="text-[14px] font-black leading-none">{r}</span>
+                        <span className="text-[7px] font-semibold uppercase mt-0.5">{label}</span>
                       </button>
                     );
                   })}
                 </div>
-              </div>
+              )}
+            </div>
             )}
-          </div>
-          )}
 
-          {/* ── Nền tảng live ── */}
-          {(currentUser?.role === 'MANAGER' || currentUser?.role === 'SUPER_ADMIN') && (
-          <div className="space-y-2 mb-5">
-            <p className="text-[10px] font-semibold uppercase tracking-widest" style={{color:'#A3A3A3'}}>Nền tảng live</p>
-            <div className="grid grid-cols-2 gap-2">
-              {(['tiktok', 'shopee'] as Platform[]).map(p => {
-                const cfg = PLATFORM_CONFIG[p];
-                const isSelected = (userFormData.platforms || []).includes(p);
-                return (
-                  <button
-                    key={p}
-                    onClick={() => {
+            {/* Section 3: Nền tảng — admin only */}
+            {isAdmin && (
+            <div className="mb-4 space-y-2.5" style={{paddingTop:'12px',borderTop:'1px solid #F0F0F0'}}>
+              <div className="flex items-center gap-1.5">
+                <Monitor size={11} style={{color:'#A3A3A3'}}/>
+                <p className="text-[9px] font-semibold uppercase tracking-widest" style={{color:'#A3A3A3'}}>Nền tảng live</p>
+              </div>
+              <div className="flex gap-2">
+                {(['tiktok', 'shopee'] as Platform[]).map(p => {
+                  const cfg = PLATFORM_CONFIG[p];
+                  const isSelected = (userFormData.platforms || []).includes(p);
+                  return (
+                    <button key={p} onClick={() => {
                       const current = userFormData.platforms || [];
                       const next = isSelected ? current.filter(x => x !== p) : [...current, p];
                       setUserFormData({...userFormData, platforms: next.length > 0 ? next : [p]});
                     }}
-                    className="flex items-center gap-3 p-3 rounded-2xl transition-all"
-                    style={{
-                      background: isSelected ? cfg.bgLight : '#F8F8F8',
-                      border: isSelected ? `2px solid ${cfg.color}` : '2px solid transparent',
-                    }}
-                  >
-                    <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
-                      style={{background: isSelected ? cfg.color + '20' : '#EBEBEB'}}>
-                      <PlatformIcon platform={p} size={16} />
-                    </div>
-                    <div className="text-left">
-                      <p className="text-[12px] font-semibold" style={{color: isSelected ? cfg.color : '#737373'}}>{cfg.label}</p>
-                      <p className="text-[10px]" style={{color: isSelected ? cfg.color + 'AA' : '#C3C3C3'}}>
-                        {isSelected ? '✓ Đang chọn' : 'Chưa chọn'}
-                      </p>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-          )}
-
-          {/* ── Lương (chỉ khi STAFF) ── */}
-          {(currentUser?.role === 'MANAGER' || currentUser?.role === 'SUPER_ADMIN') && userFormData.role === 'STAFF' && (
-            <div className="space-y-2 mb-5">
-              <p className="text-[10px] font-semibold uppercase tracking-widest" style={{color:'#A3A3A3'}}>Thông tin lương</p>
-              <div className="p-4 rounded-2xl" style={{background:'linear-gradient(135deg,#F0FDF4,#DCFCE7)', border:'1.5px solid #BBF7D0'}}>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-xl flex items-center justify-center" style={{background:'#059669'}}>
-                      <TrendingUp size={13} color="#fff"/>
-                    </div>
-                    <span className="text-[12px] font-semibold" style={{color:'#059669'}}>Lương theo giờ</span>
-                  </div>
-                  {(userFormData.hourlyRate || 0) > 0 && (
-                    <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{background:'#059669', color:'#fff'}}>
-                      ≈ {((userFormData.hourlyRate || 0) * 4).toLocaleString()}đ/ca
-                    </span>
-                  )}
-                </div>
-                <div className="relative">
-                  <input
-                    type="number"
-                    className="w-full px-4 py-3 rounded-xl text-[15px] font-bold outline-none transition-all"
-                    style={{background:'rgba(255,255,255,0.7)', border:'1.5px solid #BBF7D0', color:'#065F46'}}
-                    value={userFormData.hourlyRate || ''}
-                    onChange={e => setUserFormData({...userFormData, hourlyRate: Number(e.target.value)})}
-                    placeholder="0"
-                    onFocus={e => { e.currentTarget.style.border='1.5px solid #059669'; e.currentTarget.style.background='#fff'; }}
-                    onBlur={e => { e.currentTarget.style.border='1.5px solid #BBF7D0'; e.currentTarget.style.background='rgba(255,255,255,0.7)'; }}
-                  />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[13px] font-semibold" style={{color:'#059669'}}>đ/giờ</span>
-                </div>
-                {!(userFormData.hourlyRate) && (
-                  <p className="text-[10px] mt-2" style={{color:'#6EE7B7'}}>Nhập 0 = chưa thiết lập lương</p>
-                )}
+                      className="flex-1 flex items-center gap-2 p-2.5 rounded-xl transition-all"
+                      style={{background: isSelected ? cfg.bgLight : '#F8F8F8', border: isSelected ? `1.5px solid ${cfg.color}` : '1.5px solid transparent'}}>
+                      <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                        style={{background: isSelected ? cfg.color + '20' : '#EBEBEB'}}>
+                        <PlatformIcon platform={p} size={14} />
+                      </div>
+                      <div className="text-left">
+                        <p className="text-[11px] font-semibold" style={{color: isSelected ? cfg.color : '#737373'}}>{cfg.label}</p>
+                        <p className="text-[8px]" style={{color: isSelected ? cfg.color + 'AA' : '#C3C3C3'}}>{isSelected ? '✓ Chọn' : 'Chưa'}</p>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
-          )}
+            )}
 
-          {/* ── Footer actions ── */}
-          <div className="flex gap-2.5 pt-1">
-            <button
-              onClick={() => setIsUserModalOpen(false)}
-              className="flex-1 py-3 rounded-2xl text-[13px] font-semibold transition-all hover:bg-gray-100"
-              style={{border:'1.5px solid #E5E5E5', color:'#737373'}}
-            >
-              Hủy
-            </button>
-            <button
-              onClick={handleSaveUser}
-              className="flex-1 py-3 rounded-2xl text-[13px] font-semibold flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-[0.98]"
-              style={{background:'#4F46E5', color:'#fff', boxShadow:'0 4px 16px #4F46E540'}}
-            >
-              <Save size={14}/>
-              {isEditUser ? 'Lưu thay đổi' : 'Thêm nhân sự'}
-            </button>
+            {/* Section 4: Lương — admin + STAFF only */}
+            {isAdmin && userFormData.role === 'STAFF' && (
+            <div className="mb-4 space-y-2.5" style={{paddingTop:'12px',borderTop:'1px solid #F0F0F0'}}>
+              <div className="flex items-center gap-1.5">
+                <TrendingUp size={11} style={{color:'#059669'}}/>
+                <p className="text-[9px] font-semibold uppercase tracking-widest" style={{color:'#A3A3A3'}}>Lương theo giờ</p>
+                {(userFormData.hourlyRate || 0) > 0 && (
+                  <span className="ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{background:'#DCFCE7',color:'#059669'}}>
+                    ≈ {((userFormData.hourlyRate || 0) * 4).toLocaleString()}đ/ca
+                  </span>
+                )}
+              </div>
+              <div className="relative">
+                <input type="number" className="w-full py-2.5 px-3.5 rounded-xl text-[14px] font-bold outline-none transition-all"
+                  style={{background:'#F0FDF4', border:'1.5px solid #BBF7D0', color:'#065F46'}}
+                  value={userFormData.hourlyRate || ''} onChange={e => setUserFormData({...userFormData, hourlyRate: Number(e.target.value)})}
+                  placeholder="0" onFocus={e => { e.currentTarget.style.border='1.5px solid #059669'; }} onBlur={e => { e.currentTarget.style.border='1.5px solid #BBF7D0'; }}/>
+                <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[12px] font-semibold" style={{color:'#059669'}}>đ/giờ</span>
+              </div>
+            </div>
+            )}
+
+            {/* Save footer */}
+            <div className="flex gap-2 pt-2" style={{borderTop:'1px solid #F0F0F0'}}>
+              <button onClick={() => setIsUserModalOpen(false)}
+                className="flex-1 py-2.5 rounded-xl text-[12px] font-semibold transition-all"
+                style={{border:'1.5px solid #E5E5E5', color:'#737373'}}>
+                Hủy
+              </button>
+              <button onClick={handleSaveUser}
+                className="flex-1 py-2.5 rounded-xl text-[12px] font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-[0.98]"
+                style={{background:'#4F46E5', color:'#fff', boxShadow:'0 4px 12px #4F46E540'}}>
+                <Save size={13}/>{isEditUser ? 'Lưu' : 'Thêm'}
+              </button>
+            </div>
           </div>
-
-        </div>
+          );
+        })()}
       </Modal>
 
       {/* Shift Edit Modal */}
