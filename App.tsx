@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Menu, X, Calendar, Search, Filter, Plus, ChevronLeft, ChevronRight, 
   MapPin, Clock, Users, Sun, Moon, CheckCircle2, ChevronDown, Lock,
@@ -2607,7 +2607,6 @@ export default function App() {
                             <tr key={i} style={{borderTop:i>0?'1px solid #F5F5F5':'none',background:isToday2?'#F8FBFF':'transparent'}}>
                               <td className="px-4 py-3">
                                 <p className="text-[14px] font-bold tabular-nums" style={{color:isToday2?'#2563EB':'#171717'}}>{row.date.getDate()}/{row.date.getMonth()+1}</p>
-                                {isToday2&&<span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{background:'#EFF6FF',color:'#2563EB'}}>Hôm nay</span>}
                               </td>
                               <td className="px-4 py-3 text-[12px] font-medium" style={{color:'#737373'}}>{dayNames[row.date.getDay()]}</td>
                               <td className="px-4 py-3">
