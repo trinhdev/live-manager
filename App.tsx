@@ -1804,14 +1804,25 @@ export default function App() {
                             <div className="flex items-center gap-1.5 flex-wrap">
                               {slot.streamerAssignments.map((sa, i) => {
                                 const u = users.find(u => u.id === sa.userId);
+                                const hasOT = (sa.overtimeMinutes || 0) > 0;
+                                const hasBridge = !!sa.timeLabel;
                                 return (
-                                  <div key={i} className="flex items-center gap-1">
+                                  <div key={i} className="flex items-center gap-1 flex-wrap">
                                     <img src={u?.avatar} className="w-5 h-5 rounded-full object-cover" alt=""/>
                                     <span className="text-[11px] font-medium" style={{color:'#171717'}}>{u?.name}</span>
-                                    {sa.timeLabel && <span className="text-[9px] px-1 rounded" style={{background:'#EFF6FF',color:'#2563EB'}}>{sa.timeLabel}</span>}
+                                    {hasBridge && (
+                                      <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold px-1 py-0.5 rounded" style={{background:'#EFF6FF',color:'#2563EB',border:'1px solid #BFDBFE'}}>
+                                        <svg width="7" height="7" viewBox="0 0 12 12" fill="none"><path d="M2 1h3v3H2zM7 1h3v3H7zM2 6h3v3H2zM7 6h3v3H7z" fill="currentColor"/></svg>
+                                        {sa.timeLabel}
+                                      </span>
+                                    )}
+                                    {hasOT && (
+                                      <span className="text-[9px] font-bold px-1 py-0.5 rounded" style={{background:'#FEF3C7',color:'#D97706',border:'1px solid #FDE68A'}}>+{sa.overtimeMinutes}ph</span>
+                                    )}
                                   </div>
                                 );
                               })}
+
                             </div>
                             {ops && (
                               <div className="flex items-center gap-1" style={{color:'#A3A3A3'}}>
@@ -1869,6 +1880,8 @@ export default function App() {
                             const ops = users.find(u => u.id === slot?.opsUserId);
                             const isMyShift = slot?.streamerAssignments.some(sa => sa.userId === currentUser?.id) || slot?.opsUserId === currentUser?.id;
                             const today = isToday(weekDates[dayIdx]);
+                            const slotHasOT = slot?.streamerAssignments.some(sa => (sa.overtimeMinutes || 0) > 0) ?? false;
+                            const slotHasBridge = slot?.streamerAssignments.some(sa => !!sa.timeLabel) ?? false;
                             return (
                               <td key={dayIdx}
                                 onClick={() => {
@@ -1886,7 +1899,7 @@ export default function App() {
                                 style={{padding: 6, verticalAlign:'top', background: today ? '#F8FBFF' : 'transparent'}}
                               >
                                 <div
-                                  className="rounded-lg transition-all h-full"
+                                  className="rounded-lg transition-all h-full relative"
                                   style={{
                                     minHeight: 76,
                                     padding: 8,
@@ -1895,6 +1908,20 @@ export default function App() {
                                     boxShadow: isMyShift ? '0 0 0 2px rgba(37,99,235,0.08)' : 'none',
                                   }}
                                 >
+                                  {/* Slot-level indicators (top-right corner) */}
+                                  {(slotHasOT || slotHasBridge) && (
+                                    <div className="absolute top-1 right-1 flex items-center gap-0.5">
+                                      {slotHasBridge && (
+                                        <span title="Có kẹp ca" className="w-4 h-4 rounded-full flex items-center justify-center" style={{background:'#EFF6FF',border:'1px solid #BFDBFE'}}>
+                                          <svg width="8" height="8" viewBox="0 0 12 12" fill="none"><path d="M2 1h3v3H2zM7 1h3v3H7zM2 6h3v3H2zM7 6h3v3H7z" fill="#2563EB"/></svg>
+                                        </span>
+                                      )}
+                                      {slotHasOT && (
+                                        <span title="Có giờ thêm" className="w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-extrabold leading-none" style={{background:'#FEF3C7',border:'1px solid #FDE68A',color:'#D97706'}}>OT</span>
+                                      )}
+                                    </div>
+                                  )}
+
                                   {!slot ? (
                                     <div className="h-full flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" style={{color:'#D4D4D4',minHeight:60}}>
                                       <Plus size={12} strokeWidth={2}/>
@@ -1903,12 +1930,26 @@ export default function App() {
                                     <div className="flex flex-col gap-1.5">
                                       {slot.streamerAssignments.map((sa, i) => {
                                         const u = users.find(user => user.id === sa.userId);
+                                        const hasOT = (sa.overtimeMinutes || 0) > 0;
+                                        const hasBridge = !!sa.timeLabel;
                                         return (
-                                          <div key={i} className="flex items-center gap-1.5">
-                                            <img src={u?.avatar} className="w-5 h-5 rounded-full object-cover flex-shrink-0" alt=""/>
+                                          <div key={i} className="flex items-start gap-1.5">
+                                            <img src={u?.avatar} className="w-5 h-5 rounded-full object-cover flex-shrink-0 mt-0.5" alt=""/>
                                             <div className="min-w-0">
                                               <p className="text-[10px] font-semibold truncate leading-tight" style={{color:'#171717'}}>{u?.name}</p>
-                                              {sa.timeLabel && <p className="text-[8px] font-medium" style={{color:'#2563EB'}}>{sa.timeLabel}</p>}
+                                              {(hasBridge || hasOT) && (
+                                                <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                                                  {hasBridge && (
+                                                    <span className="inline-flex items-center gap-0.5 text-[8px] font-semibold px-1 py-0.5 rounded" style={{background:'#EFF6FF',color:'#2563EB',border:'1px solid #BFDBFE'}}>
+                                                      <svg width="6" height="6" viewBox="0 0 12 12" fill="none"><path d="M2 1h3v3H2zM7 1h3v3H7zM2 6h3v3H2zM7 6h3v3H7z" fill="currentColor"/></svg>
+                                                      {sa.timeLabel}
+                                                    </span>
+                                                  )}
+                                                  {hasOT && (
+                                                    <span className="text-[8px] font-bold px-1 py-0.5 rounded" style={{background:'#FEF3C7',color:'#D97706',border:'1px solid #FDE68A'}}>+{sa.overtimeMinutes}ph</span>
+                                                  )}
+                                                </div>
+                                              )}
                                             </div>
                                           </div>
                                         );
