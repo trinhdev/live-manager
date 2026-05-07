@@ -1,6 +1,6 @@
 
 import { supabase } from './supabase';
-import { User, Brand, Shift, Availability, ScheduleItem, ShiftRequest, Platform, AppNotification } from '../types';
+import { User, Brand, Shift, Availability, ScheduleItem, ShiftRequest, Platform, AppNotification, TimekeepingRecord } from '../types';
 import { INITIAL_USERS, INITIAL_SHIFTS } from '../constants';
 
 export const sendOneSignalPush = async (title: string, message: string, targetUserIds?: string[] | null) => {
@@ -442,6 +442,52 @@ export const api = {
       console.error('Lỗi khi update notification', error);
       throw error;
     }
+  },
+
+  // ── Timekeeping / Chấm công ─────────────────────────────────
+  async getTimekeeping(brandId: string, month: number, year: number): Promise<TimekeepingRecord[]> {
+    const { data, error } = await supabase
+      .from('timekeeping')
+      .select('*')
+      .eq('brand_id', brandId)
+      .eq('month', month)
+      .eq('year', year);
+    if (error) { console.error('getTimekeeping error', error); return []; }
+    return (data || []).map((r: any) => ({
+      id: r.id,
+      userId: r.user_id,
+      brandId: r.brand_id,
+      month: r.month,
+      year: r.year,
+      bonusAmount: r.bonus_amount || 0,
+      note: r.note || '',
+    }));
+  },
+
+  async upsertTimekeeping(record: TimekeepingRecord): Promise<TimekeepingRecord> {
+    const { data, error } = await supabase
+      .from('timekeeping')
+      .upsert({
+        user_id: record.userId,
+        brand_id: record.brandId,
+        month: record.month,
+        year: record.year,
+        bonus_amount: record.bonusAmount,
+        note: record.note || '',
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id,brand_id,month,year' })
+      .select()
+      .single();
+    if (error) { console.error('upsertTimekeeping error', error); throw error; }
+    return {
+      id: data.id,
+      userId: data.user_id,
+      brandId: data.brand_id,
+      month: data.month,
+      year: data.year,
+      bonusAmount: data.bonus_amount || 0,
+      note: data.note || '',
+    };
   }
 
 };

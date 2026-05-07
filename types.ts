@@ -86,7 +86,7 @@ export interface ShiftRequest {
   createdAt: number;
 }
 
-export type ViewMode = 'DASHBOARD' | 'MY_AVAILABILITY' | 'STAFF_MANAGEMENT' | 'SETTINGS' | 'REQUESTS' | 'REPORTS';
+export type ViewMode = 'DASHBOARD' | 'MY_AVAILABILITY' | 'STAFF_MANAGEMENT' | 'SETTINGS' | 'REQUESTS' | 'REPORTS' | 'TIMEKEEPING' | 'MY_SALARY';
 
 export type NotificationType = 'ANNOUNCEMENT' | 'REMINDER' | 'REQUEST_NEW' | 'REQUEST_APPROVED' | 'REQUEST_REJECTED' | 'AVAILABILITY_REGISTERED';
 
@@ -101,4 +101,13 @@ export interface AppNotification {
   createdBy?: string;
   createdAt: number;
   readBy?: string[];          // user IDs who have read this
+}
+export interface TimekeepingRecord {
+  id?: string;
+  userId: string;
+  brandId?: string;
+  month: number;         // 1-12
+  year: number;
+  bonusAmount: number;   // Tiền hỗ trợ (VNĐ)
+  note?: string;
 }

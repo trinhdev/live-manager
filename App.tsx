@@ -5,7 +5,7 @@ import {
   Phone, AlertCircle, RefreshCw, BarChart3, Settings, Play, Image as ImageIcon, Copy, Key, Link as LinkIcon, Trash2, Edit2, Zap, Save, Check, CreditCard, Star, Activity, UserPlus, LogOut, LogIn, Monitor, Smartphone, Video, Camera, Mic, Volume2, Maximize, Minimize, Settings2, Sliders, Bell, MessageSquare, Briefcase, Award, TrendingUp, TrendingDown, Send, PauseCircle, PhoneCall, Inbox, MoreHorizontal,
   ShieldCheck, Sparkles, Wrench, XCircle, History, Info, Layers, ArrowRightLeft, MessageCircle, MousePointer2, CalendarCheck, Mic2, Shield, Gem, Crown, ListTodo, RotateCcw, FileSpreadsheet, Download, Loader2, Palette, Bot, AlertTriangle
 } from 'lucide-react';
-import { User, Brand, Shift, Availability, ScheduleItem, ViewMode, Rank, Role, ShiftRequest, RequestStatus, RequestType, Platform, AppNotification, NotificationType } from './types';
+import { User, Brand, Shift, Availability, ScheduleItem, ViewMode, Rank, Role, ShiftRequest, RequestStatus, RequestType, Platform, AppNotification, NotificationType, TimekeepingRecord } from './types';
 import { DAYS_OF_WEEK, PLATFORM_CONFIG, TIKTOK_LOGO_SVG, SHOPEE_LOGO_SVG } from './constants';
 import { Button } from './components/Button';
 import { DEFAULT_LLM_CONFIG, LlmConfig, testConnection } from './services/llm';
@@ -391,6 +391,14 @@ export default function App() {
   const [salaryDetailUser, setSalaryDetailUser] = useState<User | null>(null);
   const [isOvertimeModalOpen, setIsOvertimeModalOpen] = useState(false);
   const [overtimeData, setOvertimeData] = useState<{ userId: string; minutes: number }>({ userId: '', minutes: 0 });
+
+  // Timekeeping state
+  const [timekeepingMonth, setTimekeepingMonth] = useState<number>(new Date().getMonth() + 1);
+  const [timekeepingYear, setTimekeepingYear] = useState<number>(new Date().getFullYear());
+  const [timekeepingRecords, setTimekeepingRecords] = useState<TimekeepingRecord[]>([]);
+  const [timekeepingDraft, setTimekeepingDraft] = useState<Record<string, { bonusAmount: number; note: string }>>({});
+  const [timekeepingLoading, setTimekeepingLoading] = useState(false);
+  const [timekeepingSaving, setTimekeepingSaving] = useState<string | null>(null);
 
   const [editingSlot, setEditingSlot] = useState<{day: number, shiftId: string} | null>(null);
   const [slotTab, setSlotTab] = useState<'STREAMER' | 'OPS'>('STREAMER');
@@ -1411,6 +1419,9 @@ export default function App() {
           {currentUser && (currentUser.role === 'STAFF' || currentUser.role === 'OPERATIONS') && (
             <SidebarItem icon={<CheckCircle2 size={18}/>} label="Đăng ký" active={viewMode === 'MY_AVAILABILITY'} onClick={() => setViewMode('MY_AVAILABILITY')} />
           )}
+          {currentUser && currentUser.role === 'STAFF' && (
+            <SidebarItem icon={<TrendingUp size={18}/>} label="Lương của tôi" active={viewMode === 'MY_SALARY'} onClick={() => setViewMode('MY_SALARY')} />
+          )}
           {currentUser && (
             <SidebarItem icon={<Inbox size={18}/>} label="Yêu cầu" active={viewMode === 'REQUESTS'} onClick={() => setViewMode('REQUESTS')} badge={(currentUser.role === 'MANAGER' || currentUser.role === 'SUPER_ADMIN') && pendingCount > 0 ? pendingCount : undefined}/>
           )}
@@ -1418,12 +1429,11 @@ export default function App() {
             <SidebarItem icon={<Bell size={18}/>} label="Thông báo" active={isNotifPanelOpen} onClick={() => setIsNotifPanelOpen(!isNotifPanelOpen)} badge={unreadCount > 0 ? unreadCount : undefined} />
           )}
           {(currentUser?.role === 'MANAGER' || currentUser?.role === 'SUPER_ADMIN') && (
-            <SidebarItem icon={<BarChart3 size={18}/>} label="Báo cáo" active={viewMode === 'REPORTS'} onClick={() => setViewMode('REPORTS')} />
-          )}
-          {(currentUser?.role === 'MANAGER' || currentUser?.role === 'SUPER_ADMIN') && (
             <>
               <div className="px-3 pt-6 pb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400">Hệ thống</div>
               <SidebarItem icon={<Users size={18}/>} label="Nhân sự" active={viewMode === 'STAFF_MANAGEMENT'} onClick={() => setViewMode('STAFF_MANAGEMENT')} />
+              <SidebarItem icon={<CalendarCheck size={18}/>} label="Chấm công" active={viewMode === 'TIMEKEEPING'} onClick={() => { setViewMode('TIMEKEEPING'); }} />
+              <SidebarItem icon={<BarChart3 size={18}/>} label="Báo cáo" active={viewMode === 'REPORTS'} onClick={() => setViewMode('REPORTS')} />
               <SidebarItem icon={<Settings size={18}/>} label="Cấu hình" active={viewMode === 'SETTINGS'} onClick={() => setViewMode('SETTINGS')} />
             </>
           )}
@@ -1558,6 +1568,8 @@ export default function App() {
               {viewMode === 'STAFF_MANAGEMENT' && 'Nhân sự'}
               {viewMode === 'SETTINGS' && 'Cấu hình'}
               {viewMode === 'REPORTS' && 'Báo cáo'}
+              {viewMode === 'TIMEKEEPING' && 'Chấm công'}
+              {viewMode === 'MY_SALARY' && 'Lương của tôi'}
             </h1>
             <p className="text-[13px]" style={{color:'#737373'}}>
               {(viewMode === 'DASHBOARD' || viewMode === 'MY_AVAILABILITY')
@@ -2428,223 +2440,424 @@ export default function App() {
           </div>
         )}
 
-        {/* ───────────── REPORTS VIEW ───────────── */}
+        {/* ───────────── REPORTS VIEW (Stats only) ───────────── */}
         {viewMode === 'REPORTS' && currentUser && (() => {
-          const now = new Date();
-          const currentMonth = now.getMonth();
-          const currentYear = now.getFullYear();
-          const monthLabel = `Tháng ${currentMonth + 1}/${currentYear}`;
+          const now = currentDate;
+          const rMonth = now.getMonth();
+          const rYear = now.getFullYear();
+          const monthLabel = `Tháng ${rMonth + 1}/${rYear}`;
 
-          // Parse time string "HH:MM" or "HHhMM" → hours (float)
           const parseH = (t: string) => {
-            if (!t) return 0;
-            const m = t.trim().match(/^(\d{1,2})(?:[:h](\d{1,2}))?/);
-            if (m) return parseInt(m[1]) + (m[2] ? parseInt(m[2]) : 0) / 60;
-            return 0;
+            const m = t?.trim().match(/^(\d{1,2})(?:[:h](\d{1,2}))?/);
+            return m ? parseInt(m[1]) + (m[2] ? parseInt(m[2]) : 0) / 60 : 0;
           };
 
-          // Calculate hours for a streamer assignment in a given shift
-          const calcHours = (shift: Shift, sa: { timeLabel?: string; overtimeMinutes?: number }) => {
-            let base = 0;
-            if (sa.timeLabel) {
-              const parts = sa.timeLabel.split(/\s*-\s*/);
-              if (parts.length === 2) { const s = parseH(parts[0]); const e = parseH(parts[1]); base = e - s; if (base < 0) base += 24; }
-            } else {
-              const s = parseH(shift.startTime); const e = parseH(shift.endTime); base = e - s; if (base < 0) base += 24; if (base === 0) base = 4;
-            }
-            return base + (sa.overtimeMinutes || 0) / 60;
+          // Filter schedule for selected month
+          const getSlotDate = (item: ScheduleItem): Date | null => {
+            const wm = item.weekId?.match(/^(\d{4})-(\d{2})-W(\d{1,2})$/);
+            if (!wm) return null;
+            const yr = parseInt(wm[1]), mo = parseInt(wm[2]) - 1, wk = parseInt(wm[3]);
+            const d1 = new Date(yr, mo, 1);
+            const dow = d1.getDay() === 0 ? 6 : d1.getDay() - 1;
+            const mon1 = new Date(yr, mo, 1 - dow + (wk - 1) * 7);
+            return new Date(mon1.getTime() + item.dayIndex * 86400000);
           };
 
-          // Get all schedule items in current month
-          const monthlySchedule = schedule.filter(item => {
-            // weekId format: "YYYY-Www" — derive week start date
-            const weekMatch = item.weekId?.match(/^(\d{4})-W(\d{2})$/);
-            if (!weekMatch) return false;
-            const year = parseInt(weekMatch[1]);
-            const week = parseInt(weekMatch[2]);
-            const jan4 = new Date(year, 0, 4);
-            const weekStart = new Date(jan4.getTime() + (week - 1) * 7 * 24 * 3600 * 1000 - ((jan4.getDay() || 7) - 1) * 24 * 3600 * 1000);
-            const slotDate = new Date(weekStart.getTime() + item.dayIndex * 24 * 3600 * 1000);
-            return slotDate.getMonth() === currentMonth && slotDate.getFullYear() === currentYear;
+          const monthSchedule = schedule.filter(s => {
+            const d = getSlotDate(s); return d && d.getMonth() === rMonth && d.getFullYear() === rYear;
           });
 
-          // Staff users
-          const staffUsers = users.filter(u => u.role === 'STAFF' || u.role === 'OPERATIONS');
+          const staffUsers = users.filter(u => u.role === 'STAFF');
+          const totalShiftsMonth = monthSchedule.length;
+          const totalAssignments = monthSchedule.reduce((s, i) => s + i.streamerAssignments.length, 0);
+          const submittedStaff = staffUsers.filter(u => u.isAvailabilitySubmitted).length;
 
-          // Build salary stats per user
-          const salaryStats = staffUsers.map(u => {
-            let totalHours = 0;
-            let totalOvertimeMin = 0;
-            let shiftCount = 0;
-            monthlySchedule.forEach(item => {
-              const shift = shifts.find(s => s.id === item.shiftId);
-              if (!shift) return;
-              const sa = item.streamerAssignments.find(a => a.userId === u.id);
-              const isOps = item.opsUserId === u.id;
-              if (sa) {
-                totalHours += calcHours(shift, sa);
-                totalOvertimeMin += sa.overtimeMinutes || 0;
-                shiftCount++;
-              } else if (isOps) {
-                const s = parseH(shift.startTime); const e = parseH(shift.endTime); let d = e - s; if (d < 0) d += 24; if (d === 0) d = 4;
-                totalHours += d;
-                shiftCount++;
-              }
+          // Shifts per day of week
+          const perDay = Array(7).fill(0);
+          monthSchedule.forEach(i => { perDay[i.dayIndex] = (perDay[i.dayIndex] || 0) + 1; });
+          const maxDay = Math.max(...perDay, 1);
+
+          // Top streamers by shift count
+          const streamerCount: Record<string, number> = {};
+          monthSchedule.forEach(item => {
+            item.streamerAssignments.forEach(sa => {
+              streamerCount[sa.userId] = (streamerCount[sa.userId] || 0) + 1;
             });
-            const salary = totalHours * (u.hourlyRate || 0);
-            return { user: u, totalHours, totalOvertimeMin, shiftCount, salary };
-          }).filter(s => s.shiftCount > 0 || s.user.hourlyRate);
+          });
+          const topStreamers = Object.entries(streamerCount)
+            .sort((a, b) => b[1] - a[1]).slice(0, 5)
+            .map(([uid, count]) => ({ user: users.find(u => u.id === uid), count }))
+            .filter(x => x.user);
 
-          const grandTotalHours = salaryStats.reduce((s, r) => s + r.totalHours, 0);
-          const grandTotalSalary = salaryStats.reduce((s, r) => s + r.salary, 0);
-          const totalShifts = salaryStats.reduce((s, r) => s + r.shiftCount, 0);
-          const hasSalary = salaryStats.filter(s => (s.user.hourlyRate || 0) > 0);
+          // Platform distribution
+          const ttCount = monthSchedule.filter(s => s.platform === 'tiktok').length;
+          const shCount = monthSchedule.filter(s => s.platform === 'shopee').length;
+          const total = ttCount + shCount || 1;
 
-          const fmt = (n: number) => n.toLocaleString('vi-VN');
-          const fmtH = (h: number) => h % 1 === 0 ? `${h}h` : `${h.toFixed(1)}h`;
+          const dayNames = ['T2','T3','T4','T5','T6','T7','CN'];
 
           return (
             <div className="space-y-5">
-              {/* Page header */}
-              <div className="flex items-center justify-between gap-3 flex-wrap">
-                <div>
-                  <h3 className="text-[17px] font-semibold tracking-tight flex items-center gap-2" style={{color:'#171717'}}>
-                    <BarChart3 size={18} style={{color:'#4F46E5'}} /> Báo cáo lương
-                  </h3>
-                  <p className="text-[12px] mt-0.5" style={{color:'#A3A3A3'}}>{monthLabel} · Tất cả ca live</p>
-                </div>
+              <div>
+                <h3 className="text-[17px] font-semibold tracking-tight flex items-center gap-2" style={{color:'#171717'}}>
+                  <BarChart3 size={18} style={{color:'#4F46E5'}}/> Thống kê
+                </h3>
+                <p className="text-[12px] mt-0.5" style={{color:'#A3A3A3'}}>{monthLabel} · Dùng mũi tên tháng ở trên để chọn tháng khác</p>
               </div>
 
-              {/* Summary stats */}
+              {/* KPI cards */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {[
-                  { label: 'Tổng ca tháng', value: `${totalShifts} ca`, sub: `${staffUsers.length} nhân sự`, color: '#4F46E5', icon: <Calendar size={15}/> },
-                  { label: 'Tổng giờ live', value: fmtH(grandTotalHours), sub: 'Gồm giờ thêm', color: '#0891B2', icon: <Clock size={15}/> },
-                  { label: 'Tổng lương', value: grandTotalSalary > 0 ? `${fmt(Math.round(grandTotalSalary))}đ` : '—', sub: `${hasSalary.length} người có lương`, color: '#059669', icon: <TrendingUp size={15}/> },
-                  { label: 'Đã thiết lập', value: `${hasSalary.length}/${staffUsers.length}`, sub: 'Người có lương/giờ', color: '#D97706', icon: <Users size={15}/> },
+                  { label: 'Tổng ca', value: totalShiftsMonth, sub: 'Ca đã lên lịch', color: '#4F46E5' },
+                  { label: 'Lượt live', value: totalAssignments, sub: 'Lượt gán streamer', color: '#0891B2' },
+                  { label: 'Nhân sự', value: staffUsers.length, sub: `${submittedStaff} đã đăng ký`, color: '#059669' },
+                  { label: 'Nền tảng', value: `TT:${ttCount}/SP:${shCount}`, sub: 'TikTok / Shopee', color: '#D97706' },
                 ].map((s, i) => (
-                  <div key={i} className="p-4 rounded-2xl" style={{background: '#fff', border: '1px solid #F0F0F0', boxShadow:'0 1px 6px rgba(0,0,0,0.04)'}}>
-                    <div className="flex items-center gap-2 mb-2" style={{color: s.color}}>
-                      {s.icon}
-                      <span className="text-[10px] font-semibold uppercase tracking-wider">{s.label}</span>
-                    </div>
-                    <p className="text-[20px] font-bold tabular-nums tracking-tight" style={{color:'#171717'}}>{s.value}</p>
+                  <div key={i} className="p-4 rounded-2xl" style={{background:'#fff', border:'1px solid #F0F0F0', boxShadow:'0 1px 6px rgba(0,0,0,0.04)'}}>
+                    <p className="text-[10px] font-semibold uppercase tracking-widest mb-1" style={{color: s.color}}>{s.label}</p>
+                    <p className="text-[22px] font-bold tabular-nums tracking-tight" style={{color:'#171717'}}>{s.value}</p>
                     <p className="text-[11px] mt-0.5" style={{color:'#A3A3A3'}}>{s.sub}</p>
                   </div>
                 ))}
               </div>
 
-              {/* Salary table */}
-              <div className="bg-white rounded-2xl border overflow-hidden" style={{borderColor:'#E5E5E5'}}>
-                <div className="px-5 py-4 flex items-center justify-between" style={{borderBottom:'1px solid #F0F0F0'}}>
-                  <p className="text-[13px] font-semibold" style={{color:'#171717'}}>Chi tiết lương nhân sự</p>
-                  <span className="text-[11px] px-2 py-1 rounded-full" style={{background:'#F5F5F5', color:'#737373'}}>{salaryStats.length} người</span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Shift distribution by day */}
+                <div className="bg-white rounded-2xl border p-5" style={{borderColor:'#E5E5E5'}}>
+                  <p className="text-[13px] font-semibold mb-4" style={{color:'#171717'}}>Phân bổ ca theo ngày</p>
+                  {totalShiftsMonth === 0 ? (
+                    <p className="text-[12px] text-center py-8" style={{color:'#D4D4D4'}}>Chưa có dữ liệu tháng này</p>
+                  ) : (
+                    <div className="flex items-end gap-2" style={{height: 100}}>
+                      {perDay.map((cnt, i) => (
+                        <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                          <div className="w-full rounded-t-lg transition-all"
+                            style={{height: `${Math.round((cnt / maxDay) * 72)}px`, background: cnt > 0 ? '#4F46E5' : '#F0F0F0', minHeight: 4}}/>
+                          <span className="text-[9px] font-semibold" style={{color:'#A3A3A3'}}>{dayNames[i]}</span>
+                          {cnt > 0 && <span className="text-[9px] font-bold" style={{color:'#4F46E5'}}>{cnt}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
-                {salaryStats.length === 0 ? (
-                  <div className="py-16 flex flex-col items-center" style={{color:'#D4D4D4'}}>
-                    <BarChart3 size={28} />
-                    <p className="text-[13px] mt-3" style={{color:'#A3A3A3'}}>Chưa có ca nào trong {monthLabel}</p>
-                    <p className="text-[11px] mt-1" style={{color:'#D4D4D4'}}>Ca sẽ tự hiển thị sau khi manager xếp lịch</p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr style={{background:'#FAFAFA', borderBottom:'1px solid #F0F0F0'}}>
-                          {['Nhân sự', 'Lương/giờ', 'Số ca', 'Tổng giờ', 'OT', 'Thành tiền', ''].map(h => (
-                            <th key={h} className="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-widest" style={{color:'#A3A3A3'}}>{h}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {salaryStats.map((stat, i) => {
-                          const hasRate = (stat.user.hourlyRate || 0) > 0;
-                          return (
-                            <tr key={stat.user.id} className="group hover:bg-slate-50 transition-colors" style={{borderTop: i > 0 ? '1px solid #F5F5F5' : 'none'}}>
-                              <td className="px-4 py-3">
-                                <div className="flex items-center gap-2.5">
-                                  <img src={stat.user.avatar} className="w-8 h-8 rounded-full object-cover flex-shrink-0" style={{border:'2px solid #F0F0F0'}} alt="" />
-                                  <div>
-                                    <p className="text-[13px] font-semibold" style={{color:'#171717'}}>{stat.user.name}</p>
-                                    <p className="text-[10px]" style={{color:'#A3A3A3'}}>{stat.user.role === 'OPERATIONS' ? 'Kỹ thuật' : `Rank ${stat.user.rank || '—'}`}</p>
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="px-4 py-3">
-                                {hasRate
-                                  ? <span className="text-[13px] font-semibold tabular-nums" style={{color:'#171717'}}>{fmt(stat.user.hourlyRate!)}đ</span>
-                                  : <span className="text-[11px] px-2 py-1 rounded-full" style={{background:'#FEF3C7', color:'#D97706'}}>Chưa thiết lập</span>
-                                }
-                              </td>
-                              <td className="px-4 py-3">
-                                <span className="text-[13px] font-semibold tabular-nums" style={{color:'#171717'}}>{stat.shiftCount}</span>
-                              </td>
-                              <td className="px-4 py-3">
-                                <span className="text-[13px] font-semibold tabular-nums" style={{color:'#171717'}}>{fmtH(stat.totalHours)}</span>
-                              </td>
-                              <td className="px-4 py-3">
-                                {stat.totalOvertimeMin > 0
-                                  ? <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{background:'#FEF3C7', color:'#D97706'}}>+{stat.totalOvertimeMin}ph</span>
-                                  : <span style={{color:'#D4D4D4'}}>—</span>
-                                }
-                              </td>
-                              <td className="px-4 py-3">
-                                {hasRate
-                                  ? <span className="text-[14px] font-bold tabular-nums" style={{color:'#059669'}}>{fmt(Math.round(stat.salary))}đ</span>
-                                  : <span style={{color:'#D4D4D4'}}>—</span>
-                                }
-                              </td>
-                              <td className="px-4 py-3 text-right">
-                                <button
-                                  onClick={() => setSalaryDetailUser(stat.user)}
-                                  className="text-[11px] font-medium px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
-                                  style={{background:'#F0F0FF', color:'#4F46E5'}}
-                                >
-                                  Chi tiết →
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                      {/* Grand total footer */}
-                      <tfoot>
-                        <tr style={{borderTop:'2px solid #E5E5E5', background:'#FAFAFA'}}>
-                          <td className="px-4 py-3">
-                            <span className="text-[12px] font-semibold" style={{color:'#737373'}}>Tổng cộng</span>
-                          </td>
-                          <td colSpan={2} />
-                          <td className="px-4 py-3">
-                            <span className="text-[14px] font-bold tabular-nums" style={{color:'#171717'}}>{fmtH(grandTotalHours)}</span>
-                          </td>
-                          <td colSpan={1} />
-                          <td className="px-4 py-3">
-                            {grandTotalSalary > 0 && <span className="text-[14px] font-bold tabular-nums" style={{color:'#059669'}}>{fmt(Math.round(grandTotalSalary))}đ</span>}
-                          </td>
-                          <td />
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </div>
-                )}
+                {/* Top streamers */}
+                <div className="bg-white rounded-2xl border p-5" style={{borderColor:'#E5E5E5'}}>
+                  <p className="text-[13px] font-semibold mb-4" style={{color:'#171717'}}>Top streamer</p>
+                  {topStreamers.length === 0 ? (
+                    <p className="text-[12px] text-center py-8" style={{color:'#D4D4D4'}}>Chưa có dữ liệu tháng này</p>
+                  ) : (
+                    <div className="space-y-2.5">
+                      {topStreamers.map(({ user: u, count }, i) => (
+                        <div key={u!.id} className="flex items-center gap-3">
+                          <span className="text-[11px] font-bold w-4 tabular-nums" style={{color: i === 0 ? '#D97706' : '#D4D4D4'}}>{i + 1}</span>
+                          <img src={u!.avatar} className="w-7 h-7 rounded-full object-cover flex-shrink-0" style={{border:'1.5px solid #F0F0F0'}} alt=""/>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[12px] font-semibold truncate" style={{color:'#171717'}}>{u!.name}</p>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <div className="h-1.5 rounded-full" style={{width: `${Math.round((count / (topStreamers[0]?.count || 1)) * 60)}px`, background:'#4F46E5', minWidth:8}}/>
+                            <span className="text-[11px] font-bold tabular-nums" style={{color:'#4F46E5'}}>{count}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {/* Info note */}
-              <div className="flex items-start gap-2 p-3 rounded-xl" style={{background:'#EFF6FF', border:'1px solid #BFDBFE'}}>
-                <Info size={14} style={{color:'#2563EB', marginTop:1, flexShrink:0}} />
-                <p className="text-[11px] leading-relaxed" style={{color:'#1D4ED8'}}>
-                  Lương được tính theo công thức: <strong>Số giờ live × Lương/giờ</strong>. Thêm giờ (OT) được cộng vào tổng giờ. Nhập lương/giờ cho nhân sự tại <strong>Quản lý nhân sự → Chỉnh sửa</strong>.
-                </p>
+              {/* Platform bar */}
+              <div className="bg-white rounded-2xl border p-5" style={{borderColor:'#E5E5E5'}}>
+                <p className="text-[13px] font-semibold mb-3" style={{color:'#171717'}}>Tỷ lệ nền tảng</p>
+                <div className="flex rounded-full overflow-hidden" style={{height:10}}>
+                  <div style={{width:`${(ttCount/total)*100}%`, background:'#000'}}/>
+                  <div style={{width:`${(shCount/total)*100}%`, background:'#EE4D2D'}}/>
+                </div>
+                <div className="flex gap-4 mt-3">
+                  <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full" style={{background:'#000'}}/><span className="text-[11px]" style={{color:'#737373'}}>TikTok {ttCount} ca</span></div>
+                  <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full" style={{background:'#EE4D2D'}}/><span className="text-[11px]" style={{color:'#737373'}}>Shopee {shCount} ca</span></div>
+                </div>
               </div>
+            </div>
+          );
+        })()}
+
+
+
+
+        {/* ─────── TIMEKEEPING VIEW (Manager/Admin) ─────── */}
+        {viewMode === 'TIMEKEEPING' && (currentUser?.role === 'MANAGER' || currentUser?.role === 'SUPER_ADMIN') && (() => {
+          const parseH2 = (t: string) => { const m = t?.trim().match(/^(\d{1,2})(?:[:h](\d{1,2}))?/); return m ? parseInt(m[1]) + (m[2] ? parseInt(m[2]) : 0) / 60 : 0; };
+          const calcH2 = (shift: Shift, sa: { timeLabel?: string; overtimeMinutes?: number }) => {
+            let base = 0;
+            if (sa.timeLabel) { const p = sa.timeLabel.split(/\s*-\s*/); if (p.length === 2) { const s = parseH2(p[0]); const e = parseH2(p[1]); base = e - s; if (base < 0) base += 24; } }
+            else { const s = parseH2(shift.startTime); const e = parseH2(shift.endTime); base = e - s; if (base < 0) base += 24; if (base === 0) base = 4; }
+            return base + (sa.overtimeMinutes || 0) / 60;
+          };
+          const getSD = (item: ScheduleItem): Date | null => {
+            const wm = item.weekId?.match(/^(\d{4})-(\d{2})-W(\d{1,2})$/);
+            if (!wm) return null;
+            const yr = parseInt(wm[1]), mo = parseInt(wm[2]) - 1, wk = parseInt(wm[3]);
+            const d1 = new Date(yr, mo, 1); const dow = d1.getDay() === 0 ? 6 : d1.getDay() - 1;
+            const mon1 = new Date(yr, mo, 1 - dow + (wk - 1) * 7);
+            return new Date(mon1.getTime() + item.dayIndex * 86400000);
+          };
+          const tkSched = schedule.filter(s => { const d = getSD(s); return d && d.getMonth() === timekeepingMonth - 1 && d.getFullYear() === timekeepingYear; });
+          const staffList = users.filter(u => u.role === 'STAFF' || u.role === 'OPERATIONS');
+          const loadTK = async () => {
+            if (!activeBrandSlug) return;
+            setTimekeepingLoading(true);
+            const recs = await api.getTimekeeping(activeBrandSlug, timekeepingMonth, timekeepingYear);
+            setTimekeepingRecords(recs);
+            const draft: Record<string, { bonusAmount: number; note: string }> = {};
+            recs.forEach(r => { draft[r.userId] = { bonusAmount: r.bonusAmount, note: r.note || '' }; });
+            setTimekeepingDraft(draft); setTimekeepingLoading(false);
+          };
+          const saveBonus = async (userId: string) => {
+            if (!activeBrandSlug) return;
+            setTimekeepingSaving(userId);
+            try { await api.upsertTimekeeping({ userId, brandId: activeBrandSlug, month: timekeepingMonth, year: timekeepingYear, bonusAmount: timekeepingDraft[userId]?.bonusAmount || 0, note: timekeepingDraft[userId]?.note || '' }); }
+            finally { setTimekeepingSaving(null); }
+          };
+          const fmt2 = (n: number) => n.toLocaleString('vi-VN');
+          const fmtH2 = (h: number) => h % 1 === 0 ? `${h}h` : `${h.toFixed(1)}h`;
+          const months2 = Array.from({ length: 12 }, (_, i) => i + 1);
+          const years2 = [new Date().getFullYear() - 1, new Date().getFullYear()];
+          return (
+            <div className="space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-[17px] font-semibold flex items-center gap-2" style={{color:'#171717'}}><CalendarCheck size={18} style={{color:'#4F46E5'}}/> Chấm công</h3>
+                  <p className="text-[12px] mt-0.5" style={{color:'#A3A3A3'}}>Tháng {timekeepingMonth}/{timekeepingYear} · Nhập tiền hỗ trợ rồi nhấn Lưu</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <select className="px-3 py-2 rounded-xl text-[13px] font-medium outline-none" style={{background:'#F5F5F5',border:'1px solid #E5E5E5'}} value={timekeepingMonth} onChange={e => setTimekeepingMonth(Number(e.target.value))}>
+                    {months2.map(m => <option key={m} value={m}>Tháng {m}</option>)}
+                  </select>
+                  <select className="px-3 py-2 rounded-xl text-[13px] font-medium outline-none" style={{background:'#F5F5F5',border:'1px solid #E5E5E5'}} value={timekeepingYear} onChange={e => setTimekeepingYear(Number(e.target.value))}>
+                    {years2.map(y => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                  <button onClick={loadTK} className="px-4 py-2 rounded-xl text-[13px] font-semibold flex items-center gap-1.5" style={{background:'#4F46E5',color:'#fff'}}>
+                    {timekeepingLoading ? <Loader2 size={13} className="animate-spin"/> : <RefreshCw size={13}/>} Tải
+                  </button>
+                </div>
+              </div>
+              <div className="bg-white rounded-2xl border overflow-hidden" style={{borderColor:'#E5E5E5'}}>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr style={{background:'#FAFAFA',borderBottom:'1px solid #F0F0F0'}}>
+                        {['Nhân sự','Số ca','Tổng giờ','OT','Lương cơ bản','Hỗ trợ','Ghi chú','Tổng nhận',''].map(h => (
+                          <th key={h} className="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-widest whitespace-nowrap" style={{color:'#A3A3A3'}}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {staffList.map((u, i) => {
+                        let hrs = 0; let otMin = 0; let cnt = 0;
+                        tkSched.forEach(item => {
+                          const sh = shifts.find(s => s.id === item.shiftId); if (!sh) return;
+                          const sa = item.streamerAssignments.find(a => a.userId === u.id);
+                          if (sa) { hrs += calcH2(sh, sa); otMin += sa.overtimeMinutes || 0; cnt++; }
+                          else if (item.opsUserId === u.id) { const s2 = parseH2(sh.startTime); const e2 = parseH2(sh.endTime); let d = e2-s2; if(d<0) d+=24; if(d===0) d=4; hrs+=d; cnt++; }
+                        });
+                        const base = hrs * (u.hourlyRate || 0);
+                        const draft = timekeepingDraft[u.id] || { bonusAmount: 0, note: '' };
+                        const total = base + draft.bonusAmount;
+                        return (
+                          <tr key={u.id} style={{borderTop: i > 0 ? '1px solid #F5F5F5' : 'none'}}>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2.5">
+                                <img src={u.avatar} className="w-8 h-8 rounded-full object-cover flex-shrink-0" style={{border:'1.5px solid #F0F0F0'}} alt=""/>
+                                <div>
+                                  <p className="text-[13px] font-semibold" style={{color:'#171717'}}>{u.name}</p>
+                                  <p className="text-[10px]" style={{color:'#A3A3A3'}}>{(u.hourlyRate||0)>0?`${fmt2(u.hourlyRate!)}đ/h`:'Chưa thiết lập'}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-[13px] font-semibold tabular-nums" style={{color:'#171717'}}>{cnt}</td>
+                            <td className="px-4 py-3 text-[13px] font-semibold tabular-nums" style={{color:'#171717'}}>{fmtH2(hrs)}</td>
+                            <td className="px-4 py-3">{otMin>0?<span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{background:'#FEF3C7',color:'#D97706'}}>+{otMin}ph</span>:<span style={{color:'#D4D4D4'}}>—</span>}</td>
+                            <td className="px-4 py-3 text-[13px] font-semibold tabular-nums" style={{color:base>0?'#171717':'#D4D4D4'}}>{base>0?`${fmt2(Math.round(base))}đ`:'—'}</td>
+                            <td className="px-4 py-3">
+                              <input type="number" min={0} step={10000} className="w-28 px-2.5 py-1.5 rounded-lg text-[13px] font-medium tabular-nums outline-none"
+                                style={{background:'#F5F5F5',border:'1px solid #E5E5E5',color:'#059669'}}
+                                value={draft.bonusAmount||''} placeholder="0"
+                                onChange={e => setTimekeepingDraft(prev => ({...prev,[u.id]:{...draft,bonusAmount:Number(e.target.value)}}))}
+                                onFocus={e=>{e.currentTarget.style.border='1px solid #059669';e.currentTarget.style.background='#fff';}}
+                                onBlur={e=>{e.currentTarget.style.border='1px solid #E5E5E5';e.currentTarget.style.background='#F5F5F5';}}/>
+                            </td>
+                            <td className="px-4 py-3">
+                              <input type="text" className="w-32 px-2.5 py-1.5 rounded-lg text-[12px] outline-none"
+                                style={{background:'#F5F5F5',border:'1px solid #E5E5E5',color:'#737373'}}
+                                value={draft.note||''} placeholder="Ghi chú..."
+                                onChange={e => setTimekeepingDraft(prev => ({...prev,[u.id]:{...draft,note:e.target.value}}))}
+                                onFocus={e=>{e.currentTarget.style.border='1px solid #4F46E5';e.currentTarget.style.background='#fff';}}
+                                onBlur={e=>{e.currentTarget.style.border='1px solid #E5E5E5';e.currentTarget.style.background='#F5F5F5';}}/>
+                            </td>
+                            <td className="px-4 py-3"><span className="text-[14px] font-bold tabular-nums" style={{color:total>0?'#059669':'#D4D4D4'}}>{total>0?`${fmt2(Math.round(total))}đ`:'—'}</span></td>
+                            <td className="px-4 py-3">
+                              <button onClick={()=>saveBonus(u.id)} disabled={timekeepingSaving===u.id}
+                                className="px-3 py-1.5 rounded-lg text-[11px] font-semibold flex items-center gap-1" style={{background:'#4F46E5',color:'#fff'}}>
+                                {timekeepingSaving===u.id?<Loader2 size={11} className="animate-spin"/>:<Save size={11}/>} Lưu
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  {staffList.length===0&&<div className="py-12 text-center" style={{color:'#D4D4D4'}}>Chưa có nhân sự</div>}
+                </div>
+              </div>
+              <div className="flex items-start gap-2 p-3 rounded-xl" style={{background:'#EFF6FF',border:'1px solid #BFDBFE'}}>
+                <Info size={14} style={{color:'#2563EB',marginTop:1,flexShrink:0}}/>
+                <p className="text-[11px] leading-relaxed" style={{color:'#1D4ED8'}}>Nhấn <strong>"Tải"</strong> để xem dữ liệu đã lưu. Tiền hỗ trợ sẽ hiển thị trong trang <strong>"Lương của tôi"</strong> của nhân sự.</p>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* ─────── MY_SALARY VIEW (Staff) ─────── */}
+        {viewMode === 'MY_SALARY' && currentUser?.role === 'STAFF' && (() => {
+          const me = currentUser;
+          const parseHs = (t: string) => { const m = t?.trim().match(/^(\d{1,2})(?:[:h](\d{1,2}))?/); return m ? parseInt(m[1]) + (m[2] ? parseInt(m[2]) : 0) / 60 : 0; };
+          const calcHs = (shift: Shift, sa: { timeLabel?: string; overtimeMinutes?: number }) => {
+            let base = 0;
+            if (sa.timeLabel) { const p = sa.timeLabel.split(/\s*-\s*/); if (p.length===2) { const s=parseHs(p[0]); const e=parseHs(p[1]); base=e-s; if(base<0) base+=24; } }
+            else { const s=parseHs(shift.startTime); const e=parseHs(shift.endTime); base=e-s; if(base<0) base+=24; if(base===0) base=4; }
+            return base + (sa.overtimeMinutes||0)/60;
+          };
+          const getSDs = (item: ScheduleItem): Date|null => {
+            const wm = item.weekId?.match(/^(\d{4})-(\d{2})-W(\d{1,2})$/);
+            if (!wm) return null;
+            const yr=parseInt(wm[1]),mo=parseInt(wm[2])-1,wk=parseInt(wm[3]);
+            const d1=new Date(yr,mo,1); const dow=d1.getDay()===0?6:d1.getDay()-1;
+            const mon1=new Date(yr,mo,1-dow+(wk-1)*7);
+            return new Date(mon1.getTime()+item.dayIndex*86400000);
+          };
+          const myItems = schedule.filter(item => {
+            const sa = item.streamerAssignments.find(a => a.userId === me.id); if (!sa) return false;
+            const d = getSDs(item);
+            return d && d.getMonth()===timekeepingMonth-1 && d.getFullYear()===timekeepingYear;
+          });
+          let totalH=0; let totalOT=0;
+          const rows = myItems.map(item => {
+            const shift = shifts.find(s => s.id===item.shiftId)!;
+            const sa = item.streamerAssignments.find(a => a.userId===me.id)!;
+            const hrs = calcHs(shift,sa); totalH+=hrs; totalOT+=sa.overtimeMinutes||0;
+            return { shift, sa, hrs, date: getSDs(item), salary: hrs*(me.hourlyRate||0) };
+          }).sort((a,b)=>(a.date?.getTime()||0)-(b.date?.getTime()||0));
+          const bonus = timekeepingRecords.find(r=>r.userId===me.id&&r.month===timekeepingMonth&&r.year===timekeepingYear);
+          const bonusAmt = bonus?.bonusAmount||0;
+          const baseSal = totalH*(me.hourlyRate||0);
+          const totalSal = baseSal+bonusAmt;
+          const fmts = (n:number) => n.toLocaleString('vi-VN');
+          const fmtHs = (h:number) => h%1===0?`${h}h`:`${h.toFixed(1)}h`;
+          const months3 = Array.from({length:12},(_,i)=>i+1);
+          const years3 = [new Date().getFullYear()-1, new Date().getFullYear()];
+          return (
+            <div className="space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <img src={me.avatar} className="w-10 h-10 rounded-full object-cover" style={{border:'2px solid #E5E5E5'}} alt=""/>
+                  <div>
+                    <h3 className="text-[17px] font-semibold" style={{color:'#171717'}}>Lương của {me.name.split(' ').pop()}</h3>
+                    <p className="text-[12px]" style={{color:'#A3A3A3'}}>{(me.hourlyRate||0)>0?`${fmts(me.hourlyRate!)}đ/giờ`:'Chưa thiết lập lương/giờ'}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <select className="px-3 py-2 rounded-xl text-[13px] font-medium outline-none" style={{background:'#F5F5F5',border:'1px solid #E5E5E5'}} value={timekeepingMonth} onChange={e=>setTimekeepingMonth(Number(e.target.value))}>
+                    {months3.map(m=><option key={m} value={m}>Tháng {m}</option>)}
+                  </select>
+                  <select className="px-3 py-2 rounded-xl text-[13px] font-medium outline-none" style={{background:'#F5F5F5',border:'1px solid #E5E5E5'}} value={timekeepingYear} onChange={e=>setTimekeepingYear(Number(e.target.value))}>
+                    {years3.map(y=><option key={y} value={y}>{y}</option>)}
+                  </select>
+                  <button onClick={async()=>{if(!activeBrandSlug)return;const r=await api.getTimekeeping(activeBrandSlug,timekeepingMonth,timekeepingYear);setTimekeepingRecords(r);}}
+                    className="px-4 py-2 rounded-xl text-[13px] font-semibold flex items-center gap-1.5" style={{background:'#4F46E5',color:'#fff'}}>
+                    <RefreshCw size={13}/> Tải
+                  </button>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                {[
+                  {label:'Số ca',value:`${rows.length} ca`,color:'#4F46E5'},
+                  {label:'Tổng giờ',value:fmtHs(totalH),sub:totalOT>0?`+${totalOT}ph OT`:undefined,color:'#0891B2'},
+                  {label:'Lương cơ bản',value:(me.hourlyRate||0)>0?`${fmts(Math.round(baseSal))}đ`:'—',color:'#737373'},
+                  {label:'Tiền hỗ trợ',value:bonusAmt>0?`+${fmts(bonusAmt)}đ`:'—',sub:bonus?.note||undefined,color:'#059669'},
+                  {label:'Tổng nhận',value:totalSal>0?`${fmts(Math.round(totalSal))}đ`:'—',color:'#D97706'},
+                ].map((s,i)=>(
+                  <div key={i} className="p-4 rounded-2xl" style={{background:'#fff',border:'1px solid #F0F0F0',boxShadow:'0 1px 6px rgba(0,0,0,0.04)'}}>
+                    <p className="text-[10px] font-semibold uppercase tracking-widest" style={{color:s.color}}>{s.label}</p>
+                    <p className="text-[18px] font-bold tabular-nums mt-1" style={{color:'#171717'}}>{s.value}</p>
+                    {s.sub&&<p className="text-[10px] mt-0.5 truncate" style={{color:s.color}}>{s.sub}</p>}
+                  </div>
+                ))}
+              </div>
+              <div className="bg-white rounded-2xl border overflow-hidden" style={{borderColor:'#E5E5E5'}}>
+                <div className="px-5 py-4 flex items-center justify-between" style={{borderBottom:'1px solid #F0F0F0'}}>
+                  <p className="text-[13px] font-semibold" style={{color:'#171717'}}>Chi tiết từng ca</p>
+                  <span className="text-[11px] px-2 py-1 rounded-full" style={{background:'#F5F5F5',color:'#737373'}}>{rows.length} ca</span>
+                </div>
+                {rows.length===0?(
+                  <div className="py-14 flex flex-col items-center" style={{color:'#D4D4D4'}}>
+                    <Clock size={26}/><p className="text-[13px] mt-3" style={{color:'#A3A3A3'}}>Chưa có ca nào trong tháng {timekeepingMonth}/{timekeepingYear}</p>
+                  </div>
+                ):(
+                  <table className="w-full">
+                    <thead>
+                      <tr style={{background:'#FAFAFA',borderBottom:'1px solid #F0F0F0'}}>
+                        {['Ngày','Ca','Giờ live','Số giờ','Thành tiền'].map(h=>(
+                          <th key={h} className="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-widest" style={{color:'#A3A3A3'}}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map(({shift,sa,hrs,date,salary},i)=>(
+                        <tr key={i} style={{borderTop:i>0?'1px solid #F5F5F5':'none'}}>
+                          <td className="px-4 py-3">
+                            <p className="text-[13px] font-semibold" style={{color:'#171717'}}>{date?`${date.getDate()}/${date.getMonth()+1}`:'—'}</p>
+                            <p className="text-[10px]" style={{color:'#A3A3A3'}}>{date?DAYS_OF_WEEK[date.getDay()===0?6:date.getDay()-1]:''}</p>
+                          </td>
+                          <td className="px-4 py-3 text-[13px] font-semibold" style={{color:'#171717'}}>{shift.name}</td>
+                          <td className="px-4 py-3">
+                            <span className="text-[12px] font-mono" style={{color:'#737373'}}>{sa.timeLabel||`${shift.startTime}–${shift.endTime}`}</span>
+                            {(sa.overtimeMinutes||0)>0&&<span className="ml-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{background:'#FEF3C7',color:'#D97706'}}>+{sa.overtimeMinutes}ph</span>}
+                          </td>
+                          <td className="px-4 py-3 text-[13px] font-semibold tabular-nums" style={{color:'#171717'}}>{fmtHs(hrs)}</td>
+                          <td className="px-4 py-3 text-[13px] font-semibold tabular-nums" style={{color:(me.hourlyRate||0)>0?'#059669':'#D4D4D4'}}>
+                            {(me.hourlyRate||0)>0?`${fmts(Math.round(salary))}đ`:'—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr style={{borderTop:'2px solid #E5E5E5',background:'#FAFAFA'}}>
+                        <td colSpan={3} className="px-4 py-3"><span className="text-[12px] font-semibold" style={{color:'#737373'}}>Tổng</span></td>
+                        <td className="px-4 py-3 text-[14px] font-bold tabular-nums" style={{color:'#171717'}}>{fmtHs(totalH)}</td>
+                        <td className="px-4 py-3">{(me.hourlyRate||0)>0&&<span className="text-[14px] font-bold tabular-nums" style={{color:'#059669'}}>{fmts(Math.round(baseSal))}đ</span>}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                )}
+              </div>
+              {bonusAmt>0&&(
+                <div className="flex items-center gap-3 p-4 rounded-2xl" style={{background:'linear-gradient(135deg,#F0FDF4,#DCFCE7)',border:'1.5px solid #BBF7D0'}}>
+                  <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{background:'#059669'}}><TrendingUp size={15} color="#fff"/></div>
+                  <div>
+                    <p className="text-[13px] font-semibold" style={{color:'#065F46'}}>Tiền hỗ trợ tháng {timekeepingMonth}: +{fmts(bonusAmt)}đ</p>
+                    {bonus?.note&&<p className="text-[11px] mt-0.5" style={{color:'#6EE7B7'}}>"{bonus.note}"</p>}
+                  </div>
+                  <p className="ml-auto text-[16px] font-bold tabular-nums" style={{color:'#059669'}}>{fmts(Math.round(totalSal))}đ</p>
+                </div>
+              )}
             </div>
           );
         })()}
 
       </main>
 
-      {/* --- MODALS (Login, Slot, Request, Shift, User, Bridge) --- */}
-      
+
       {/* Assignment Modal (Manager) */}
       <Modal isOpen={isSlotModalOpen} onClose={() => setIsSlotModalOpen(false)} title="Điều phối nhân sự">
         <div className="space-y-4">
