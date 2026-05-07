@@ -2802,14 +2802,14 @@ export default function App() {
                               <div className="flex-1 min-w-0">
                                 <p className="text-[13px] font-semibold truncate" style={{color:'#171717'}}>{stat.u.name}</p>
                                 <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                                  <span className="text-[11px]" style={{color:'#A3A3A3'}}>{stat.cnt} ca \u00b7 {fmtH(stat.hrs)}</span>
+                                  <span className="text-[11px]" style={{color:'#A3A3A3'}}>{stat.cnt} ca · {fmtH(stat.hrs)}</span>
                                   {stat.otMin>0&&<span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{background:'#FEF3C7',color:'#D97706'}}>OT</span>}
-                                  {draft.bonusAmount>0&&<span className="text-[10px] font-bold" style={{color:'#059669'}}>+{fmt(draft.bonusAmount)}\u0111 HT</span>}
+                                  {draft.bonusAmount>0&&<span className="text-[10px] font-bold" style={{color:'#059669'}}>+{fmt(draft.bonusAmount)}đ HT</span>}
                                 </div>
                               </div>
                               <div className="text-right flex-shrink-0 mr-2">
-                                <p className="text-[13px] font-bold tabular-nums" style={{color:stat.total>0?'#059669':'#D4D4D4'}}>{stat.total>0?`${fmt(Math.round(stat.total))}\u0111`:'\u2014'}</p>
-                                <p className="text-[10px]" style={{color:'#A3A3A3'}}>{(stat.u.hourlyRate||0)>0?`${fmt(stat.u.hourlyRate!)}\u0111/h`:'Ch\u01b0a thi\u1ebft l\u1eadp'}</p>
+                                <p className="text-[13px] font-bold tabular-nums" style={{color:stat.total>0?'#059669':'#D4D4D4'}}>{stat.total>0?`${fmt(Math.round(stat.total))}đ`:'—'}</p>
+                                <p className="text-[10px]" style={{color:'#A3A3A3'}}>{(stat.u.hourlyRate||0)>0?`${fmt(stat.u.hourlyRate!)}đ/h`:'Chưa thiết lập'}</p>
                               </div>
                               <div className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center" style={{background:'#EEF2FF',color:'#4F46E5'}}>
                                 <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -2888,22 +2888,20 @@ export default function App() {
                     <div className="absolute inset-0 bg-black/40 backdrop-blur-sm"/>
                     <div className="relative w-full sm:max-w-xl sm:mx-4 bg-white sm:rounded-3xl rounded-t-3xl overflow-hidden" style={{maxHeight:'92vh',boxShadow:'0 24px 80px rgba(0,0,0,0.2)'}} onClick={e=>e.stopPropagation()}>
                       <div className="flex justify-center pt-3 sm:hidden"><div className="w-10 h-1 rounded-full bg-slate-200"/></div>
-                      {/* Glassmorphism header */}
-                      <div className="px-5 py-4 flex items-center gap-3 relative overflow-hidden">
-                        <div className="absolute inset-0" style={{background:'linear-gradient(135deg,rgba(99,102,241,0.9),rgba(139,92,246,0.8),rgba(79,70,229,0.95))'}}/>
-                        <div className="absolute inset-0" style={{backdropFilter:'blur(20px)',background:'rgba(255,255,255,0.08)'}}/>
-                        <img src={stat.u.avatar} className="w-11 h-11 rounded-2xl object-cover flex-shrink-0 relative z-10" style={{border:'2px solid rgba(255,255,255,0.4)',boxShadow:'0 4px 12px rgba(0,0,0,0.15)'}} alt=""/>
-                        <div className="flex-1 min-w-0 relative z-10">
-                          <p className="text-[16px] font-bold truncate text-white" style={{textShadow:'0 1px 4px rgba(0,0,0,0.2)'}}>{stat.u.name}</p>
-                          <p className="text-[11px]" style={{color:'rgba(255,255,255,0.75)'}}>Bảng công · Tháng {timekeepingMonth}/{timekeepingYear}</p>
+                      {/* Clean white header */}
+                      <div className="px-5 py-4 flex items-center gap-3" style={{background:'#fff',borderBottom:'1px solid #F0F0F0'}}>
+                        <img src={stat.u.avatar} className="w-11 h-11 rounded-2xl object-cover flex-shrink-0" style={{border:'2px solid #F0F0F0',boxShadow:'0 2px 8px rgba(0,0,0,0.06)'}} alt=""/>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[16px] font-bold truncate" style={{color:'#171717'}}>{stat.u.name}</p>
+                          <p className="text-[11px]" style={{color:'#A3A3A3'}}>Bảng công · Tháng {timekeepingMonth}/{timekeepingYear}</p>
                         </div>
-                        <div className="flex gap-1.5 flex-wrap justify-end relative z-10">
-                          <span className="text-[10px] font-bold px-2 py-1 rounded-lg" style={{background:'rgba(255,255,255,0.2)',color:'#fff'}}>{stat.cnt} ca</span>
-                          <span className="text-[10px] font-bold px-2 py-1 rounded-lg" style={{background:'rgba(255,255,255,0.2)',color:'#fff'}}>{fmtH(stat.hrs)}</span>
-                          {stat.otMin>0&&<span className="text-[10px] font-bold px-2 py-1 rounded-lg" style={{background:'rgba(251,191,36,0.3)',color:'#FEF9C3'}}>OT</span>}
+                        <div className="flex gap-1.5 flex-wrap justify-end">
+                          <span className="text-[10px] font-bold px-2 py-1 rounded-lg" style={{background:'#EEF2FF',color:'#4F46E5'}}>{stat.cnt} ca</span>
+                          <span className="text-[10px] font-bold px-2 py-1 rounded-lg" style={{background:'#F0FDF4',color:'#059669'}}>{fmtH(stat.hrs)}</span>
+                          {stat.otMin>0&&<span className="text-[10px] font-bold px-2 py-1 rounded-lg" style={{background:'#FEF3C7',color:'#D97706'}}>OT</span>}
                         </div>
-                        <button onClick={()=>setTimekeepingDetailUserId(null)} className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ml-1 relative z-10" style={{background:'rgba(255,255,255,0.2)'}}>
-                          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1 1l8 8M9 1L1 9" stroke="white" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                        <button onClick={()=>setTimekeepingDetailUserId(null)} className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ml-1" style={{background:'#F5F5F5',color:'#737373'}}>
+                          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1 1l8 8M9 1L1 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
                         </button>
                       </div>
                       <div className="overflow-y-auto" style={{maxHeight:'calc(92vh - 84px)'}}>
