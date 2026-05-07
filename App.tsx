@@ -1797,7 +1797,7 @@ export default function App() {
                       key={shift.id}
                       onClick={() => {
                         checkAuth(() => {
-                          if (currentUser?.role === 'MANAGER') {
+                          if (currentUser?.role === 'MANAGER' || currentUser?.role === 'OPERATIONS') {
                             setEditingSlot({ day: selectedDayIndex, shiftId: shift.id });
                             setIsSlotModalOpen(true);
                           } else if (isMyShift) {
@@ -1912,7 +1912,7 @@ export default function App() {
                               <td key={dayIdx}
                                 onClick={() => {
                                   checkAuth(() => {
-                                    if (currentUser?.role === 'MANAGER') {
+                                    if (currentUser?.role === 'MANAGER' || currentUser?.role === 'OPERATIONS') {
                                       setEditingSlot({ day: dayIdx, shiftId: shift.id });
                                       setIsSlotModalOpen(true);
                                     } else if (isMyShift) {
@@ -2634,12 +2634,12 @@ export default function App() {
               </div>
 
               {/* KPI cards */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className={`grid gap-3 ${currentUser.role === 'OPERATIONS' ? 'grid-cols-3' : 'grid-cols-2 sm:grid-cols-4'}`}>
                 {[
                   {label:'Tổng ca',value:`${totalShifts}`,sub:'ca đã lên lịch',color:'#4F46E5'},
                   {label:'Lượt live',value:`${totalAssigns}`,sub:`${staffBoard.length} nhân viên`,color:'#0891B2'},
                   {label:'Tổng giờ',value:fmtH(grandH),sub:'toàn bộ streamer',color:'#059669'},
-                  {label:'Chi phí',value:grandCost>0?`${fmt(Math.round(grandCost/1000))}k`:'—',sub:'lương tháng này',color:'#D97706'},
+                  ...(currentUser.role !== 'OPERATIONS' ? [{label:'Chi phí',value:grandCost>0?`${fmt(Math.round(grandCost/1000))}k`:'—',sub:'lương tháng này',color:'#D97706'}] : []),
                 ].map((s,i)=>(
                   <div key={i} className="p-3 rounded-2xl text-center" style={{background:'#fff',border:'1px solid #F0F0F0',boxShadow:'0 1px 4px rgba(0,0,0,0.03)'}}>
                     <p className="text-[20px] font-bold tabular-nums leading-tight" style={{color:s.color}}>{s.value}</p>
@@ -2650,7 +2650,7 @@ export default function App() {
               </div>
 
               {/* Bar chart — daily costs */}
-              {dailyRows.length>0 && (
+              {dailyRows.length>0 && currentUser.role !== 'OPERATIONS' && (
                 <div className="bg-white rounded-2xl border p-4" style={{borderColor:'#E5E5E5'}}>
                   <p className="text-[11px] font-semibold uppercase tracking-widest mb-3" style={{color:'#A3A3A3'}}>Chi phí theo ngày</p>
                   <div className="flex items-end gap-[2px]" style={{height:'100px'}}>
@@ -2691,7 +2691,7 @@ export default function App() {
                       <div className="w-16 h-1.5 rounded-full overflow-hidden flex-shrink-0" style={{background:'#F0F0F0'}}>
                         <div className="h-full rounded-full" style={{width:`${staffBoard[0]?.hrs>0?Math.round((r.hrs/staffBoard[0].hrs)*100):0}%`,background:'#4F46E5'}}/>
                       </div>
-                      <span className="text-[11px] font-bold tabular-nums flex-shrink-0 min-w-[60px] text-right" style={{color:r.cost>0?'#059669':'#D4D4D4'}}>{r.cost>0?`${fmt(Math.round(r.cost))}đ`:'—'}</span>
+                      {currentUser.role !== 'OPERATIONS' && <span className="text-[11px] font-bold tabular-nums flex-shrink-0 min-w-[60px] text-right" style={{color:r.cost>0?'#059669':'#D4D4D4'}}>{r.cost>0?`${fmt(Math.round(r.cost))}đ`:'—'}</span>}
                     </div>
                   ))}
                 </div>
@@ -2720,7 +2720,7 @@ export default function App() {
                             {day.users.length>3&&<span className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold ring-2 ring-white" style={{background:'#E5E5E5',color:'#737373'}}>+{day.users.length-3}</span>}
                           </div>
                         </div>
-                        <span className="text-[12px] font-bold tabular-nums flex-shrink-0" style={{color:day.cost>0?'#059669':'#D4D4D4'}}>{day.cost>0?`${fmt(Math.round(day.cost))}đ`:'—'}</span>
+                        {currentUser.role !== 'OPERATIONS' && <span className="text-[12px] font-bold tabular-nums flex-shrink-0" style={{color:day.cost>0?'#059669':'#D4D4D4'}}>{day.cost>0?`${fmt(Math.round(day.cost))}đ`:'—'}</span>}
                       </div>
                     );
                   })}
