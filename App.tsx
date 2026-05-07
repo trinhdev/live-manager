@@ -12,6 +12,7 @@ import { DEFAULT_LLM_CONFIG, LlmConfig, testConnection } from './services/llm';
 import { Modal } from './components/Modal';
 import { LoginPage } from './components/LoginPage';
 import { SuperAdminPanel } from './components/SuperAdminPanel';
+import { SalaryDetailModal } from './components/SalaryDetailModal';
 import { ZaloService, ZaloConfig } from './services/zalo';
 import { api, sendOneSignalPush } from './services/api';
 import { supabase } from './services/supabase';
@@ -386,7 +387,10 @@ export default function App() {
   const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [isBridgeModalOpen, setIsBridgeModalOpen] = useState(false);
-  const [isEditUser, setIsEditUser] = useState(false); // Track if we are editing or creating
+  const [isEditUser, setIsEditUser] = useState(false);
+  const [salaryDetailUser, setSalaryDetailUser] = useState<User | null>(null);
+  const [isOvertimeModalOpen, setIsOvertimeModalOpen] = useState(false);
+  const [overtimeData, setOvertimeData] = useState<{ userId: string; minutes: number }>({ userId: '', minutes: 0 });
 
   const [editingSlot, setEditingSlot] = useState<{day: number, shiftId: string} | null>(null);
   const [slotTab, setSlotTab] = useState<'STREAMER' | 'OPS'>('STREAMER');
@@ -1232,6 +1236,34 @@ export default function App() {
   // Handle Export (Mock)
   const handleExportExcel = () => { alert("Đang tải xuống báo cáo..."); };
   const handleCloseBridgeModal = () => { setIsBridgeModalOpen(false); setIsSlotModalOpen(true); };
+
+  const handleSaveOvertime = async () => {
+    if (!editingSlot || !overtimeData.userId) return;
+    const existingItem = schedule.find(s => s.dayIndex === editingSlot.day && s.shiftId === editingSlot.shiftId && s.platform === activePlatform);
+    if (!existingItem) { alert('Không tìm thấy ca trực!'); return; }
+    const newAssignments = existingItem.streamerAssignments.map(sa => {
+      if (sa.userId === overtimeData.userId) {
+        const copy = { ...sa };
+        if (overtimeData.minutes > 0) {
+          copy.overtimeMinutes = overtimeData.minutes;
+        } else {
+          delete copy.overtimeMinutes;
+        }
+        return copy;
+      }
+      return sa;
+    });
+    const newItem = { ...existingItem, streamerAssignments: newAssignments };
+    try {
+      await api.saveScheduleItem(newItem);
+      const saved = await api.getSchedule(currentWeekId, activeBrandSlug || undefined);
+      setSchedule(saved);
+      setIsOvertimeModalOpen(false);
+      setIsSlotModalOpen(true);
+    } catch (e: any) {
+      alert('Lỗi lưu thêm giờ: ' + e.message);
+    }
+  };
   const handleOpenBridgeModal = (uid: string) => { 
       let st = '';
       let et = '';
@@ -2396,6 +2428,219 @@ export default function App() {
           </div>
         )}
 
+        {/* ───────────── REPORTS VIEW ───────────── */}
+        {viewMode === 'REPORTS' && currentUser && (() => {
+          const now = new Date();
+          const currentMonth = now.getMonth();
+          const currentYear = now.getFullYear();
+          const monthLabel = `Tháng ${currentMonth + 1}/${currentYear}`;
+
+          // Parse time string "HH:MM" or "HHhMM" → hours (float)
+          const parseH = (t: string) => {
+            if (!t) return 0;
+            const m = t.trim().match(/^(\d{1,2})(?:[:h](\d{1,2}))?/);
+            if (m) return parseInt(m[1]) + (m[2] ? parseInt(m[2]) : 0) / 60;
+            return 0;
+          };
+
+          // Calculate hours for a streamer assignment in a given shift
+          const calcHours = (shift: Shift, sa: { timeLabel?: string; overtimeMinutes?: number }) => {
+            let base = 0;
+            if (sa.timeLabel) {
+              const parts = sa.timeLabel.split(/\s*-\s*/);
+              if (parts.length === 2) { const s = parseH(parts[0]); const e = parseH(parts[1]); base = e - s; if (base < 0) base += 24; }
+            } else {
+              const s = parseH(shift.startTime); const e = parseH(shift.endTime); base = e - s; if (base < 0) base += 24; if (base === 0) base = 4;
+            }
+            return base + (sa.overtimeMinutes || 0) / 60;
+          };
+
+          // Get all schedule items in current month
+          const monthlySchedule = schedule.filter(item => {
+            // weekId format: "YYYY-Www" — derive week start date
+            const weekMatch = item.weekId?.match(/^(\d{4})-W(\d{2})$/);
+            if (!weekMatch) return false;
+            const year = parseInt(weekMatch[1]);
+            const week = parseInt(weekMatch[2]);
+            const jan4 = new Date(year, 0, 4);
+            const weekStart = new Date(jan4.getTime() + (week - 1) * 7 * 24 * 3600 * 1000 - ((jan4.getDay() || 7) - 1) * 24 * 3600 * 1000);
+            const slotDate = new Date(weekStart.getTime() + item.dayIndex * 24 * 3600 * 1000);
+            return slotDate.getMonth() === currentMonth && slotDate.getFullYear() === currentYear;
+          });
+
+          // Staff users
+          const staffUsers = users.filter(u => u.role === 'STAFF' || u.role === 'OPERATIONS');
+
+          // Build salary stats per user
+          const salaryStats = staffUsers.map(u => {
+            let totalHours = 0;
+            let totalOvertimeMin = 0;
+            let shiftCount = 0;
+            monthlySchedule.forEach(item => {
+              const shift = shifts.find(s => s.id === item.shiftId);
+              if (!shift) return;
+              const sa = item.streamerAssignments.find(a => a.userId === u.id);
+              const isOps = item.opsUserId === u.id;
+              if (sa) {
+                totalHours += calcHours(shift, sa);
+                totalOvertimeMin += sa.overtimeMinutes || 0;
+                shiftCount++;
+              } else if (isOps) {
+                const s = parseH(shift.startTime); const e = parseH(shift.endTime); let d = e - s; if (d < 0) d += 24; if (d === 0) d = 4;
+                totalHours += d;
+                shiftCount++;
+              }
+            });
+            const salary = totalHours * (u.hourlyRate || 0);
+            return { user: u, totalHours, totalOvertimeMin, shiftCount, salary };
+          }).filter(s => s.shiftCount > 0 || s.user.hourlyRate);
+
+          const grandTotalHours = salaryStats.reduce((s, r) => s + r.totalHours, 0);
+          const grandTotalSalary = salaryStats.reduce((s, r) => s + r.salary, 0);
+          const totalShifts = salaryStats.reduce((s, r) => s + r.shiftCount, 0);
+          const hasSalary = salaryStats.filter(s => (s.user.hourlyRate || 0) > 0);
+
+          const fmt = (n: number) => n.toLocaleString('vi-VN');
+          const fmtH = (h: number) => h % 1 === 0 ? `${h}h` : `${h.toFixed(1)}h`;
+
+          return (
+            <div className="space-y-5">
+              {/* Page header */}
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div>
+                  <h3 className="text-[17px] font-semibold tracking-tight flex items-center gap-2" style={{color:'#171717'}}>
+                    <BarChart3 size={18} style={{color:'#4F46E5'}} /> Báo cáo lương
+                  </h3>
+                  <p className="text-[12px] mt-0.5" style={{color:'#A3A3A3'}}>{monthLabel} · Tất cả ca live</p>
+                </div>
+              </div>
+
+              {/* Summary stats */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {[
+                  { label: 'Tổng ca tháng', value: `${totalShifts} ca`, sub: `${staffUsers.length} nhân sự`, color: '#4F46E5', icon: <Calendar size={15}/> },
+                  { label: 'Tổng giờ live', value: fmtH(grandTotalHours), sub: 'Gồm giờ thêm', color: '#0891B2', icon: <Clock size={15}/> },
+                  { label: 'Tổng lương', value: grandTotalSalary > 0 ? `${fmt(Math.round(grandTotalSalary))}đ` : '—', sub: `${hasSalary.length} người có lương`, color: '#059669', icon: <TrendingUp size={15}/> },
+                  { label: 'Đã thiết lập', value: `${hasSalary.length}/${staffUsers.length}`, sub: 'Người có lương/giờ', color: '#D97706', icon: <Users size={15}/> },
+                ].map((s, i) => (
+                  <div key={i} className="p-4 rounded-2xl" style={{background: '#fff', border: '1px solid #F0F0F0', boxShadow:'0 1px 6px rgba(0,0,0,0.04)'}}>
+                    <div className="flex items-center gap-2 mb-2" style={{color: s.color}}>
+                      {s.icon}
+                      <span className="text-[10px] font-semibold uppercase tracking-wider">{s.label}</span>
+                    </div>
+                    <p className="text-[20px] font-bold tabular-nums tracking-tight" style={{color:'#171717'}}>{s.value}</p>
+                    <p className="text-[11px] mt-0.5" style={{color:'#A3A3A3'}}>{s.sub}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Salary table */}
+              <div className="bg-white rounded-2xl border overflow-hidden" style={{borderColor:'#E5E5E5'}}>
+                <div className="px-5 py-4 flex items-center justify-between" style={{borderBottom:'1px solid #F0F0F0'}}>
+                  <p className="text-[13px] font-semibold" style={{color:'#171717'}}>Chi tiết lương nhân sự</p>
+                  <span className="text-[11px] px-2 py-1 rounded-full" style={{background:'#F5F5F5', color:'#737373'}}>{salaryStats.length} người</span>
+                </div>
+
+                {salaryStats.length === 0 ? (
+                  <div className="py-16 flex flex-col items-center" style={{color:'#D4D4D4'}}>
+                    <BarChart3 size={28} />
+                    <p className="text-[13px] mt-3" style={{color:'#A3A3A3'}}>Chưa có ca nào trong {monthLabel}</p>
+                    <p className="text-[11px] mt-1" style={{color:'#D4D4D4'}}>Ca sẽ tự hiển thị sau khi manager xếp lịch</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr style={{background:'#FAFAFA', borderBottom:'1px solid #F0F0F0'}}>
+                          {['Nhân sự', 'Lương/giờ', 'Số ca', 'Tổng giờ', 'OT', 'Thành tiền', ''].map(h => (
+                            <th key={h} className="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-widest" style={{color:'#A3A3A3'}}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {salaryStats.map((stat, i) => {
+                          const hasRate = (stat.user.hourlyRate || 0) > 0;
+                          return (
+                            <tr key={stat.user.id} className="group hover:bg-slate-50 transition-colors" style={{borderTop: i > 0 ? '1px solid #F5F5F5' : 'none'}}>
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-2.5">
+                                  <img src={stat.user.avatar} className="w-8 h-8 rounded-full object-cover flex-shrink-0" style={{border:'2px solid #F0F0F0'}} alt="" />
+                                  <div>
+                                    <p className="text-[13px] font-semibold" style={{color:'#171717'}}>{stat.user.name}</p>
+                                    <p className="text-[10px]" style={{color:'#A3A3A3'}}>{stat.user.role === 'OPERATIONS' ? 'Kỹ thuật' : `Rank ${stat.user.rank || '—'}`}</p>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3">
+                                {hasRate
+                                  ? <span className="text-[13px] font-semibold tabular-nums" style={{color:'#171717'}}>{fmt(stat.user.hourlyRate!)}đ</span>
+                                  : <span className="text-[11px] px-2 py-1 rounded-full" style={{background:'#FEF3C7', color:'#D97706'}}>Chưa thiết lập</span>
+                                }
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className="text-[13px] font-semibold tabular-nums" style={{color:'#171717'}}>{stat.shiftCount}</span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className="text-[13px] font-semibold tabular-nums" style={{color:'#171717'}}>{fmtH(stat.totalHours)}</span>
+                              </td>
+                              <td className="px-4 py-3">
+                                {stat.totalOvertimeMin > 0
+                                  ? <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{background:'#FEF3C7', color:'#D97706'}}>+{stat.totalOvertimeMin}ph</span>
+                                  : <span style={{color:'#D4D4D4'}}>—</span>
+                                }
+                              </td>
+                              <td className="px-4 py-3">
+                                {hasRate
+                                  ? <span className="text-[14px] font-bold tabular-nums" style={{color:'#059669'}}>{fmt(Math.round(stat.salary))}đ</span>
+                                  : <span style={{color:'#D4D4D4'}}>—</span>
+                                }
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                <button
+                                  onClick={() => setSalaryDetailUser(stat.user)}
+                                  className="text-[11px] font-medium px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                                  style={{background:'#F0F0FF', color:'#4F46E5'}}
+                                >
+                                  Chi tiết →
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                      {/* Grand total footer */}
+                      <tfoot>
+                        <tr style={{borderTop:'2px solid #E5E5E5', background:'#FAFAFA'}}>
+                          <td className="px-4 py-3">
+                            <span className="text-[12px] font-semibold" style={{color:'#737373'}}>Tổng cộng</span>
+                          </td>
+                          <td colSpan={2} />
+                          <td className="px-4 py-3">
+                            <span className="text-[14px] font-bold tabular-nums" style={{color:'#171717'}}>{fmtH(grandTotalHours)}</span>
+                          </td>
+                          <td colSpan={1} />
+                          <td className="px-4 py-3">
+                            {grandTotalSalary > 0 && <span className="text-[14px] font-bold tabular-nums" style={{color:'#059669'}}>{fmt(Math.round(grandTotalSalary))}đ</span>}
+                          </td>
+                          <td />
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Info note */}
+              <div className="flex items-start gap-2 p-3 rounded-xl" style={{background:'#EFF6FF', border:'1px solid #BFDBFE'}}>
+                <Info size={14} style={{color:'#2563EB', marginTop:1, flexShrink:0}} />
+                <p className="text-[11px] leading-relaxed" style={{color:'#1D4ED8'}}>
+                  Lương được tính theo công thức: <strong>Số giờ live × Lương/giờ</strong>. Thêm giờ (OT) được cộng vào tổng giờ. Nhập lương/giờ cho nhân sự tại <strong>Quản lý nhân sự → Chỉnh sửa</strong>.
+                </p>
+              </div>
+            </div>
+          );
+        })()}
+
       </main>
 
       {/* --- MODALS (Login, Slot, Request, Shift, User, Bridge) --- */}
@@ -2424,14 +2669,30 @@ export default function App() {
                                         <div className="flex items-center gap-1.5 mt-1">
                                           <RankBadge rank={u.rank} size="sm" />
                                           {assignment?.timeLabel && <p className="text-[8px] md:text-[9px] font-semibold uppercase opacity-80">{assignment.timeLabel}</p>}
+                                          {(assignment?.overtimeMinutes || 0) > 0 && (
+                                            <span className="text-[8px] font-bold px-1 py-0.5 rounded" style={{background:'#FEF3C7', color:'#D97706'}}>+{assignment!.overtimeMinutes}ph</span>
+                                          )}
                                         </div>
                                     </div>
                                 </div>
                                 {assignment && <CheckCircle2 size={16} strokeWidth={3}/>}
                             </button>
-                            <button onClick={() => handleOpenBridgeModal(u.id)} className={`w-10 md:w-12 flex flex-col items-center justify-center rounded-xl border-2 transition-all ${assignment?.timeLabel ? 'bg-indigo-100 border-indigo-300 text-indigo-700' : 'bg-white border-slate-100 text-slate-300 hover:text-indigo-600 hover:border-indigo-200'}`}>
-                                <Layers size={14}/>
+                            {/* Kẹp ca button */}
+                            <button onClick={() => handleOpenBridgeModal(u.id)} className={`w-10 md:w-11 flex flex-col items-center justify-center rounded-xl border-2 transition-all ${assignment?.timeLabel ? 'bg-indigo-100 border-indigo-300 text-indigo-700' : 'bg-white border-slate-100 text-slate-300 hover:text-indigo-600 hover:border-indigo-200'}`} title="Kẹp ca">
+                                <Layers size={13}/>
                             </button>
+                            {/* Thêm giờ button — chỉ hiện khi đã assign */}
+                            {assignment && (
+                              <button
+                                onClick={() => { setOvertimeData({ userId: u.id, minutes: assignment.overtimeMinutes || 0 }); setIsOvertimeModalOpen(true); setIsSlotModalOpen(false); }}
+                                className={`w-10 md:w-11 flex flex-col items-center justify-center rounded-xl border-2 transition-all ${
+                                  (assignment.overtimeMinutes || 0) > 0 ? 'bg-amber-50 border-amber-300 text-amber-600' : 'bg-white border-slate-100 text-slate-300 hover:text-amber-500 hover:border-amber-200'
+                                }`}
+                                title="Thêm giờ live"
+                              >
+                                <Clock size={13}/>
+                              </button>
+                            )}
                         </div>
                     );
                     })}
@@ -2495,7 +2756,74 @@ export default function App() {
           )}
       </Modal>
 
-      {/* User (Staff) Modal */}
+      {/* Overtime / Thêm giờ Modal */}
+      <Modal isOpen={isOvertimeModalOpen} onClose={() => { setIsOvertimeModalOpen(false); setIsSlotModalOpen(true); }} title="Thêm giờ live">
+        {editingSlot && (() => {
+          const u = users.find(x => x.id === overtimeData.userId);
+          const shift = shifts.find(s => s.id === editingSlot.shiftId);
+          return (
+            <div className="space-y-5">
+              {/* User info */}
+              <div className="flex items-center gap-3 p-3 rounded-xl" style={{background:'#FAFAFA', border:'1px solid #F0F0F0'}}>
+                <img src={u?.avatar} className="w-10 h-10 rounded-full border-2 border-white shadow-sm" alt=""/>
+                <div>
+                  <p className="font-semibold text-[14px]" style={{color:'#171717'}}>{u?.name}</p>
+                  <p className="text-[11px] font-mono" style={{color:'#A3A3A3'}}>Ca: {shift?.name} · {shift?.startTime}–{shift?.endTime}</p>
+                </div>
+              </div>
+
+              {/* Minutes input */}
+              <div>
+                <label className="block text-[10px] font-semibold uppercase tracking-widest mb-2" style={{color:'#A3A3A3'}}>Số phút thêm giờ</label>
+                <div className="flex items-center gap-2">
+                  {[15, 30, 45, 60, 90].map(m => (
+                    <button
+                      key={m}
+                      onClick={() => setOvertimeData({ ...overtimeData, minutes: m })}
+                      className="flex-1 py-2 rounded-xl text-[12px] font-semibold transition-all"
+                      style={{
+                        background: overtimeData.minutes === m ? '#D97706' : '#F5F5F5',
+                        color: overtimeData.minutes === m ? '#fff' : '#737373',
+                        border: overtimeData.minutes === m ? '2px solid #D97706' : '2px solid transparent',
+                      }}
+                    >
+                      {m < 60 ? `${m}ph` : `${m/60}h`}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-3 mt-3">
+                  <input
+                    type="number"
+                    min={0} max={480} step={5}
+                    className="flex-1 px-4 py-3 rounded-xl text-[14px] font-medium"
+                    style={{background:'#F5F5F5', border:'1px solid #E5E5E5', color:'#171717'}}
+                    placeholder="Hoặc nhập số phút..."
+                    value={overtimeData.minutes || ''}
+                    onChange={e => setOvertimeData({ ...overtimeData, minutes: Math.max(0, Number(e.target.value)) })}
+                  />
+                  <span className="text-[13px] font-medium" style={{color:'#A3A3A3'}}>phút</span>
+                </div>
+                {overtimeData.minutes > 0 && (
+                  <p className="text-[12px] mt-2 font-medium" style={{color:'#D97706'}}>
+                    ≈ +{(overtimeData.minutes / 60).toFixed(1)}h live thêm
+                    {(u?.hourlyRate || 0) > 0 && ` · +${Math.round(overtimeData.minutes / 60 * (u!.hourlyRate || 0)).toLocaleString()}đ`}
+                  </p>
+                )}
+              </div>
+
+              {/* Clear + save */}
+              <div className="space-y-2">
+                <button onClick={() => setOvertimeData({ ...overtimeData, minutes: 0 })} className="text-[11px] uppercase font-medium block mx-auto" style={{color:'#D4D4D4'}}>Xóa thêm giờ</button>
+                <div className="flex gap-2">
+                  <Button variant="secondary" className="flex-1 font-medium" onClick={() => { setIsOvertimeModalOpen(false); setIsSlotModalOpen(true); }}>Hủy</Button>
+                  <Button className="flex-1 font-semibold" onClick={handleSaveOvertime} icon={<Save size={16}/>}>Lưu thêm giờ</Button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+      </Modal>
+
       <Modal isOpen={isUserModalOpen} onClose={() => setIsUserModalOpen(false)} title={isEditUser ? "Chỉnh sửa nhân sự" : "Thêm nhân sự mới"}>
         <div className="space-y-6">
           <div className="space-y-4">
@@ -2554,9 +2882,24 @@ export default function App() {
                     </div>
                 </div>
             )}
-            {/* Revenue */}
+            {/* Revenue + Hourly Rate */}
             {userFormData.role === 'STAFF' && (
+              <div className="space-y-3">
                 <input type="number" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium" value={userFormData.revenue || 0} onChange={e => setUserFormData({...userFormData, revenue: Number(e.target.value)})} placeholder="Doanh thu..." />
+                <div className="relative">
+                  <label className="block text-[10px] font-semibold uppercase text-slate-400 mb-1.5 ml-1">Lương/giờ live (VNĐ)</label>
+                  <input
+                    type="number"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium"
+                    value={userFormData.hourlyRate || ''}
+                    onChange={e => setUserFormData({...userFormData, hourlyRate: Number(e.target.value)})}
+                    placeholder="Ví dụ: 50000 (50k/giờ)"
+                  />
+                  {(userFormData.hourlyRate || 0) > 0 && (
+                    <p className="text-[11px] mt-1 ml-1" style={{color:'#059669'}}>≈ {((userFormData.hourlyRate || 0) * 4).toLocaleString()}đ/ca 4h</p>
+                  )}
+                </div>
+              </div>
             )}
             {/* Platform Selection */}
             <div>
@@ -2892,6 +3235,19 @@ export default function App() {
       )}
 
     </div>
+
+      {/* Salary Detail Modal */}
+      {salaryDetailUser && (
+        <SalaryDetailModal
+          user={salaryDetailUser}
+          schedule={schedule}
+          shifts={shifts}
+          weekDates={[weekDates]}
+          onClose={() => setSalaryDetailUser(null)}
+          monthLabel={`Tháng ${new Date().getMonth() + 1}/${new Date().getFullYear()}`}
+        />
+      )}
+
     </>
   );
 }

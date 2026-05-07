@@ -25,6 +25,7 @@ export interface User {
   revenue?: number;
   zaloPhone?: string;
   isAvailabilitySubmitted?: boolean;
+  hourlyRate?: number;         // VNĐ/giờ, dùng để tính lương
 }
 
 export interface Shift {
@@ -47,7 +48,8 @@ export interface Availability {
 
 export interface StreamerAssignment {
   userId: string;
-  timeLabel?: string;
+  timeLabel?: string;     // Kẹp ca: "19h - 21h" (ghi đè giờ ca)
+  overtimeMinutes?: number; // Thêm giờ: số phút live thêm sau ca
 }
 
 export interface ScheduleItem {

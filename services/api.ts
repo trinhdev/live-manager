@@ -28,6 +28,7 @@ const mapUser = (u: any): User => ({
   revenue: u.revenue,
   zaloPhone: u.zalo_phone || u.zaloPhone,
   isAvailabilitySubmitted: u.is_availability_submitted || u.isAvailabilitySubmitted,
+  hourlyRate: u.hourly_rate || 0,
 });
 
 // Helper: map Shift
@@ -117,6 +118,7 @@ export const api = {
     if (user.brandId !== undefined)                 dbUser.brand_id = user.brandId;
     if (user.zaloPhone !== undefined)               dbUser.zalo_phone = user.zaloPhone;
     if (user.isAvailabilitySubmitted !== undefined) dbUser.is_availability_submitted = user.isAvailabilitySubmitted;
+    if (user.hourlyRate !== undefined)              dbUser.hourly_rate = user.hourlyRate;
 
     if (oldId && oldId !== user.id) {
       // Đổi ID: update theo ID cũ
