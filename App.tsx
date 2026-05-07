@@ -2915,10 +2915,9 @@ export default function App() {
               </div>
 
               {/* S2: KPI Strip */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 {[
                   {label:'CA HOÀN THÀNH',value:`${grandCnt}`,delta:dCnt,unit:'ca',color:'#4F46E5'},
-                  {label:'TỔNG GIỜ',value:fmtH(grandHrs),delta:dHrs,unit:'h',color:'#0891B2'},
                   {label:'CHUYÊN CẦN',value:`${attendRate}%`,delta:dRate,unit:'%',color:attendRate>=90?'#059669':attendRate>=70?'#D97706':'#DC2626'},
                   {label:'TỔNG LƯƠNG',value:grandBase>0?`${fmt(Math.round(grandBase/1000))}k`:'—',delta:Math.round(dCost/1000),unit:'k',color:'#059669'},
                 ].map((s,i)=>(
@@ -2966,7 +2965,7 @@ export default function App() {
                     return (
                       <div key={stat.u.id} className="rounded-xl overflow-hidden transition-all" style={{background:'#fff',border:'1px solid #F0F0F0'}}>
                         {/* Collapsed */}
-                        <div className="px-3 py-3 cursor-pointer" onClick={()=>setExpandedStaffId(isExp?null:stat.u.id)}>
+                        <div className="px-3 py-3 cursor-pointer" onClick={()=>setExpandedStaffId(stat.u.id)}>
                           <div className="flex items-center gap-2.5">
                             <div className="relative flex-shrink-0">
                               <img src={stat.u.avatar} className="w-10 h-10 rounded-xl object-cover" style={{border:'2px solid #F0F0F0'}} alt=""/>
@@ -2985,94 +2984,106 @@ export default function App() {
                             </div>
                             <div className="text-right flex-shrink-0">
                               <p className="text-[14px] font-bold tabular-nums" style={{color:stat.base>0?'#059669':'#D4D4D4'}}>{stat.base>0?`${fmt(Math.round(stat.base))}đ`:'—'}</p>
-                              <p className="text-[9px] tabular-nums" style={{color:'#A3A3A3'}}>{fmtH(stat.hrs)} · {stat.cnt} ca</p>
+                              <p className="text-[9px] tabular-nums" style={{color:'#A3A3A3'}}>{stat.cnt} ca</p>
                             </div>
-                            <svg className="flex-shrink-0 transition-transform duration-200" style={{transform:isExp?'rotate(180deg)':'rotate(0deg)',color:'#A3A3A3'}} width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                            <svg className="flex-shrink-0" style={{color:'#A3A3A3'}} width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4.5 3L7.5 6L4.5 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                           </div>
 
                         </div>
-                        {/* BẢNG LƯƠNG */}
-                        {isExp && (
-                          <div style={{borderTop:'2px solid #E5E5E5'}}>
-                            {/* Payroll header */}
-                            <div className="px-4 py-3 text-center" style={{background:'#FAFAFA',borderBottom:'1px solid #F0F0F0'}}>
-                              <p className="text-[11px] font-bold uppercase tracking-[0.15em]" style={{color:'#4F46E5'}}>Phiếu lương</p>
-                              <p className="text-[10px] font-semibold mt-0.5" style={{color:'#525252'}}>Tháng {timekeepingMonth}/{timekeepingYear}</p>
-                            </div>
-
-                            {/* Employee info */}
-                            <div className="px-4 py-2.5" style={{borderBottom:'1px solid #F0F0F0'}}>
-                              {[
-                                {l:'Họ tên',v:stat.u.name},
-                                {l:'Rank',v:stat.u.rank||'C'},
-                                {l:'Nền tảng',v:(stat.u.platforms||[]).map(p=>p==='tiktok'?'TikTok':'Shopee').join(', ')||'—'},
-                                {l:'Đơn giá',v:(stat.u.hourlyRate||0)>0?`${fmt(stat.u.hourlyRate!)}đ/giờ`:'Chưa thiết lập'},
-                              ].map((r,ri)=>(
-                                <div key={ri} className="flex items-center justify-between py-1" style={{borderTop:ri>0?'1px solid #F5F5F5':'none'}}>
-                                  <span className="text-[10px]" style={{color:'#737373'}}>{r.l}</span>
-                                  <span className="text-[10px] font-semibold" style={{color:'#171717'}}>{r.v}</span>
-                                </div>
-                              ))}
-                            </div>
-
-                            {/* Shift table header */}
-                            <div className="flex items-center gap-1 px-4 py-1.5" style={{background:'#F5F5F5',borderBottom:'1px solid #E5E5E5'}}>
-                              <span className="text-[7px] font-bold uppercase tracking-wide w-[42px]" style={{color:'#737373'}}>#</span>
-                              <span className="text-[7px] font-bold uppercase tracking-wide flex-1" style={{color:'#737373'}}>Ca live</span>
-                              <span className="text-[7px] font-bold uppercase tracking-wide w-7 text-right" style={{color:'#737373'}}>Giờ</span>
-                              <span className="text-[7px] font-bold uppercase tracking-wide w-6 text-center" style={{color:'#737373'}}>OT</span>
-                              <span className="text-[7px] font-bold uppercase tracking-wide w-[56px] text-right" style={{color:'#737373'}}>Thành tiền</span>
-                            </div>
-
-                            {/* Shift rows */}
-                            <div className="px-4">
-                              {stat.dayRows.length===0
-                                ? <p className="text-[11px] py-5 text-center" style={{color:'#D4D4D4'}}>Chưa có ca hoàn thành</p>
-                                : stat.dayRows.map((row,ri)=>(
-                                  <div key={ri} className="flex items-center gap-1 py-1.5" style={{borderBottom:'1px solid #F8F8F8'}}>
-                                    <span className="text-[10px] tabular-nums w-[42px]" style={{color:'#525252'}}>{row.date.getDate()}/{row.date.getMonth()+1} {dayNames[row.date.getDay()]}</span>
-                                    <span className="text-[10px] flex-1 truncate" style={{color:'#171717'}}>{row.shiftName}</span>
-                                    <span className="text-[10px] font-semibold tabular-nums w-7 text-right" style={{color:'#171717'}}>{fmtH(row.hrs)}</span>
-                                    <span className="text-[8px] font-bold w-6 text-center" style={{color:row.otMin>0?'#D97706':'#D4D4D4'}}>{row.otMin>0?`${row.otMin}'`:'—'}</span>
-                                    <span className="text-[10px] font-semibold tabular-nums w-[56px] text-right" style={{color:row.salary>0?'#171717':'#D4D4D4'}}>{row.salary>0?`${fmt(Math.round(row.salary))}đ`:'—'}</span>
-                                  </div>
-                                ))
-                              }
-                            </div>
-
-                            {/* Payroll summary */}
-                            {stat.dayRows.length>0 && (
-                              <div style={{borderTop:'2px solid #E5E5E5'}}>
-                                {/* Line items */}
-                                <div className="px-4 py-2" style={{background:'#FAFAFA'}}>
-                                  <div className="flex items-center justify-between py-1">
-                                    <span className="text-[10px]" style={{color:'#525252'}}>Lương cơ bản ({fmtH(stat.hrs)} × {(stat.u.hourlyRate||0)>0?`${fmt(stat.u.hourlyRate!)}đ`:'0đ'})</span>
-                                    <span className="text-[11px] font-semibold tabular-nums" style={{color:'#171717'}}>{fmt(Math.round(stat.hrs*(stat.u.hourlyRate||0)))}đ</span>
-                                  </div>
-                                  {stat.otMin>0 && (
-                                    <div className="flex items-center justify-between py-1" style={{borderTop:'1px solid #F0F0F0'}}>
-                                      <span className="text-[10px]" style={{color:'#D97706'}}>OT ({Math.round(stat.otMin/60)}h)</span>
-                                      <span className="text-[11px] font-semibold tabular-nums" style={{color:'#D97706'}}>+{fmt(Math.round((stat.otMin/60)*(stat.u.hourlyRate||0)))}đ</span>
-                                    </div>
-                                  )}
-                                </div>
-                                {/* Grand total */}
-                                <div className="flex items-center justify-between px-4 py-3" style={{background:'#171717'}}>
-                                  <div>
-                                    <p className="text-[9px] font-bold uppercase tracking-widest" style={{color:'rgba(255,255,255,0.5)'}}>Tổng lương</p>
-                                    <p className="text-[9px] mt-0.5" style={{color:'rgba(255,255,255,0.3)'}}>{stat.cnt} ca · {fmtH(stat.hrs)}{stat.otMin>0?` · OT ${Math.round(stat.otMin/60)}h`:''}</p>
-                                  </div>
-                                  <p className="text-[18px] font-bold tabular-nums" style={{color:'#34D399'}}>{stat.base>0?`${fmt(Math.round(stat.base))}đ`:'—'}</p>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        )}
                       </div>
                     );
                   })}
                 </div>
               </div>
+
+              {/* POPUP BẢNG LƯƠNG */}
+              {expandedStaffId && (() => {
+                const stat = staffStats.find(s=>s.u.id===expandedStaffId);
+                if (!stat) return null;
+                const rankColors2: Record<string,{c:string;bg:string}> = {S:{c:'#9333EA',bg:'#F5F3FF'},A:{c:'#2563EB',bg:'#EFF6FF'},B:{c:'#0891B2',bg:'#ECFEFF'},C:{c:'#737373',bg:'#F5F5F5'}};
+                const rc2 = rankColors2[stat.u.rank||'C']||rankColors2.C;
+                return (
+                  <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center" onClick={()=>setExpandedStaffId(null)}>
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm"/>
+                    <div className="relative w-full sm:max-w-md sm:mx-4 bg-white sm:rounded-2xl rounded-t-2xl overflow-hidden" style={{maxHeight:'90vh',boxShadow:'0 24px 80px rgba(0,0,0,0.2)'}} onClick={e=>e.stopPropagation()}>
+                      <div className="flex justify-center pt-2 sm:hidden"><div className="w-10 h-1 rounded-full bg-slate-200"/></div>
+                      {/* Close */}
+                      <button onClick={()=>setExpandedStaffId(null)} className="absolute top-3 right-3 w-7 h-7 rounded-full flex items-center justify-center z-10" style={{background:'#F5F5F5'}}>
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1 1l8 8M9 1L1 9" stroke="#737373" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                      </button>
+                      <div className="overflow-y-auto" style={{maxHeight:'90vh'}}>
+                      {/* Payroll header */}
+                      <div className="px-4 py-3 text-center" style={{background:'#FAFAFA',borderBottom:'1px solid #F0F0F0'}}>
+                        <p className="text-[11px] font-bold uppercase tracking-[0.15em]" style={{color:'#4F46E5'}}>Phiếu lương</p>
+                        <p className="text-[10px] font-semibold mt-0.5" style={{color:'#525252'}}>Tháng {timekeepingMonth}/{timekeepingYear}</p>
+                      </div>
+                      {/* Employee info */}
+                      <div className="px-4 py-2.5" style={{borderBottom:'1px solid #F0F0F0'}}>
+                        {[
+                          {l:'Họ tên',v:stat.u.name},
+                          {l:'Rank',v:stat.u.rank||'C'},
+                          {l:'Nền tảng',v:(stat.u.platforms||[]).map(p=>p==='tiktok'?'TikTok':'Shopee').join(', ')||'—'},
+                          {l:'Đơn giá',v:(stat.u.hourlyRate||0)>0?`${fmt(stat.u.hourlyRate!)}đ/giờ`:'Chưa thiết lập'},
+                        ].map((r,ri)=>(
+                          <div key={ri} className="flex items-center justify-between py-1" style={{borderTop:ri>0?'1px solid #F5F5F5':'none'}}>
+                            <span className="text-[10px]" style={{color:'#737373'}}>{r.l}</span>
+                            <span className="text-[10px] font-semibold" style={{color:'#171717'}}>{r.v}</span>
+                          </div>
+                        ))}
+                      </div>
+                      {/* Shift table header */}
+                      <div className="flex items-center gap-1 px-4 py-1.5" style={{background:'#F5F5F5',borderBottom:'1px solid #E5E5E5'}}>
+                        <span className="text-[7px] font-bold uppercase tracking-wide w-[42px]" style={{color:'#737373'}}>#</span>
+                        <span className="text-[7px] font-bold uppercase tracking-wide flex-1" style={{color:'#737373'}}>Ca live</span>
+                        <span className="text-[7px] font-bold uppercase tracking-wide w-7 text-right" style={{color:'#737373'}}>Giờ</span>
+                        <span className="text-[7px] font-bold uppercase tracking-wide w-6 text-center" style={{color:'#737373'}}>OT</span>
+                        <span className="text-[7px] font-bold uppercase tracking-wide w-[56px] text-right" style={{color:'#737373'}}>Thành tiền</span>
+                      </div>
+                      {/* Shift rows */}
+                      <div className="px-4">
+                        {stat.dayRows.length===0
+                          ? <p className="text-[11px] py-5 text-center" style={{color:'#D4D4D4'}}>Chưa có ca hoàn thành</p>
+                          : stat.dayRows.map((row,ri)=>(
+                            <div key={ri} className="flex items-center gap-1 py-1.5" style={{borderBottom:'1px solid #F8F8F8'}}>
+                              <span className="text-[10px] tabular-nums w-[42px]" style={{color:'#525252'}}>{row.date.getDate()}/{row.date.getMonth()+1} {dayNames[row.date.getDay()]}</span>
+                              <span className="text-[10px] flex-1 truncate" style={{color:'#171717'}}>{row.shiftName}</span>
+                              <span className="text-[10px] font-semibold tabular-nums w-7 text-right" style={{color:'#171717'}}>{fmtH(row.hrs)}</span>
+                              <span className="text-[8px] font-bold w-6 text-center" style={{color:row.otMin>0?'#D97706':'#D4D4D4'}}>{row.otMin>0?`${row.otMin}'`:'—'}</span>
+                              <span className="text-[10px] font-semibold tabular-nums w-[56px] text-right" style={{color:row.salary>0?'#171717':'#D4D4D4'}}>{row.salary>0?`${fmt(Math.round(row.salary))}đ`:'—'}</span>
+                            </div>
+                          ))
+                        }
+                      </div>
+                      {/* Payroll summary */}
+                      {stat.dayRows.length>0 && (
+                        <div style={{borderTop:'2px solid #E5E5E5'}}>
+                          <div className="px-4 py-2" style={{background:'#FAFAFA'}}>
+                            <div className="flex items-center justify-between py-1">
+                              <span className="text-[10px]" style={{color:'#525252'}}>Lương cơ bản ({fmtH(stat.hrs)} × {(stat.u.hourlyRate||0)>0?`${fmt(stat.u.hourlyRate!)}đ`:'0đ'})</span>
+                              <span className="text-[11px] font-semibold tabular-nums" style={{color:'#171717'}}>{fmt(Math.round(stat.hrs*(stat.u.hourlyRate||0)))}đ</span>
+                            </div>
+                            {stat.otMin>0 && (
+                              <div className="flex items-center justify-between py-1" style={{borderTop:'1px solid #F0F0F0'}}>
+                                <span className="text-[10px]" style={{color:'#D97706'}}>OT ({Math.round(stat.otMin/60)}h)</span>
+                                <span className="text-[11px] font-semibold tabular-nums" style={{color:'#D97706'}}>+{fmt(Math.round((stat.otMin/60)*(stat.u.hourlyRate||0)))}đ</span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex items-center justify-between px-4 py-3" style={{background:'#171717'}}>
+                            <div>
+                              <p className="text-[9px] font-bold uppercase tracking-widest" style={{color:'rgba(255,255,255,0.5)'}}>Tổng lương</p>
+                              <p className="text-[9px] mt-0.5" style={{color:'rgba(255,255,255,0.3)'}}>{stat.cnt} ca · {fmtH(stat.hrs)}{stat.otMin>0?` · OT ${Math.round(stat.otMin/60)}h`:''}</p>
+                            </div>
+                            <p className="text-[18px] font-bold tabular-nums" style={{color:'#34D399'}}>{stat.base>0?`${fmt(Math.round(stat.base))}đ`:'—'}</p>
+                          </div>
+                        </div>
+                      )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
 
 
               {/* S5: Daily Timeline */}
@@ -3150,16 +3161,12 @@ export default function App() {
                 )}
               </div>
 
-              {/* S6: Floating Payroll Footer */}
+              {/* S6: Fixed Bottom-Left Cost Badge */}
               {staffStats.length>0 && grandCnt>0 && (
-                <div className="fixed bottom-[70px] sm:bottom-4 left-0 right-0 sm:left-auto sm:right-auto sm:max-w-2xl mx-auto px-3 z-40">
-                  <div className="flex items-center justify-between px-4 py-2.5 rounded-2xl" style={{background:'rgba(23,23,23,0.92)',backdropFilter:'blur(20px)',boxShadow:'0 8px 32px rgba(0,0,0,0.2)'}}>
-                    <div className="flex items-center gap-3">
-                      <span className="text-[11px] font-medium" style={{color:'rgba(255,255,255,0.6)'}}>{activeStaff} NV</span>
-                      <span className="text-[11px] font-medium" style={{color:'rgba(255,255,255,0.6)'}}>{fmtH(grandHrs)}</span>
-                      {grandOT>0&&<span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{background:'rgba(217,119,6,0.2)',color:'#FBBF24'}}>OT {Math.round(grandOT/60)}h</span>}
-                    </div>
-                    <span className="text-[15px] font-bold tabular-nums" style={{color:'#34D399'}}>{fmt(Math.round(grandBase))}đ</span>
+                <div className="fixed bottom-[74px] sm:bottom-5 left-3 z-40">
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{background:'rgba(23,23,23,0.92)',backdropFilter:'blur(20px)',boxShadow:'0 4px 20px rgba(0,0,0,0.15)'}}>
+                    <span className="text-[10px] font-medium" style={{color:'rgba(255,255,255,0.5)'}}>{activeStaff} NV · {grandCnt} ca</span>
+                    <span className="text-[13px] font-bold tabular-nums" style={{color:'#34D399'}}>{fmt(Math.round(grandBase))}đ</span>
                   </div>
                 </div>
               )}
