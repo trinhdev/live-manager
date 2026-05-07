@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+﻿import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Menu, X, Calendar, Search, Filter, Plus, ChevronLeft, ChevronRight, 
   MapPin, Clock, Users, Sun, Moon, CheckCircle2, ChevronDown, Lock,
@@ -2451,132 +2451,153 @@ export default function App() {
             const m = t?.trim().match(/^(\d{1,2})(?:[:h](\d{1,2}))?/);
             return m ? parseInt(m[1]) + (m[2] ? parseInt(m[2]) : 0) / 60 : 0;
           };
+          const calcH = (shift: Shift, sa: { timeLabel?: string; overtimeMinutes?: number }) => {
+            let base = 0;
+            if (sa.timeLabel) { const p = sa.timeLabel.split(/\s*-\s*/); if (p.length===2){const s=parseH(p[0]);const e=parseH(p[1]);base=e-s;if(base<0)base+=24;} }
+            else { const s=parseH(shift.startTime);const e=parseH(shift.endTime);base=e-s;if(base<0)base+=24;if(base===0)base=4; }
+            return base + (sa.overtimeMinutes||0)/60;
+          };
 
-          // Filter schedule for selected month
           const getSlotDate = (item: ScheduleItem): Date | null => {
             const wm = item.weekId?.match(/^(\d{4})-(\d{2})-W(\d{1,2})$/);
             if (!wm) return null;
-            const yr = parseInt(wm[1]), mo = parseInt(wm[2]) - 1, wk = parseInt(wm[3]);
-            const d1 = new Date(yr, mo, 1);
-            const dow = d1.getDay() === 0 ? 6 : d1.getDay() - 1;
-            const mon1 = new Date(yr, mo, 1 - dow + (wk - 1) * 7);
-            return new Date(mon1.getTime() + item.dayIndex * 86400000);
+            const yr=parseInt(wm[1]),mo=parseInt(wm[2])-1,wk=parseInt(wm[3]);
+            const d1=new Date(yr,mo,1);const dow=d1.getDay()===0?6:d1.getDay()-1;
+            const mon1=new Date(yr,mo,1-dow+(wk-1)*7);
+            return new Date(mon1.getTime()+item.dayIndex*86400000);
           };
 
           const monthSchedule = schedule.filter(s => {
-            const d = getSlotDate(s); return d && d.getMonth() === rMonth && d.getFullYear() === rYear;
+            const d = getSlotDate(s); return d && d.getMonth()===rMonth && d.getFullYear()===rYear;
           });
 
           const staffUsers = users.filter(u => u.role === 'STAFF');
           const totalShiftsMonth = monthSchedule.length;
-          const totalAssignments = monthSchedule.reduce((s, i) => s + i.streamerAssignments.length, 0);
-          const submittedStaff = staffUsers.filter(u => u.isAvailabilitySubmitted).length;
+          const totalAssignments = monthSchedule.reduce((s,i)=>s+i.streamerAssignments.length,0);
 
-          // Shifts per day of week
-          const perDay = Array(7).fill(0);
-          monthSchedule.forEach(i => { perDay[i.dayIndex] = (perDay[i.dayIndex] || 0) + 1; });
-          const maxDay = Math.max(...perDay, 1);
-
-          // Top streamers by shift count
-          const streamerCount: Record<string, number> = {};
+          // Total hours + cost across month
+          let grandHours = 0; let grandCost = 0;
           monthSchedule.forEach(item => {
+            const shift = shifts.find(s=>s.id===item.shiftId);
+            if (!shift) return;
             item.streamerAssignments.forEach(sa => {
-              streamerCount[sa.userId] = (streamerCount[sa.userId] || 0) + 1;
+              const u = users.find(x=>x.id===sa.userId);
+              const hrs = calcH(shift,sa);
+              grandHours += hrs;
+              grandCost += hrs * (u?.hourlyRate||0);
             });
           });
-          const topStreamers = Object.entries(streamerCount)
-            .sort((a, b) => b[1] - a[1]).slice(0, 5)
-            .map(([uid, count]) => ({ user: users.find(u => u.id === uid), count }))
-            .filter(x => x.user);
 
-          // Platform distribution
-          const ttCount = monthSchedule.filter(s => s.platform === 'tiktok').length;
-          const shCount = monthSchedule.filter(s => s.platform === 'shopee').length;
-          const total = ttCount + shCount || 1;
-
-          const dayNames = ['T2','T3','T4','T5','T6','T7','CN'];
+          // Group by date → daily stats
+          const byDate: Record<string,{date:Date;shifts:number;hrs:number;cost:number}> = {};
+          monthSchedule.forEach(item => {
+            const d = getSlotDate(item); if (!d) return;
+            const key = d.toISOString().slice(0,10);
+            if (!byDate[key]) byDate[key] = {date:d,shifts:0,hrs:0,cost:0};
+            byDate[key].shifts++;
+            const shift = shifts.find(s=>s.id===item.shiftId);
+            if (!shift) return;
+            item.streamerAssignments.forEach(sa => {
+              const u = users.find(x=>x.id===sa.userId);
+              const hrs = calcH(shift,sa);
+              byDate[key].hrs += hrs;
+              byDate[key].cost += hrs * (u?.hourlyRate||0);
+            });
+          });
+          const dailyRows = Object.entries(byDate).sort(([a],[b])=>a.localeCompare(b)).map(([,v])=>v);
+          const dayNames = ['CN','T2','T3','T4','T5','T6','T7'];
+          const fmt = (n:number)=>n.toLocaleString('vi-VN');
+          const fmtH = (h:number)=>h%1===0?`${h}h`:`${h.toFixed(1)}h`;
+          const maxCost = Math.max(...dailyRows.map(r=>r.cost),1);
 
           return (
             <div className="space-y-5">
               <div>
                 <h3 className="text-[17px] font-semibold tracking-tight flex items-center gap-2" style={{color:'#171717'}}>
-                  <BarChart3 size={18} style={{color:'#4F46E5'}}/> Thống kê
+                  <BarChart3 size={18} style={{color:'#4F46E5'}}/> Báo cáo
                 </h3>
                 <p className="text-[12px] mt-0.5" style={{color:'#A3A3A3'}}>{monthLabel} · Dùng mũi tên tháng ở trên để chọn tháng khác</p>
               </div>
 
-              {/* KPI cards */}
+              {/* KPI summary */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {[
-                  { label: 'Tổng ca', value: totalShiftsMonth, sub: 'Ca đã lên lịch', color: '#4F46E5' },
-                  { label: 'Lượt live', value: totalAssignments, sub: 'Lượt gán streamer', color: '#0891B2' },
-                  { label: 'Nhân sự', value: staffUsers.length, sub: `${submittedStaff} đã đăng ký`, color: '#059669' },
-                  { label: 'Nền tảng', value: `TT:${ttCount}/SP:${shCount}`, sub: 'TikTok / Shopee', color: '#D97706' },
-                ].map((s, i) => (
-                  <div key={i} className="p-4 rounded-2xl" style={{background:'#fff', border:'1px solid #F0F0F0', boxShadow:'0 1px 6px rgba(0,0,0,0.04)'}}>
-                    <p className="text-[10px] font-semibold uppercase tracking-widest mb-1" style={{color: s.color}}>{s.label}</p>
+                  {label:'Tổng ca',value:`${totalShiftsMonth}`,sub:'Ca đã lên lịch',color:'#4F46E5'},
+                  {label:'Lượt live',value:`${totalAssignments}`,sub:'Lượt gán streamer',color:'#0891B2'},
+                  {label:'Tổng giờ',value:fmtH(grandHours),sub:'Toàn bộ streamer',color:'#059669'},
+                  {label:'Chi phí live',value:grandCost>0?`${fmt(Math.round(grandCost))}đ`:'—',sub:'Lương streamer tháng này',color:'#D97706'},
+                ].map((s,i)=>(
+                  <div key={i} className="p-4 rounded-2xl" style={{background:'#fff',border:'1px solid #F0F0F0',boxShadow:'0 1px 6px rgba(0,0,0,0.04)'}}>
+                    <p className="text-[10px] font-semibold uppercase tracking-widest mb-1" style={{color:s.color}}>{s.label}</p>
                     <p className="text-[22px] font-bold tabular-nums tracking-tight" style={{color:'#171717'}}>{s.value}</p>
                     <p className="text-[11px] mt-0.5" style={{color:'#A3A3A3'}}>{s.sub}</p>
                   </div>
                 ))}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Shift distribution by day */}
-                <div className="bg-white rounded-2xl border p-5" style={{borderColor:'#E5E5E5'}}>
-                  <p className="text-[13px] font-semibold mb-4" style={{color:'#171717'}}>Phân bổ ca theo ngày</p>
-                  {totalShiftsMonth === 0 ? (
-                    <p className="text-[12px] text-center py-8" style={{color:'#D4D4D4'}}>Chưa có dữ liệu tháng này</p>
-                  ) : (
-                    <div className="flex items-end gap-2" style={{height: 100}}>
-                      {perDay.map((cnt, i) => (
-                        <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                          <div className="w-full rounded-t-lg transition-all"
-                            style={{height: `${Math.round((cnt / maxDay) * 72)}px`, background: cnt > 0 ? '#4F46E5' : '#F0F0F0', minHeight: 4}}/>
-                          <span className="text-[9px] font-semibold" style={{color:'#A3A3A3'}}>{dayNames[i]}</span>
-                          {cnt > 0 && <span className="text-[9px] font-bold" style={{color:'#4F46E5'}}>{cnt}</span>}
-                        </div>
-                      ))}
-                    </div>
-                  )}
+              {/* Daily table */}
+              <div className="bg-white rounded-2xl border overflow-hidden" style={{borderColor:'#E5E5E5'}}>
+                <div className="px-5 py-4 flex items-center justify-between" style={{borderBottom:'1px solid #F0F0F0'}}>
+                  <p className="text-[13px] font-semibold" style={{color:'#171717'}}>Chi tiết theo ngày</p>
+                  <span className="text-[11px] px-2 py-1 rounded-full" style={{background:'#F5F5F5',color:'#737373'}}>{dailyRows.length} ngày</span>
                 </div>
-
-                {/* Top streamers */}
-                <div className="bg-white rounded-2xl border p-5" style={{borderColor:'#E5E5E5'}}>
-                  <p className="text-[13px] font-semibold mb-4" style={{color:'#171717'}}>Top streamer</p>
-                  {topStreamers.length === 0 ? (
-                    <p className="text-[12px] text-center py-8" style={{color:'#D4D4D4'}}>Chưa có dữ liệu tháng này</p>
-                  ) : (
-                    <div className="space-y-2.5">
-                      {topStreamers.map(({ user: u, count }, i) => (
-                        <div key={u!.id} className="flex items-center gap-3">
-                          <span className="text-[11px] font-bold w-4 tabular-nums" style={{color: i === 0 ? '#D97706' : '#D4D4D4'}}>{i + 1}</span>
-                          <img src={u!.avatar} className="w-7 h-7 rounded-full object-cover flex-shrink-0" style={{border:'1.5px solid #F0F0F0'}} alt=""/>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[12px] font-semibold truncate" style={{color:'#171717'}}>{u!.name}</p>
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <div className="h-1.5 rounded-full" style={{width: `${Math.round((count / (topStreamers[0]?.count || 1)) * 60)}px`, background:'#4F46E5', minWidth:8}}/>
-                            <span className="text-[11px] font-bold tabular-nums" style={{color:'#4F46E5'}}>{count}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Platform bar */}
-              <div className="bg-white rounded-2xl border p-5" style={{borderColor:'#E5E5E5'}}>
-                <p className="text-[13px] font-semibold mb-3" style={{color:'#171717'}}>Tỷ lệ nền tảng</p>
-                <div className="flex rounded-full overflow-hidden" style={{height:10}}>
-                  <div style={{width:`${(ttCount/total)*100}%`, background:'#000'}}/>
-                  <div style={{width:`${(shCount/total)*100}%`, background:'#EE4D2D'}}/>
-                </div>
-                <div className="flex gap-4 mt-3">
-                  <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full" style={{background:'#000'}}/><span className="text-[11px]" style={{color:'#737373'}}>TikTok {ttCount} ca</span></div>
-                  <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full" style={{background:'#EE4D2D'}}/><span className="text-[11px]" style={{color:'#737373'}}>Shopee {shCount} ca</span></div>
-                </div>
+                {dailyRows.length===0 ? (
+                  <div className="py-14 text-center" style={{color:'#D4D4D4'}}>
+                    <BarChart3 size={28} className="mx-auto mb-3"/>
+                    <p className="text-[13px]" style={{color:'#A3A3A3'}}>Chưa có dữ liệu tháng {rMonth+1}/{rYear}</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr style={{background:'#FAFAFA',borderBottom:'1px solid #F0F0F0'}}>
+                          {['Ngày','Thứ','Số ca','Tổng giờ','Chi phí live','Biểu đồ chi phí'].map(h=>(
+                            <th key={h} className="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-widest whitespace-nowrap" style={{color:'#A3A3A3'}}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {dailyRows.map((row,i)=>{
+                          const isToday2 = new Date().toDateString()===row.date.toDateString();
+                          return (
+                            <tr key={i} style={{borderTop:i>0?'1px solid #F5F5F5':'none',background:isToday2?'#F8FBFF':'transparent'}}>
+                              <td className="px-4 py-3">
+                                <p className="text-[14px] font-bold tabular-nums" style={{color:isToday2?'#2563EB':'#171717'}}>{row.date.getDate()}/{row.date.getMonth()+1}</p>
+                                {isToday2&&<span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{background:'#EFF6FF',color:'#2563EB'}}>Hôm nay</span>}
+                              </td>
+                              <td className="px-4 py-3 text-[12px] font-medium" style={{color:'#737373'}}>{dayNames[row.date.getDay()]}</td>
+                              <td className="px-4 py-3">
+                                <span className="text-[13px] font-semibold tabular-nums px-2 py-1 rounded-lg" style={{background:'#F0F0FF',color:'#4F46E5'}}>{row.shifts}</span>
+                              </td>
+                              <td className="px-4 py-3 text-[13px] font-semibold tabular-nums" style={{color:'#171717'}}>{fmtH(row.hrs)}</td>
+                              <td className="px-4 py-3">
+                                <span className="text-[13px] font-bold tabular-nums" style={{color:row.cost>0?'#059669':'#D4D4D4'}}>
+                                  {row.cost>0?`${fmt(Math.round(row.cost))}đ`:'—'}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 w-40">
+                                <div className="flex items-center gap-2">
+                                  <div className="flex-1 h-2 rounded-full overflow-hidden" style={{background:'#F0F0F0'}}>
+                                    <div className="h-full rounded-full transition-all" style={{width:`${Math.round((row.cost/maxCost)*100)}%`,background:'#4F46E5'}}/>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                      <tfoot>
+                        <tr style={{borderTop:'2px solid #E5E5E5',background:'#FAFAFA'}}>
+                          <td colSpan={2} className="px-4 py-3"><span className="text-[12px] font-semibold" style={{color:'#737373'}}>Tổng tháng</span></td>
+                          <td className="px-4 py-3 text-[13px] font-bold" style={{color:'#4F46E5'}}>{totalShiftsMonth} ca</td>
+                          <td className="px-4 py-3 text-[13px] font-bold" style={{color:'#171717'}}>{fmtH(grandHours)}</td>
+                          <td className="px-4 py-3 text-[14px] font-bold" style={{color:grandCost>0?'#059669':'#D4D4D4'}}>{grandCost>0?`${fmt(Math.round(grandCost))}đ`:'—'}</td>
+                          <td/>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                )}
               </div>
             </div>
           );
@@ -2587,136 +2608,255 @@ export default function App() {
 
         {/* ─────── TIMEKEEPING VIEW (Manager/Admin) ─────── */}
         {viewMode === 'TIMEKEEPING' && (currentUser?.role === 'MANAGER' || currentUser?.role === 'SUPER_ADMIN') && (() => {
-          const parseH2 = (t: string) => { const m = t?.trim().match(/^(\d{1,2})(?:[:h](\d{1,2}))?/); return m ? parseInt(m[1]) + (m[2] ? parseInt(m[2]) : 0) / 60 : 0; };
-          const calcH2 = (shift: Shift, sa: { timeLabel?: string; overtimeMinutes?: number }) => {
+          const p = (t: string) => { const m = t?.trim().match(/^(\d{1,2})(?:[:h](\d{1,2}))?/); return m ? parseInt(m[1]) + (m[2] ? parseInt(m[2]) : 0) / 60 : 0; };
+          const ch = (shift: Shift, sa: { timeLabel?: string; overtimeMinutes?: number }) => {
             let base = 0;
-            if (sa.timeLabel) { const p = sa.timeLabel.split(/\s*-\s*/); if (p.length === 2) { const s = parseH2(p[0]); const e = parseH2(p[1]); base = e - s; if (base < 0) base += 24; } }
-            else { const s = parseH2(shift.startTime); const e = parseH2(shift.endTime); base = e - s; if (base < 0) base += 24; if (base === 0) base = 4; }
-            return base + (sa.overtimeMinutes || 0) / 60;
+            if (sa.timeLabel) { const pts = sa.timeLabel.split(/\s*-\s*/); if (pts.length===2){const s=p(pts[0]);const e=p(pts[1]);base=e-s;if(base<0)base+=24;} }
+            else { const s=p(shift.startTime);const e=p(shift.endTime);base=e-s;if(base<0)base+=24;if(base===0)base=4; }
+            return base + (sa.overtimeMinutes||0)/60;
           };
-          const getSD = (item: ScheduleItem): Date | null => {
-            const wm = item.weekId?.match(/^(\d{4})-(\d{2})-W(\d{1,2})$/);
-            if (!wm) return null;
-            const yr = parseInt(wm[1]), mo = parseInt(wm[2]) - 1, wk = parseInt(wm[3]);
-            const d1 = new Date(yr, mo, 1); const dow = d1.getDay() === 0 ? 6 : d1.getDay() - 1;
-            const mon1 = new Date(yr, mo, 1 - dow + (wk - 1) * 7);
-            return new Date(mon1.getTime() + item.dayIndex * 86400000);
+          const gd = (item: ScheduleItem): Date|null => {
+            const wm = item.weekId?.match(/^(\d{4})-(\d{2})-W(\d{1,2})$/); if (!wm) return null;
+            const yr=parseInt(wm[1]),mo=parseInt(wm[2])-1,wk=parseInt(wm[3]);
+            const d1=new Date(yr,mo,1);const dow=d1.getDay()===0?6:d1.getDay()-1;
+            const mon1=new Date(yr,mo,1-dow+(wk-1)*7);
+            return new Date(mon1.getTime()+item.dayIndex*86400000);
           };
-          const tkSched = schedule.filter(s => { const d = getSD(s); return d && d.getMonth() === timekeepingMonth - 1 && d.getFullYear() === timekeepingYear; });
-          const staffList = users.filter(u => u.role === 'STAFF' || u.role === 'OPERATIONS');
-          const loadTK = async () => {
+
+          // STAFF only (no OPERATIONS)
+          const staffList = users.filter(u => u.role === 'STAFF');
+          // Real-time: filter schedule for selected month
+          const tkSched = schedule.filter(s => { const d=gd(s); return d&&d.getMonth()===timekeepingMonth-1&&d.getFullYear()===timekeepingYear; });
+
+          const saveBonus = async (userId: string) => {
+            if (!activeBrandSlug) return;
+            setTimekeepingSaving(userId);
+            try { await api.upsertTimekeeping({ userId, brandId: activeBrandSlug, month: timekeepingMonth, year: timekeepingYear, bonusAmount: timekeepingDraft[userId]?.bonusAmount||0, note: timekeepingDraft[userId]?.note||'' }); }
+            finally { setTimekeepingSaving(null); }
+          };
+          const loadBonus = async () => {
             if (!activeBrandSlug) return;
             setTimekeepingLoading(true);
             const recs = await api.getTimekeeping(activeBrandSlug, timekeepingMonth, timekeepingYear);
             setTimekeepingRecords(recs);
-            const draft: Record<string, { bonusAmount: number; note: string }> = {};
-            recs.forEach(r => { draft[r.userId] = { bonusAmount: r.bonusAmount, note: r.note || '' }; });
+            const draft: Record<string,{bonusAmount:number;note:string}> = {};
+            recs.forEach(r => { draft[r.userId]={bonusAmount:r.bonusAmount,note:r.note||''}; });
             setTimekeepingDraft(draft); setTimekeepingLoading(false);
           };
-          const saveBonus = async (userId: string) => {
-            if (!activeBrandSlug) return;
-            setTimekeepingSaving(userId);
-            try { await api.upsertTimekeeping({ userId, brandId: activeBrandSlug, month: timekeepingMonth, year: timekeepingYear, bonusAmount: timekeepingDraft[userId]?.bonusAmount || 0, note: timekeepingDraft[userId]?.note || '' }); }
-            finally { setTimekeepingSaving(null); }
-          };
-          const fmt2 = (n: number) => n.toLocaleString('vi-VN');
-          const fmtH2 = (h: number) => h % 1 === 0 ? `${h}h` : `${h.toFixed(1)}h`;
-          const months2 = Array.from({ length: 12 }, (_, i) => i + 1);
-          const years2 = [new Date().getFullYear() - 1, new Date().getFullYear()];
+
+          const fmt = (n:number)=>n.toLocaleString('vi-VN');
+          const fmtH = (h:number)=>h%1===0?`${h}h`:`${h.toFixed(1)}h`;
+          const months2 = Array.from({length:12},(_,i)=>i+1);
+          const years2 = [new Date().getFullYear()-1, new Date().getFullYear()];
+          const dayNames = ['CN','T2','T3','T4','T5','T6','T7'];
+
+          // Per-staff summary (real-time)
+          const staffStats = staffList.map(u => {
+            let hrs=0; let otMin=0; let cnt=0;
+            const dayRows: Array<{date:Date;shiftName:string;hrs:number;otMin:number;salary:number}> = [];
+            tkSched.forEach(item => {
+              const sh = shifts.find(s=>s.id===item.shiftId); if (!sh) return;
+              const sa = item.streamerAssignments.find(a=>a.userId===u.id); if (!sa) return;
+              const h = ch(sh,sa); hrs+=h; otMin+=sa.overtimeMinutes||0; cnt++;
+              const d = gd(item);
+              if (d) dayRows.push({date:d,shiftName:sh.name,hrs:h,otMin:sa.overtimeMinutes||0,salary:h*(u.hourlyRate||0)});
+            });
+            dayRows.sort((a,b)=>a.date.getTime()-b.date.getTime());
+            const base = hrs*(u.hourlyRate||0);
+            const bonus = timekeepingRecords.find(r=>r.userId===u.id&&r.month===timekeepingMonth&&r.year===timekeepingYear);
+            const bonusAmt = timekeepingDraft[u.id]?.bonusAmount ?? bonus?.bonusAmount ?? 0;
+            const bonusNote = timekeepingDraft[u.id]?.note ?? bonus?.note ?? '';
+            return {u, hrs, otMin, cnt, base, bonusAmt, bonusNote, total:base+bonusAmt, dayRows};
+          });
+
+          const [tkTab, setTkTab] = React.useState<'summary'|'daily'>('summary');
+          const grandBase = staffStats.reduce((s,r)=>s+r.base,0);
+          const grandBonus = staffStats.reduce((s,r)=>s+r.bonusAmt,0);
+          const grandTotal = grandBase+grandBonus;
+
+          // Daily breakdown: group all staff shifts by date
+          const byDateTK: Record<string,{date:Date;items:Array<{user:User;shiftName:string;hrs:number;otMin:number;salary:number}>}> = {};
+          staffList.forEach(u => {
+            tkSched.forEach(item => {
+              const sh = shifts.find(s=>s.id===item.shiftId); if (!sh) return;
+              const sa = item.streamerAssignments.find(a=>a.userId===u.id); if (!sa) return;
+              const d = gd(item); if (!d) return;
+              const key = d.toISOString().slice(0,10);
+              if (!byDateTK[key]) byDateTK[key]={date:d,items:[]};
+              byDateTK[key].items.push({user:u,shiftName:sh.name,hrs:ch(sh,sa),otMin:sa.overtimeMinutes||0,salary:ch(sh,sa)*(u.hourlyRate||0)});
+            });
+          });
+          const dailyTKRows = Object.entries(byDateTK).sort(([a],[b])=>a.localeCompare(b)).map(([,v])=>v);
+
           return (
             <div className="space-y-5">
+              {/* Header */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <h3 className="text-[17px] font-semibold flex items-center gap-2" style={{color:'#171717'}}><CalendarCheck size={18} style={{color:'#4F46E5'}}/> Chấm công</h3>
-                  <p className="text-[12px] mt-0.5" style={{color:'#A3A3A3'}}>Tháng {timekeepingMonth}/{timekeepingYear} · Nhập tiền hỗ trợ rồi nhấn Lưu</p>
+                  <h3 className="text-[17px] font-semibold flex items-center gap-2" style={{color:'#171717'}}>
+                    <CalendarCheck size={18} style={{color:'#4F46E5'}}/> Chấm công
+                    <span className="text-[11px] font-normal px-2 py-0.5 rounded-full ml-1" style={{background:'#F0FDF4',color:'#059669',border:'1px solid #BBF7D0'}}>● Real-time</span>
+                  </h3>
+                  <p className="text-[12px] mt-0.5" style={{color:'#A3A3A3'}}>Tháng {timekeepingMonth}/{timekeepingYear} · Dữ liệu cập nhật liên tục theo lịch live</p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <select className="px-3 py-2 rounded-xl text-[13px] font-medium outline-none" style={{background:'#F5F5F5',border:'1px solid #E5E5E5'}} value={timekeepingMonth} onChange={e => setTimekeepingMonth(Number(e.target.value))}>
-                    {months2.map(m => <option key={m} value={m}>Tháng {m}</option>)}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <select className="px-3 py-2 rounded-xl text-[13px] font-medium outline-none" style={{background:'#F5F5F5',border:'1px solid #E5E5E5'}} value={timekeepingMonth} onChange={e=>setTimekeepingMonth(Number(e.target.value))}>
+                    {months2.map(m=><option key={m} value={m}>Tháng {m}</option>)}
                   </select>
-                  <select className="px-3 py-2 rounded-xl text-[13px] font-medium outline-none" style={{background:'#F5F5F5',border:'1px solid #E5E5E5'}} value={timekeepingYear} onChange={e => setTimekeepingYear(Number(e.target.value))}>
-                    {years2.map(y => <option key={y} value={y}>{y}</option>)}
+                  <select className="px-3 py-2 rounded-xl text-[13px] font-medium outline-none" style={{background:'#F5F5F5',border:'1px solid #E5E5E5'}} value={timekeepingYear} onChange={e=>setTimekeepingYear(Number(e.target.value))}>
+                    {years2.map(y=><option key={y} value={y}>{y}</option>)}
                   </select>
-                  <button onClick={loadTK} className="px-4 py-2 rounded-xl text-[13px] font-semibold flex items-center gap-1.5" style={{background:'#4F46E5',color:'#fff'}}>
-                    {timekeepingLoading ? <Loader2 size={13} className="animate-spin"/> : <RefreshCw size={13}/>} Tải
+                  <button onClick={loadBonus} className="px-3 py-2 rounded-xl text-[13px] font-semibold flex items-center gap-1.5" style={{background:'#F5F5F5',border:'1px solid #E5E5E5',color:'#4F46E5'}}>
+                    {timekeepingLoading?<Loader2 size={13} className="animate-spin"/>:<RefreshCw size={13}/>} Tải hỗ trợ
                   </button>
                 </div>
               </div>
-              <div className="bg-white rounded-2xl border overflow-hidden" style={{borderColor:'#E5E5E5'}}>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr style={{background:'#FAFAFA',borderBottom:'1px solid #F0F0F0'}}>
-                        {['Nhân sự','Số ca','Tổng giờ','OT','Lương cơ bản','Hỗ trợ','Ghi chú','Tổng nhận',''].map(h => (
-                          <th key={h} className="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-widest whitespace-nowrap" style={{color:'#A3A3A3'}}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {staffList.map((u, i) => {
-                        let hrs = 0; let otMin = 0; let cnt = 0;
-                        tkSched.forEach(item => {
-                          const sh = shifts.find(s => s.id === item.shiftId); if (!sh) return;
-                          const sa = item.streamerAssignments.find(a => a.userId === u.id);
-                          if (sa) { hrs += calcH2(sh, sa); otMin += sa.overtimeMinutes || 0; cnt++; }
-                          else if (item.opsUserId === u.id) { const s2 = parseH2(sh.startTime); const e2 = parseH2(sh.endTime); let d = e2-s2; if(d<0) d+=24; if(d===0) d=4; hrs+=d; cnt++; }
-                        });
-                        const base = hrs * (u.hourlyRate || 0);
-                        const draft = timekeepingDraft[u.id] || { bonusAmount: 0, note: '' };
-                        const total = base + draft.bonusAmount;
-                        return (
-                          <tr key={u.id} style={{borderTop: i > 0 ? '1px solid #F5F5F5' : 'none'}}>
-                            <td className="px-4 py-3">
-                              <div className="flex items-center gap-2.5">
-                                <img src={u.avatar} className="w-8 h-8 rounded-full object-cover flex-shrink-0" style={{border:'1.5px solid #F0F0F0'}} alt=""/>
-                                <div>
-                                  <p className="text-[13px] font-semibold" style={{color:'#171717'}}>{u.name}</p>
-                                  <p className="text-[10px]" style={{color:'#A3A3A3'}}>{(u.hourlyRate||0)>0?`${fmt2(u.hourlyRate!)}đ/h`:'Chưa thiết lập'}</p>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-4 py-3 text-[13px] font-semibold tabular-nums" style={{color:'#171717'}}>{cnt}</td>
-                            <td className="px-4 py-3 text-[13px] font-semibold tabular-nums" style={{color:'#171717'}}>{fmtH2(hrs)}</td>
-                            <td className="px-4 py-3">{otMin>0?<span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{background:'#FEF3C7',color:'#D97706'}}>+{otMin}ph</span>:<span style={{color:'#D4D4D4'}}>—</span>}</td>
-                            <td className="px-4 py-3 text-[13px] font-semibold tabular-nums" style={{color:base>0?'#171717':'#D4D4D4'}}>{base>0?`${fmt2(Math.round(base))}đ`:'—'}</td>
-                            <td className="px-4 py-3">
-                              <input type="number" min={0} step={10000} className="w-28 px-2.5 py-1.5 rounded-lg text-[13px] font-medium tabular-nums outline-none"
-                                style={{background:'#F5F5F5',border:'1px solid #E5E5E5',color:'#059669'}}
-                                value={draft.bonusAmount||''} placeholder="0"
-                                onChange={e => setTimekeepingDraft(prev => ({...prev,[u.id]:{...draft,bonusAmount:Number(e.target.value)}}))}
-                                onFocus={e=>{e.currentTarget.style.border='1px solid #059669';e.currentTarget.style.background='#fff';}}
-                                onBlur={e=>{e.currentTarget.style.border='1px solid #E5E5E5';e.currentTarget.style.background='#F5F5F5';}}/>
-                            </td>
-                            <td className="px-4 py-3">
-                              <input type="text" className="w-32 px-2.5 py-1.5 rounded-lg text-[12px] outline-none"
-                                style={{background:'#F5F5F5',border:'1px solid #E5E5E5',color:'#737373'}}
-                                value={draft.note||''} placeholder="Ghi chú..."
-                                onChange={e => setTimekeepingDraft(prev => ({...prev,[u.id]:{...draft,note:e.target.value}}))}
-                                onFocus={e=>{e.currentTarget.style.border='1px solid #4F46E5';e.currentTarget.style.background='#fff';}}
-                                onBlur={e=>{e.currentTarget.style.border='1px solid #E5E5E5';e.currentTarget.style.background='#F5F5F5';}}/>
-                            </td>
-                            <td className="px-4 py-3"><span className="text-[14px] font-bold tabular-nums" style={{color:total>0?'#059669':'#D4D4D4'}}>{total>0?`${fmt2(Math.round(total))}đ`:'—'}</span></td>
-                            <td className="px-4 py-3">
-                              <button onClick={()=>saveBonus(u.id)} disabled={timekeepingSaving===u.id}
-                                className="px-3 py-1.5 rounded-lg text-[11px] font-semibold flex items-center gap-1" style={{background:'#4F46E5',color:'#fff'}}>
-                                {timekeepingSaving===u.id?<Loader2 size={11} className="animate-spin"/>:<Save size={11}/>} Lưu
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                  {staffList.length===0&&<div className="py-12 text-center" style={{color:'#D4D4D4'}}>Chưa có nhân sự</div>}
-                </div>
+
+              {/* Grand total strip */}
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  {label:'Tổng lương cơ bản',value:grandBase>0?`${fmt(Math.round(grandBase))}đ`:'—',color:'#737373'},
+                  {label:'Tổng hỗ trợ',value:grandBonus>0?`+${fmt(grandBonus)}đ`:'—',color:'#059669'},
+                  {label:'Tổng chi lương',value:grandTotal>0?`${fmt(Math.round(grandTotal))}đ`:'—',color:'#D97706'},
+                ].map((s,i)=>(
+                  <div key={i} className="p-4 rounded-2xl" style={{background:'#fff',border:'1px solid #F0F0F0',boxShadow:'0 1px 6px rgba(0,0,0,0.04)'}}>
+                    <p className="text-[10px] font-semibold uppercase tracking-widest mb-1" style={{color:s.color}}>{s.label}</p>
+                    <p className="text-[20px] font-bold tabular-nums" style={{color:'#171717'}}>{s.value}</p>
+                  </div>
+                ))}
               </div>
+
+              {/* Tab switcher */}
+              <div className="flex gap-1 p-1 rounded-xl w-fit" style={{background:'#F5F5F5',border:'1px solid #E5E5E5'}}>
+                {[{key:'summary',label:'Tổng hợp nhân sự'},{key:'daily',label:'Theo từng ngày'}].map(t=>(
+                  <button key={t.key} onClick={()=>setTkTab(t.key as 'summary'|'daily')}
+                    className="px-4 py-2 rounded-lg text-[13px] font-semibold transition-all"
+                    style={tkTab===t.key?{background:'#fff',color:'#171717',boxShadow:'0 1px 3px rgba(0,0,0,0.08)'}:{color:'#A3A3A3'}}>
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* SUMMARY TAB */}
+              {tkTab==='summary' && (
+                <div className="bg-white rounded-2xl border overflow-hidden" style={{borderColor:'#E5E5E5'}}>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr style={{background:'#FAFAFA',borderBottom:'1px solid #F0F0F0'}}>
+                          {['Nhân sự','Số ca','Tổng giờ','OT','Lương cơ bản','Hỗ trợ (đ)','Ghi chú','Tổng nhận',''].map(h=>(
+                            <th key={h} className="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-widest whitespace-nowrap" style={{color:'#A3A3A3'}}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {staffStats.map((stat,i)=>{
+                          const draft = timekeepingDraft[stat.u.id]||{bonusAmount:stat.bonusAmt,note:stat.bonusNote};
+                          return (
+                            <tr key={stat.u.id} style={{borderTop:i>0?'1px solid #F5F5F5':'none'}}>
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-2.5">
+                                  <img src={stat.u.avatar} className="w-8 h-8 rounded-full object-cover flex-shrink-0" style={{border:'1.5px solid #F0F0F0'}} alt=""/>
+                                  <div>
+                                    <p className="text-[13px] font-semibold" style={{color:'#171717'}}>{stat.u.name}</p>
+                                    <p className="text-[10px]" style={{color:'#A3A3A3'}}>{(stat.u.hourlyRate||0)>0?`${fmt(stat.u.hourlyRate!)}đ/h`:'Chưa thiết lập'}</p>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 text-[13px] font-semibold tabular-nums" style={{color:'#171717'}}>{stat.cnt}</td>
+                              <td className="px-4 py-3 text-[13px] font-semibold tabular-nums" style={{color:'#171717'}}>{fmtH(stat.hrs)}</td>
+                              <td className="px-4 py-3">{stat.otMin>0?<span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{background:'#FEF3C7',color:'#D97706'}}>+{stat.otMin}ph</span>:<span style={{color:'#D4D4D4'}}>—</span>}</td>
+                              <td className="px-4 py-3 text-[13px] font-semibold tabular-nums" style={{color:stat.base>0?'#171717':'#D4D4D4'}}>{stat.base>0?`${fmt(Math.round(stat.base))}đ`:'—'}</td>
+                              <td className="px-4 py-3">
+                                <input type="number" min={0} step={10000} className="w-28 px-2.5 py-1.5 rounded-lg text-[13px] font-medium tabular-nums outline-none"
+                                  style={{background:'#F5F5F5',border:'1px solid #E5E5E5',color:'#059669'}}
+                                  value={draft.bonusAmount||''} placeholder="0"
+                                  onChange={e=>setTimekeepingDraft(prev=>({...prev,[stat.u.id]:{...draft,bonusAmount:Number(e.target.value)}}))}
+                                  onFocus={e=>{e.currentTarget.style.border='1px solid #059669';e.currentTarget.style.background='#fff';}}
+                                  onBlur={e=>{e.currentTarget.style.border='1px solid #E5E5E5';e.currentTarget.style.background='#F5F5F5';}}/>
+                              </td>
+                              <td className="px-4 py-3">
+                                <input type="text" className="w-32 px-2.5 py-1.5 rounded-lg text-[12px] outline-none"
+                                  style={{background:'#F5F5F5',border:'1px solid #E5E5E5',color:'#737373'}}
+                                  value={draft.note||''} placeholder="Ghi chú..."
+                                  onChange={e=>setTimekeepingDraft(prev=>({...prev,[stat.u.id]:{...draft,note:e.target.value}}))}
+                                  onFocus={e=>{e.currentTarget.style.border='1px solid #4F46E5';e.currentTarget.style.background='#fff';}}
+                                  onBlur={e=>{e.currentTarget.style.border='1px solid #E5E5E5';e.currentTarget.style.background='#F5F5F5';}}/>
+                              </td>
+                              <td className="px-4 py-3"><span className="text-[14px] font-bold tabular-nums" style={{color:stat.total>0?'#059669':'#D4D4D4'}}>{stat.total>0?`${fmt(Math.round(stat.total))}đ`:'—'}</span></td>
+                              <td className="px-4 py-3">
+                                <button onClick={()=>saveBonus(stat.u.id)} disabled={timekeepingSaving===stat.u.id}
+                                  className="px-3 py-1.5 rounded-lg text-[11px] font-semibold flex items-center gap-1 whitespace-nowrap" style={{background:'#4F46E5',color:'#fff'}}>
+                                  {timekeepingSaving===stat.u.id?<Loader2 size={11} className="animate-spin"/>:<Save size={11}/>} Lưu
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                    {staffList.length===0&&<div className="py-12 text-center" style={{color:'#D4D4D4'}}>Chưa có nhân sự mẫu live</div>}
+                  </div>
+                </div>
+              )}
+
+              {/* DAILY TAB */}
+              {tkTab==='daily' && (
+                <div className="space-y-3">
+                  {dailyTKRows.length===0 ? (
+                    <div className="bg-white rounded-2xl border py-14 text-center" style={{borderColor:'#E5E5E5',color:'#D4D4D4'}}>
+                      <CalendarCheck size={28} className="mx-auto mb-3"/>
+                      <p className="text-[13px]" style={{color:'#A3A3A3'}}>Chưa có ca live nào trong tháng {timekeepingMonth}/{timekeepingYear}</p>
+                    </div>
+                  ) : dailyTKRows.map((day,di)=>{
+                    const isToday2=new Date().toDateString()===day.date.toDateString();
+                    const dayTotal=day.items.reduce((s,r)=>s+r.salary,0);
+                    const dayHrs=day.items.reduce((s,r)=>s+r.hrs,0);
+                    return (
+                      <div key={di} className="bg-white rounded-2xl border overflow-hidden" style={{borderColor:isToday2?'#BFDBFE':'#E5E5E5',boxShadow:isToday2?'0 0 0 2px #DBEAFE':'none'}}>
+                        <div className="px-5 py-3 flex items-center justify-between" style={{background:isToday2?'#EFF6FF':'#FAFAFA',borderBottom:'1px solid #F0F0F0'}}>
+                          <div className="flex items-center gap-3">
+                            <div className="flex flex-col items-center w-10">
+                              <span className="text-[20px] font-bold tabular-nums leading-none" style={{color:isToday2?'#2563EB':'#171717'}}>{day.date.getDate()}</span>
+                              <span className="text-[9px] font-semibold uppercase tracking-wider" style={{color:isToday2?'#3B82F6':'#A3A3A3'}}>{dayNames[day.date.getDay()]}</span>
+                            </div>
+                            <div className="w-px h-8" style={{background:'#E5E5E5'}}/>
+                            <div>
+                              <p className="text-[12px] font-semibold" style={{color:'#171717'}}>{day.items.length} ca · {fmtH(dayHrs)}</p>
+                              <p className="text-[11px]" style={{color:'#A3A3A3'}}>{day.date.getDate()}/{day.date.getMonth()+1}/{day.date.getFullYear()}</p>
+                            </div>
+                          </div>
+                          {dayTotal>0&&<span className="text-[13px] font-bold tabular-nums" style={{color:'#059669'}}>{fmt(Math.round(dayTotal))}đ</span>}
+                        </div>
+                        <div className="divide-y" style={{borderColor:'#F5F5F5'}}>
+                          {day.items.map((item,ii)=>(
+                            <div key={ii} className="px-5 py-3 flex items-center gap-3">
+                              <img src={item.user.avatar} className="w-7 h-7 rounded-full object-cover flex-shrink-0" style={{border:'1.5px solid #F0F0F0'}} alt=""/>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[13px] font-semibold truncate" style={{color:'#171717'}}>{item.user.name}</p>
+                                <p className="text-[11px]" style={{color:'#A3A3A3'}}>{item.shiftName}</p>
+                              </div>
+                              <div className="text-right flex-shrink-0">
+                                <p className="text-[12px] font-semibold" style={{color:'#171717'}}>{fmtH(item.hrs)}{item.otMin>0&&<span className="ml-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{background:'#FEF3C7',color:'#D97706'}}>+{item.otMin}ph</span>}</p>
+                                <p className="text-[11px] font-bold tabular-nums" style={{color:item.salary>0?'#059669':'#D4D4D4'}}>{item.salary>0?`${fmt(Math.round(item.salary))}đ`:'—'}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
               <div className="flex items-start gap-2 p-3 rounded-xl" style={{background:'#EFF6FF',border:'1px solid #BFDBFE'}}>
                 <Info size={14} style={{color:'#2563EB',marginTop:1,flexShrink:0}}/>
-                <p className="text-[11px] leading-relaxed" style={{color:'#1D4ED8'}}>Nhấn <strong>"Tải"</strong> để xem dữ liệu đã lưu. Tiền hỗ trợ sẽ hiển thị trong trang <strong>"Lương của tôi"</strong> của nhân sự.</p>
+                <p className="text-[11px] leading-relaxed" style={{color:'#1D4ED8'}}>Dữ liệu giờ live cập nhật <strong>real-time</strong> theo lịch. Nhấn <strong>"Tải hỗ trợ"</strong> để nạp tiền hỗ trợ đã lưu cho tháng đã chọn. Nhân sự sẽ thấy tiền hỗ trợ trong trang <strong>"Lương của tôi"</strong>.</p>
               </div>
             </div>
           );
         })()}
+
 
         {/* ─────── MY_SALARY VIEW (Staff) ─────── */}
         {viewMode === 'MY_SALARY' && currentUser?.role === 'STAFF' && (() => {
