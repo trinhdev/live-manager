@@ -2456,9 +2456,9 @@ export default function App() {
                         <div className="flex items-center gap-1.5">
                           {(u.platforms || ['tiktok']).map(p => <PlatformBadge key={p} platform={p} size="sm" />)}
                         </div>
-                        {u.role === 'STAFF' && (u.hourlyRate||0)>0 ? (
+                        {u.role === 'STAFF' && currentUser?.role !== 'OPERATIONS' && (u.hourlyRate||0)>0 ? (
                           <span className="text-[11px] font-bold tabular-nums" style={{color:'#059669'}}>{u.hourlyRate!.toLocaleString()}đ/h</span>
-                        ) : u.role === 'STAFF' ? (
+                        ) : u.role === 'STAFF' && currentUser?.role !== 'OPERATIONS' ? (
                           <span className="text-[10px]" style={{color:'#D4D4D4'}}>Chưa cài lương</span>
                         ) : null}
                       </div>
