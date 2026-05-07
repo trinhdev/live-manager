@@ -3097,18 +3097,16 @@ export default function App() {
                   </button>
                 </div>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 {[
                   {label:'Số ca',value:`${rows.length} ca`,color:'#4F46E5'},
                   {label:'Tổng giờ',value:fmtHs(totalH),sub:totalOT>0?`+${totalOT}ph OT`:undefined,color:'#0891B2'},
-                  {label:'Lương cơ bản',value:(me.hourlyRate||0)>0?`${fmts(Math.round(baseSal))}đ`:'—',color:'#737373'},
-                  {label:'Tiền hỗ trợ',value:bonusAmt>0?`+${fmts(bonusAmt)}đ`:'—',sub:bonus?.note||undefined,color:'#059669'},
-                  {label:'Tổng nhận',value:totalSal>0?`${fmts(Math.round(totalSal))}đ`:'—',color:'#D97706'},
+                  {label:'Lương cơ bản',value:(me.hourlyRate||0)>0?`${fmts(Math.round(baseSal))}đ`:'—',color:'#059669'},
                 ].map((s,i)=>(
-                  <div key={i} className="p-4 rounded-2xl" style={{background:'#fff',border:'1px solid #F0F0F0',boxShadow:'0 1px 6px rgba(0,0,0,0.04)'}}>
-                    <p className="text-[10px] font-semibold uppercase tracking-widest" style={{color:s.color}}>{s.label}</p>
-                    <p className="text-[18px] font-bold tabular-nums mt-1" style={{color:'#171717'}}>{s.value}</p>
-                    {s.sub&&<p className="text-[10px] mt-0.5 truncate" style={{color:s.color}}>{s.sub}</p>}
+                  <div key={i} className="p-3 rounded-2xl text-center" style={{background:'#fff',border:'1px solid #F0F0F0',boxShadow:'0 1px 4px rgba(0,0,0,0.03)'}}>
+                    <p className="text-[18px] font-bold tabular-nums" style={{color:s.color}}>{s.value}</p>
+                    <p className="text-[9px] font-semibold uppercase tracking-widest" style={{color:'#A3A3A3'}}>{s.label}</p>
+                    {s.sub&&<p className="text-[9px] mt-0.5" style={{color:s.color}}>{s.sub}</p>}
                   </div>
                 ))}
               </div>
@@ -3161,16 +3159,7 @@ export default function App() {
                   </div>
                 )}
               </div>
-              {bonusAmt>0&&(
-                <div className="flex items-center gap-3 p-4 rounded-2xl" style={{background:'linear-gradient(135deg,#F0FDF4,#DCFCE7)',border:'1.5px solid #BBF7D0'}}>
-                  <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{background:'#059669'}}><TrendingUp size={15} color="#fff"/></div>
-                  <div>
-                    <p className="text-[13px] font-semibold" style={{color:'#065F46'}}>Tiền hỗ trợ tháng {timekeepingMonth}: +{fmts(bonusAmt)}đ</p>
-                    {bonus?.note&&<p className="text-[11px] mt-0.5" style={{color:'#6EE7B7'}}>"{bonus.note}"</p>}
-                  </div>
-                  <p className="ml-auto text-[16px] font-bold tabular-nums" style={{color:'#059669'}}>{fmts(Math.round(totalSal))}đ</p>
-                </div>
-              )}
+
             </div>
           );
         })()}
@@ -3471,66 +3460,66 @@ export default function App() {
             </div>
           </div>
 
-          {/* ── Vai trò ── */}
-          <div className="space-y-2 mb-5">
-            <p className="text-[10px] font-semibold uppercase tracking-widest" style={{color:'#A3A3A3'}}>Vai trò</p>
-            <div className="grid grid-cols-3 gap-2">
-              {([
-                { value: 'STAFF', label: 'Mẫu Live', icon: <Video size={14}/>, color: '#4F46E5', bg: '#EEF2FF' },
-                { value: 'OPERATIONS', label: 'Kỹ thuật', icon: <Wrench size={14}/>, color: '#D97706', bg: '#FEF3C7' },
-                { value: 'MANAGER', label: 'Quản lý', icon: <Shield size={14}/>, color: '#059669', bg: '#DCFCE7' },
-              ] as const).map(({ value, label, icon, color, bg }) => {
-                const active = userFormData.role === value;
-                return (
-                  <button
-                    key={value}
-                    onClick={() => setUserFormData({...userFormData, role: value as Role})}
-                    className="flex flex-col items-center gap-1.5 py-3 rounded-2xl transition-all"
-                    style={{
-                      background: active ? bg : '#F8F8F8',
-                      border: active ? `2px solid ${color}` : '2px solid transparent',
-                      color: active ? color : '#A3A3A3',
-                    }}
-                  >
-                    {icon}
-                    <span className="text-[11px] font-semibold">{label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* ── Rank (chỉ khi STAFF) ── */}
-          {userFormData.role === 'STAFF' && (
-            <div className="space-y-2 mb-5">
-              <p className="text-[10px] font-semibold uppercase tracking-widest" style={{color:'#A3A3A3'}}>Rank hiệu suất</p>
-              <div className="grid grid-cols-4 gap-2">
+          {/* ── Vai trò & Rank ── */}
+          <div className="flex gap-4 mb-5 flex-wrap">
+            <div className="flex-1 min-w-[180px] space-y-2">
+              <p className="text-[10px] font-semibold uppercase tracking-widest" style={{color:'#A3A3A3'}}>Vai trò</p>
+              <div className="grid grid-cols-3 gap-1.5">
                 {([
-                  { r: 'S', label: 'Super', color: '#9333EA', bg: '#F5F3FF' },
-                  { r: 'A', label: 'Pro', color: '#2563EB', bg: '#EFF6FF' },
-                  { r: 'B', label: 'Good', color: '#0891B2', bg: '#ECFEFF' },
-                  { r: 'C', label: 'New', color: '#737373', bg: '#F5F5F5' },
-                ] as const).map(({ r, label, color, bg }) => {
-                  const active = userFormData.rank === r;
+                  { value: 'STAFF', label: 'Mẫu Live', icon: <Video size={13}/>, color: '#4F46E5', bg: '#EEF2FF' },
+                  { value: 'OPERATIONS', label: 'Kỹ thuật', icon: <Wrench size={13}/>, color: '#D97706', bg: '#FEF3C7' },
+                  { value: 'MANAGER', label: 'Quản lý', icon: <Shield size={13}/>, color: '#059669', bg: '#DCFCE7' },
+                ] as const).map(({ value, label, icon, color, bg }) => {
+                  const active = userFormData.role === value;
                   return (
                     <button
-                      key={r}
-                      onClick={() => setUserFormData({...userFormData, rank: r as Rank})}
-                      className="flex flex-col items-center gap-1 py-3 rounded-2xl transition-all"
+                      key={value}
+                      onClick={() => setUserFormData({...userFormData, role: value as Role})}
+                      className="flex flex-col items-center gap-1 py-2.5 rounded-xl transition-all"
                       style={{
                         background: active ? bg : '#F8F8F8',
                         border: active ? `2px solid ${color}` : '2px solid transparent',
-                        color: active ? color : '#C3C3C3',
+                        color: active ? color : '#A3A3A3',
                       }}
                     >
-                      <span className="text-[18px] font-black">{r}</span>
-                      <span className="text-[9px] font-semibold uppercase tracking-wide">{label}</span>
+                      {icon}
+                      <span className="text-[10px] font-semibold">{label}</span>
                     </button>
                   );
                 })}
               </div>
             </div>
-          )}
+            {userFormData.role === 'STAFF' && (
+              <div className="flex-1 min-w-[180px] space-y-2">
+                <p className="text-[10px] font-semibold uppercase tracking-widest" style={{color:'#A3A3A3'}}>Rank</p>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {([
+                    { r: 'S', label: 'Super', color: '#9333EA', bg: '#F5F3FF' },
+                    { r: 'A', label: 'Pro', color: '#2563EB', bg: '#EFF6FF' },
+                    { r: 'B', label: 'Good', color: '#0891B2', bg: '#ECFEFF' },
+                    { r: 'C', label: 'New', color: '#737373', bg: '#F5F5F5' },
+                  ] as const).map(({ r, label, color, bg }) => {
+                    const active = userFormData.rank === r;
+                    return (
+                      <button
+                        key={r}
+                        onClick={() => setUserFormData({...userFormData, rank: r as Rank})}
+                        className="flex flex-col items-center gap-0.5 py-2.5 rounded-xl transition-all"
+                        style={{
+                          background: active ? bg : '#F8F8F8',
+                          border: active ? `2px solid ${color}` : '2px solid transparent',
+                          color: active ? color : '#C3C3C3',
+                        }}
+                      >
+                        <span className="text-[16px] font-black leading-none">{r}</span>
+                        <span className="text-[8px] font-semibold uppercase tracking-wide">{label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* ── Nền tảng live ── */}
           <div className="space-y-2 mb-5">
