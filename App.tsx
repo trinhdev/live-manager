@@ -2436,12 +2436,15 @@ export default function App() {
                             {u.role === 'STAFF' && <RankBadge rank={u.rank} size="sm" />}
                           </div>
                         </div>
-                        {/* Actions — always visible */}
                         <div className="flex items-center gap-1 flex-shrink-0">
-                          <button onClick={() => handleOpenUserModal(u)} className="w-8 h-8 rounded-xl flex items-center justify-center transition-all hover:bg-slate-100" style={{color:'#737373'}} title="Sửa">
-                            <Edit2 size={14}/>
-                          </button>
-                          {(currentUser?.role === 'MANAGER' || currentUser?.role === 'SUPER_ADMIN') && (
+                          {/* Edit — OPERATIONS cannot edit MANAGER/SUPER_ADMIN */}
+                          {!(currentUser?.role === 'OPERATIONS' && (u.role === 'MANAGER' || u.role === 'SUPER_ADMIN')) && (
+                            <button onClick={() => handleOpenUserModal(u)} className="w-8 h-8 rounded-xl flex items-center justify-center transition-all hover:bg-slate-100" style={{color:'#737373'}} title="Sửa">
+                              <Edit2 size={14}/>
+                            </button>
+                          )}
+                          {/* Delete — MANAGER/ADMIN always, OPERATIONS only for non-admin */}
+                          {((currentUser?.role === 'MANAGER' || currentUser?.role === 'SUPER_ADMIN') || (currentUser?.role === 'OPERATIONS' && u.role !== 'MANAGER' && u.role !== 'SUPER_ADMIN')) && (
                             <button onClick={() => handleDeleteUser(u.id)} className="w-8 h-8 rounded-xl flex items-center justify-center transition-all hover:bg-red-50" style={{color:'#D4D4D4'}} title="Xóa">
                               <Trash2 size={14}/>
                             </button>
@@ -2465,7 +2468,7 @@ export default function App() {
               )}
 
               {/* Add button (floating on mobile) */}
-              {(currentUser?.role === 'MANAGER' || currentUser?.role === 'SUPER_ADMIN') && (
+              {(currentUser?.role === 'MANAGER' || currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'OPERATIONS') && (
                 <button
                   onClick={() => handleOpenUserModal()}
                   className="fixed sm:static bottom-20 right-4 sm:bottom-auto sm:right-auto w-12 h-12 sm:w-auto sm:h-auto sm:px-4 sm:py-2.5 rounded-full sm:rounded-xl flex items-center justify-center gap-2 z-40 sm:z-auto"
