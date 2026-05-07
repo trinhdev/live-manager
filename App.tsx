@@ -3908,7 +3908,10 @@ export default function App() {
                     {isManager && (
                       <SheetItem icon={<Bell size={18}/>} label={`Thông báo${unreadCount > 0 ? ` (${unreadCount})` : ''}`} onClick={() => { setIsNotifPanelOpen(true); setIsMoreMenuOpen(false); }}/>
                     )}
-                    {(isOps) && (
+                    {isStaff && (
+                      <SheetItem icon={<Bell size={18}/>} label={`Thông báo${unreadCount > 0 ? ` (${unreadCount})` : ''}`} onClick={() => { setIsNotifPanelOpen(true); setIsMoreMenuOpen(false); }}/>
+                    )}
+                    {isOps && (
                       <SheetItem icon={<Bell size={18}/>} label={`Thông báo${unreadCount > 0 ? ` (${unreadCount})` : ''}`} onClick={() => { setIsNotifPanelOpen(true); setIsMoreMenuOpen(false); }}/>
                     )}
                   </div>
@@ -3936,11 +3939,11 @@ export default function App() {
 
                 {/* ── STAFF ── */}
                 {isStaff && (<>
-                  <Tab icon={<Calendar size={21} strokeWidth={viewMode==='DASHBOARD'?2:1.5}/>} label="Lịch" active={viewMode==='DASHBOARD'} onClick={()=>setViewMode('DASHBOARD')}/>
-                  <Tab icon={<CheckCircle2 size={21} strokeWidth={viewMode==='MY_AVAILABILITY'?2:1.5}/>} label="Đăng ký" active={viewMode==='MY_AVAILABILITY'} onClick={()=>setViewMode('MY_AVAILABILITY')}/>
-                  <Tab icon={<TrendingUp size={21} strokeWidth={viewMode==='MY_SALARY'?2:1.5}/>} label="Lương" active={viewMode==='MY_SALARY'} onClick={()=>setViewMode('MY_SALARY')}/>
-                  <Tab icon={<Inbox size={21} strokeWidth={viewMode==='REQUESTS'?2:1.5}/>} label="Yêu cầu" active={viewMode==='REQUESTS'} onClick={()=>setViewMode('REQUESTS')} badge={pendingCount}/>
-                  <Tab icon={<Bell size={21} strokeWidth={isNotifPanelOpen?2:1.5}/>} label="Thông báo" active={isNotifPanelOpen} onClick={()=>setIsNotifPanelOpen(true)} badge={unreadCount}/>
+                  <Tab icon={<Calendar size={21} strokeWidth={viewMode==='DASHBOARD'&&!isMoreMenuOpen?2:1.5}/>} label="Lịch" active={viewMode==='DASHBOARD'&&!isMoreMenuOpen} onClick={()=>{setViewMode('DASHBOARD');setIsMoreMenuOpen(false);}}/>
+                  <Tab icon={<CheckCircle2 size={21} strokeWidth={viewMode==='MY_AVAILABILITY'&&!isMoreMenuOpen?2:1.5}/>} label="Đăng ký" active={viewMode==='MY_AVAILABILITY'&&!isMoreMenuOpen} onClick={()=>{setViewMode('MY_AVAILABILITY');setIsMoreMenuOpen(false);}}/>
+                  <Tab icon={<TrendingUp size={21} strokeWidth={viewMode==='MY_SALARY'&&!isMoreMenuOpen?2:1.5}/>} label="Lương" active={viewMode==='MY_SALARY'&&!isMoreMenuOpen} onClick={()=>{setViewMode('MY_SALARY');setIsMoreMenuOpen(false);}}/>
+                  <Tab icon={<Inbox size={21} strokeWidth={viewMode==='REQUESTS'&&!isMoreMenuOpen?2:1.5}/>} label="Yêu cầu" active={viewMode==='REQUESTS'&&!isMoreMenuOpen} onClick={()=>{setViewMode('REQUESTS');setIsMoreMenuOpen(false);}} badge={pendingCount}/>
+                  <Tab icon={<MoreHorizontal size={21} strokeWidth={isMoreMenuOpen?2:1.5}/>} label="Thêm" active={isMoreMenuOpen} onClick={()=>setIsMoreMenuOpen(!isMoreMenuOpen)}/>
                 </>)}
 
                 {/* ── OPERATIONS ── */}
