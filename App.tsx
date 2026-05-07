@@ -402,6 +402,8 @@ export default function App() {
   const [timekeepingTab, setTimekeepingTab] = useState<'summary'|'daily'>('summary');
   const [timekeepingDetailUserId, setTimekeepingDetailUserId] = useState<string | null>(null);
   const [expandedTKDay, setExpandedTKDay] = useState<string | null>(null);
+  const [staffSearchQuery, setStaffSearchQuery] = useState('');
+  const [staffRoleFilter, setStaffRoleFilter] = useState('ALL');
 
 
   const [editingSlot, setEditingSlot] = useState<{day: number, shiftId: string} | null>(null);
@@ -2343,99 +2345,140 @@ export default function App() {
           );
         })()}
 
-        {viewMode === 'STAFF_MANAGEMENT' && currentUser && (
-          <div className="bg-white rounded-2xl border overflow-hidden" style={{borderColor:'#E5E5E5'}}>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr style={{background:'#FAFAFA',borderBottom:'1px solid #F0F0F0'}}>
-                    <th className="p-4 text-left text-[10px] font-semibold uppercase tracking-widest" style={{color:'#A3A3A3'}}>Nhân sự</th>
-                    <th className="p-4 text-left text-[10px] font-semibold uppercase tracking-widest" style={{color:'#A3A3A3'}}>Vai trò & Rank</th>
-                    <th className="p-4 text-left text-[10px] font-semibold uppercase tracking-widest hidden sm:table-cell" style={{color:'#A3A3A3'}}>Nền tảng</th>
-                    <th className="p-4 text-left text-[10px] font-semibold uppercase tracking-widest hidden sm:table-cell" style={{color:'#A3A3A3'}}>Doanh thu</th>
-                    <th className="p-4 text-right text-[10px] font-semibold uppercase tracking-widest" style={{color:'#A3A3A3'}}>Hành động</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((u, idx) => (
-                    <tr key={u.id} className="group transition-colors" style={{borderTop: idx > 0 ? '1px solid #F5F5F5' : 'none'}}>
-                      <td className="p-4">
-                        <div className="flex items-center gap-3">
-                          <img src={u.avatar} className="w-9 h-9 rounded-full object-cover flex-shrink-0" style={{
-                            border: u.isAvailabilitySubmitted ? '2px solid #22C55E' : '2px solid #F5F5F5',
-                            boxShadow: u.isAvailabilitySubmitted ? '0 0 0 3px #DCFCE7' : 'none'
-                          }} alt="" title={u.isAvailabilitySubmitted ? 'Đã nộp lịch' : 'Chưa nộp lịch'}/>
-                          <div className="min-w-0">
-                            <p className="font-semibold text-[13.5px] truncate" style={{color:'#171717'}}>{u.name}</p>
-                            <p className="text-[11px]" style={{color:'#A3A3A3'}}>{u.zaloPhone || 'N/A'}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex flex-col gap-1.5 items-start">
-                          <RoleBadge role={u.role} />
-                          {u.role === 'STAFF' && <RankBadge rank={u.rank} size="sm" />}
-                        </div>
-                      </td>
-                      <td className="p-4 hidden sm:table-cell">
-                        <div className="flex gap-1 flex-wrap">
-                          {(u.platforms || ['tiktok']).map(p => (
-                            <PlatformBadge key={p} platform={p} size="sm" />
-                          ))}
-                        </div>
-                      </td>
-                      <td className="p-4 hidden sm:table-cell align-middle">
-                        {u.role === 'STAFF' ? (
-                          <div className="flex flex-col">
-                            <span className="text-[13px] font-semibold tabular-nums" style={{color:'#171717'}}>{(u.revenue || 0).toLocaleString()}đ</span>
-                            <div className="progress-bar w-28 mt-1.5">
-                              <div 
-                                className="progress-fill"
-                                style={{ width: `${Math.min(100, (u.revenue || 0) / 1500000)}%` }}
-                              />
-                            </div>
-                          </div>
-                        ) : <span style={{color:'#D4D4D4'}} className="text-[12px]">N/A</span>}
-                      </td>
-                      <td className="p-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button 
-                            onClick={() => handleOpenUserModal(u)}
-                            className="p-2 rounded-lg transition-all hover:bg-[#F5F5F5]"
-                            style={{color:'#737373'}}
-                            title="Chỉnh sửa"
-                          >
-                            <Edit2 size={15}/>
-                          </button>
+        {viewMode === 'STAFF_MANAGEMENT' && currentUser && (() => {
+          const searchQ = staffSearchQuery;
+          const setSearchQ = setStaffSearchQuery;
+          const roleFilter = staffRoleFilter;
+          const setRoleF = setStaffRoleFilter;
+          const filtered = users.filter(u => {
+            if (roleFilter !== 'ALL' && u.role !== roleFilter) return false;
+            if (searchQ && !u.name.toLowerCase().includes(searchQ.toLowerCase()) && !u.id.toLowerCase().includes(searchQ.toLowerCase())) return false;
+            return true;
+          });
+          const staffCount = users.filter(u=>u.role==='STAFF').length;
+          const opsCount = users.filter(u=>u.role==='OPERATIONS').length;
+          const mgrCount = users.filter(u=>u.role==='MANAGER'||u.role==='SUPER_ADMIN').length;
+
+          return (
+            <div className="space-y-4">
+              {/* KPI strip */}
+              <div className="grid grid-cols-4 gap-2">
+                {[
+                  {label:'Tổng',value:`${users.length}`,color:'#171717'},
+                  {label:'Mẫu live',value:`${staffCount}`,color:'#4F46E5'},
+                  {label:'Kỹ thuật',value:`${opsCount}`,color:'#D97706'},
+                  {label:'Quản lý',value:`${mgrCount}`,color:'#059669'},
+                ].map((s,i)=>(
+                  <div key={i} className="py-2 px-2 rounded-xl text-center" style={{background:'#fff',border:'1px solid #F0F0F0'}}>
+                    <p className="text-[16px] font-bold tabular-nums" style={{color:s.color}}>{s.value}</p>
+                    <p className="text-[8px] font-semibold uppercase tracking-widest" style={{color:'#A3A3A3'}}>{s.label}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Search + Filter */}
+              <div className="flex flex-col sm:flex-row gap-2">
+                <div className="flex-1 relative">
+                  <input
+                    type="text" placeholder="Tìm tên hoặc username..."
+                    className="w-full pl-9 pr-3 py-2.5 rounded-xl text-[13px] outline-none"
+                    style={{background:'#fff',border:'1px solid #E5E5E5',color:'#171717'}}
+                    value={searchQ} onChange={e=>setSearchQ(e.target.value)}
+                  />
+                  <svg className="absolute left-3 top-1/2 -translate-y-1/2" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A3A3A3" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                </div>
+                <div className="flex gap-1 flex-wrap">
+                  {[
+                    {key:'ALL',label:'Tất cả'},
+                    {key:'STAFF',label:'Mẫu live',color:'#4F46E5'},
+                    {key:'OPERATIONS',label:'Kỹ thuật',color:'#D97706'},
+                    {key:'MANAGER',label:'Quản lý',color:'#059669'},
+                  ].map(f=>(
+                    <button key={f.key} onClick={()=>setRoleF(f.key)}
+                      className="px-3 py-2 rounded-xl text-[11px] font-semibold transition-all"
+                      style={roleFilter===f.key
+                        ? {background:f.color||'#171717',color:'#fff'}
+                        : {background:'#F5F5F5',color:'#737373'}
+                      }>{f.label}</button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Card grid */}
+              {filtered.length === 0 ? (
+                <div className="bg-white rounded-2xl border py-14 text-center" style={{borderColor:'#E5E5E5'}}>
+                  <Users size={28} className="mx-auto mb-3" style={{color:'#D4D4D4'}}/>
+                  <p className="text-[13px]" style={{color:'#A3A3A3'}}>Không tìm thấy nhân sự</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {filtered.map(u => (
+                    <div key={u.id} className="bg-white rounded-2xl border p-4 transition-all hover:shadow-md" style={{borderColor:'#E5E5E5'}}>
+                      {/* Top: Avatar + Info + Actions */}
+                      <div className="flex items-start gap-3">
+                        <div className="relative flex-shrink-0">
+                          <img src={u.avatar} className="w-11 h-11 rounded-2xl object-cover" style={{
+                            border: u.isAvailabilitySubmitted ? '2px solid #22C55E' : '2px solid #F0F0F0',
+                          }} alt=""/>
                           {u.isAvailabilitySubmitted && (
-                            <button 
-                              onClick={() => handleResetAvailability(u.id)}
-                              className="p-2 rounded-lg transition-all hover:bg-blue-50"
-                              style={{color:'#3B82F6'}}
-                              title="Mở lại form đăng ký"
-                            >
-                              <RefreshCw size={15}/>
+                            <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full flex items-center justify-center" style={{background:'#22C55E',border:'2px solid #fff'}}>
+                              <svg width="6" height="6" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[14px] font-bold truncate" style={{color:'#171717'}}>{u.name}</p>
+                          <p className="text-[11px] font-mono truncate" style={{color:'#A3A3A3'}}>@{u.id}</p>
+                          <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                            <RoleBadge role={u.role} />
+                            {u.role === 'STAFF' && <RankBadge rank={u.rank} size="sm" />}
+                          </div>
+                        </div>
+                        {/* Actions — always visible */}
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <button onClick={() => handleOpenUserModal(u)} className="w-8 h-8 rounded-xl flex items-center justify-center transition-all hover:bg-slate-100" style={{color:'#737373'}} title="Sửa">
+                            <Edit2 size={14}/>
+                          </button>
+                          {(currentUser?.role === 'MANAGER' || currentUser?.role === 'SUPER_ADMIN') && (
+                            <button onClick={() => handleDeleteUser(u.id)} className="w-8 h-8 rounded-xl flex items-center justify-center transition-all hover:bg-red-50" style={{color:'#D4D4D4'}} title="Xóa">
+                              <Trash2 size={14}/>
                             </button>
                           )}
-                          {(currentUser?.role === 'MANAGER' || currentUser?.role === 'SUPER_ADMIN') && (
-                          <button 
-                            onClick={() => handleDeleteUser(u.id)}
-                            className="p-2 rounded-lg transition-all hover:bg-red-50"
-                            style={{color:'#D4D4D4'}}
-                            title="Xóa"
-                          >
-                            <Trash2 size={15}/>
-                          </button>
-                          )}
                         </div>
-                      </td>
-                    </tr>
+                      </div>
+                      {/* Bottom: Metadata */}
+                      <div className="flex items-center justify-between mt-3 pt-3" style={{borderTop:'1px solid #F5F5F5'}}>
+                        <div className="flex items-center gap-1.5">
+                          {(u.platforms || ['tiktok']).map(p => <PlatformBadge key={p} platform={p} size="sm" />)}
+                        </div>
+                        {u.role === 'STAFF' && (u.hourlyRate||0)>0 ? (
+                          <span className="text-[11px] font-bold tabular-nums" style={{color:'#059669'}}>{u.hourlyRate!.toLocaleString()}đ/h</span>
+                        ) : u.role === 'STAFF' ? (
+                          <span className="text-[10px]" style={{color:'#D4D4D4'}}>Chưa cài lương</span>
+                        ) : null}
+                      </div>
+                    </div>
                   ))}
-                </tbody>
-              </table>
+                </div>
+              )}
+
+              {/* Add button (floating on mobile) */}
+              {(currentUser?.role === 'MANAGER' || currentUser?.role === 'SUPER_ADMIN') && (
+                <button
+                  onClick={() => handleOpenUserModal()}
+                  className="fixed sm:static bottom-20 right-4 sm:bottom-auto sm:right-auto w-12 h-12 sm:w-auto sm:h-auto sm:px-4 sm:py-2.5 rounded-full sm:rounded-xl flex items-center justify-center gap-2 z-40 sm:z-auto"
+                  style={{background:'#4F46E5',color:'#fff',boxShadow:'0 4px 20px rgba(79,70,229,0.35)'}}
+                >
+                  <UserPlus size={18}/>
+                  <span className="hidden sm:inline text-[13px] font-semibold">Thêm nhân sự</span>
+                </button>
+              )}
             </div>
-          </div>
-        )}
+          );
+        })()}
+
+
+
 
         {viewMode === 'SETTINGS' && (currentUser?.role === 'MANAGER' || currentUser?.role === 'OPERATIONS') && (
           <div className="space-y-6">
