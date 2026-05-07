@@ -686,6 +686,25 @@ export default function App() {
     };
   }, [activeBrandSlug]); // Chỉ tái tạo khi đổi brand — KHÔNG tái tạo khi đổi tuần
 
+  // Auto-load timekeeping bonus records when entering TIMEKEEPING view or month/year changes
+  useEffect(() => {
+    if (viewMode !== 'TIMEKEEPING' || !activeBrandSlug) return;
+    let cancelled = false;
+    (async () => {
+      setTimekeepingLoading(true);
+      try {
+        const recs = await api.getTimekeeping(activeBrandSlug, timekeepingMonth, timekeepingYear);
+        if (cancelled) return;
+        setTimekeepingRecords(recs);
+        const draft: Record<string,{bonusAmount:number;note:string}> = {};
+        recs.forEach(r => { draft[r.userId]={bonusAmount:r.bonusAmount,note:r.note||''}; });
+        setTimekeepingDraft(draft);
+      } catch(e) { console.error('Auto-load timekeeping failed', e); }
+      finally { if (!cancelled) setTimekeepingLoading(false); }
+    })();
+    return () => { cancelled = true; };
+  }, [viewMode, activeBrandSlug, timekeepingMonth, timekeepingYear]);
+
   // --- Derived Data ---
   const currentWeekSchedule = useMemo(() => platformSchedule, [platformSchedule]);
   const currentWeekAvailabilities = useMemo(() => platformAvailabilities, [platformAvailabilities]);
