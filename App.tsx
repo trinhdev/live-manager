@@ -2686,10 +2686,31 @@ export default function App() {
             return new Date(mon1.getTime()+item.dayIndex*86400000);
           };
 
+          // Check if a shift is completed: shift date + endTime must be in the past
+          const isShiftDone = (item: ScheduleItem, shift: Shift): boolean => {
+            const d = gd(item); if (!d) return false;
+            const endH = p(shift.endTime);
+            const startH = p(shift.startTime);
+            // Handle overnight shifts (endTime < startTime means next day)
+            const endDate = new Date(d);
+            if (endH <= startH) {
+              // Overnight: shift ends next day
+              endDate.setDate(endDate.getDate() + 1);
+            }
+            endDate.setHours(Math.floor(endH), Math.round((endH % 1) * 60), 0, 0);
+            return endDate.getTime() <= Date.now();
+          };
+
           // STAFF only (no OPERATIONS)
           const staffList = users.filter(u => u.role === 'STAFF');
-          // Real-time: filter schedule for selected month
-          const tkSched = schedule.filter(s => { const d=gd(s); return d&&d.getMonth()===timekeepingMonth-1&&d.getFullYear()===timekeepingYear; });
+          // Only count shifts that are completed (past shift end time)
+          const tkSched = schedule.filter(s => {
+            const d=gd(s);
+            if (!d || d.getMonth()!==timekeepingMonth-1 || d.getFullYear()!==timekeepingYear) return false;
+            const sh = shifts.find(x=>x.id===s.shiftId);
+            if (!sh) return false;
+            return isShiftDone(s, sh);
+          });
 
           const saveBonus = async (userId: string) => {
             if (!activeBrandSlug) return;
