@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Menu, X, Calendar, Search, Filter, Plus, ChevronLeft, ChevronRight, 
   MapPin, Clock, Users, Sun, Moon, CheckCircle2, ChevronDown, Lock,
@@ -399,6 +399,7 @@ export default function App() {
   const [timekeepingDraft, setTimekeepingDraft] = useState<Record<string, { bonusAmount: number; note: string }>>({});
   const [timekeepingLoading, setTimekeepingLoading] = useState(false);
   const [timekeepingSaving, setTimekeepingSaving] = useState<string | null>(null);
+  const [timekeepingTab, setTimekeepingTab] = useState<'summary'|'daily'>('summary');
 
   const [editingSlot, setEditingSlot] = useState<{day: number, shiftId: string} | null>(null);
   const [slotTab, setSlotTab] = useState<'STREAMER' | 'OPS'>('STREAMER');
@@ -2669,7 +2670,8 @@ export default function App() {
             return {u, hrs, otMin, cnt, base, bonusAmt, bonusNote, total:base+bonusAmt, dayRows};
           });
 
-          const [tkTab, setTkTab] = React.useState<'summary'|'daily'>('summary');
+          const tkTab = timekeepingTab;
+          const setTkTab = setTimekeepingTab;
           const grandBase = staffStats.reduce((s,r)=>s+r.base,0);
           const grandBonus = staffStats.reduce((s,r)=>s+r.bonusAmt,0);
           const grandTotal = grandBase+grandBonus;
