@@ -2508,68 +2508,60 @@ export default function App() {
           </div>
         )}
 
-        {/* ───────────── REPORTS VIEW (Stats only) ───────────── */}
+        {/* ───────────── REPORTS VIEW ───────────── */}
         {viewMode === 'REPORTS' && currentUser && (() => {
-          const now = currentDate;
-          const rMonth = now.getMonth();
-          const rYear = now.getFullYear();
-          const monthLabel = `Tháng ${rMonth + 1}/${rYear}`;
+          const [rMonth, setRMonth] = [timekeepingMonth, setTimekeepingMonth];
+          const [rYear, setRYear] = [timekeepingYear, setTimekeepingYear];
+          const months2R = Array.from({length:12},(_,i)=>i+1);
+          const years2R = [new Date().getFullYear()-1, new Date().getFullYear()];
 
-          const parseH = (t: string) => {
-            const m = t?.trim().match(/^(\d{1,2})(?:[:h](\d{1,2}))?/);
-            return m ? parseInt(m[1]) + (m[2] ? parseInt(m[2]) : 0) / 60 : 0;
-          };
+          const parseH = (t: string) => { const m = t?.trim().match(/^(\d{1,2})(?:[:h](\d{1,2}))?/); return m ? parseInt(m[1]) + (m[2] ? parseInt(m[2]) : 0) / 60 : 0; };
           const calcH = (shift: Shift, sa: { timeLabel?: string; overtimeMinutes?: number }) => {
             let base = 0;
             if (sa.timeLabel) { const p = sa.timeLabel.split(/\s*-\s*/); if (p.length===2){const s=parseH(p[0]);const e=parseH(p[1]);base=e-s;if(base<0)base+=24;} }
             else { const s=parseH(shift.startTime);const e=parseH(shift.endTime);base=e-s;if(base<0)base+=24;if(base===0)base=4; }
             return base + (sa.overtimeMinutes||0)/60;
           };
-
           const getSlotDate = (item: ScheduleItem): Date | null => {
-            const wm = item.weekId?.match(/^(\d{4})-(\d{2})-W(\d{1,2})$/);
-            if (!wm) return null;
+            const wm = item.weekId?.match(/^(\d{4})-(\d{2})-W(\d{1,2})$/); if (!wm) return null;
             const yr=parseInt(wm[1]),mo=parseInt(wm[2])-1,wk=parseInt(wm[3]);
             const d1=new Date(yr,mo,1);const dow=d1.getDay()===0?6:d1.getDay()-1;
             const mon1=new Date(yr,mo,1-dow+(wk-1)*7);
             return new Date(mon1.getTime()+item.dayIndex*86400000);
           };
-
-          const monthSchedule = schedule.filter(s => {
-            const d = getSlotDate(s); return d && d.getMonth()===rMonth && d.getFullYear()===rYear;
-          });
-
+          const monthSchedule = schedule.filter(s => { const d = getSlotDate(s); return d && d.getMonth()===rMonth-1 && d.getFullYear()===rYear; });
           const staffUsers = users.filter(u => u.role === 'STAFF');
-          const totalShiftsMonth = monthSchedule.length;
-          const totalAssignments = monthSchedule.reduce((s,i)=>s+i.streamerAssignments.length,0);
-
-          // Total hours + cost across month
-          let grandHours = 0; let grandCost = 0;
+          const totalShifts = monthSchedule.length;
+          const totalAssigns = monthSchedule.reduce((s,i)=>s+i.streamerAssignments.length,0);
+          let grandH = 0; let grandCost = 0;
           monthSchedule.forEach(item => {
-            const shift = shifts.find(s=>s.id===item.shiftId);
-            if (!shift) return;
-            item.streamerAssignments.forEach(sa => {
-              const u = users.find(x=>x.id===sa.userId);
-              const hrs = calcH(shift,sa);
-              grandHours += hrs;
-              grandCost += hrs * (u?.hourlyRate||0);
-            });
+            const sh = shifts.find(s=>s.id===item.shiftId); if (!sh) return;
+            item.streamerAssignments.forEach(sa => { const u = users.find(x=>x.id===sa.userId); const h = calcH(sh,sa); grandH+=h; grandCost+=h*(u?.hourlyRate||0); });
           });
 
-          // Group by date → daily stats
-          const byDate: Record<string,{date:Date;shifts:number;hrs:number;cost:number}> = {};
+          // Staff leaderboard
+          const staffBoard = staffUsers.map(u => {
+            let hrs=0;let cnt=0;let otMin=0;
+            monthSchedule.forEach(item => {
+              const sh = shifts.find(s=>s.id===item.shiftId); if (!sh) return;
+              const sa = item.streamerAssignments.find(a=>a.userId===u.id); if (!sa) return;
+              hrs+=calcH(sh,sa); cnt++; otMin+=sa.overtimeMinutes||0;
+            });
+            return {u,hrs,cnt,otMin,cost:hrs*(u.hourlyRate||0)};
+          }).filter(r=>r.cnt>0).sort((a,b)=>b.hrs-a.hrs);
+
+          // Daily breakdown
+          const byDate: Record<string,{date:Date;shifts:number;hrs:number;cost:number;users:User[]}> = {};
           monthSchedule.forEach(item => {
             const d = getSlotDate(item); if (!d) return;
             const key = d.toISOString().slice(0,10);
-            if (!byDate[key]) byDate[key] = {date:d,shifts:0,hrs:0,cost:0};
+            if (!byDate[key]) byDate[key]={date:d,shifts:0,hrs:0,cost:0,users:[]};
             byDate[key].shifts++;
-            const shift = shifts.find(s=>s.id===item.shiftId);
-            if (!shift) return;
+            const sh = shifts.find(s=>s.id===item.shiftId); if (!sh) return;
             item.streamerAssignments.forEach(sa => {
-              const u = users.find(x=>x.id===sa.userId);
-              const hrs = calcH(shift,sa);
-              byDate[key].hrs += hrs;
-              byDate[key].cost += hrs * (u?.hourlyRate||0);
+              const u = users.find(x=>x.id===sa.userId); const h = calcH(sh,sa);
+              byDate[key].hrs+=h; byDate[key].cost+=h*(u?.hourlyRate||0);
+              if (u && !byDate[key].users.find(x=>x.id===u.id)) byDate[key].users.push(u);
             });
           });
           const dailyRows = Object.entries(byDate).sort(([a],[b])=>a.localeCompare(b)).map(([,v])=>v);
@@ -2580,95 +2572,128 @@ export default function App() {
 
           return (
             <div className="space-y-5">
-              <div>
-                <h3 className="text-[17px] font-semibold tracking-tight flex items-center gap-2" style={{color:'#171717'}}>
-                  <BarChart3 size={18} style={{color:'#4F46E5'}}/> Báo cáo
-                </h3>
-                <p className="text-[12px] mt-0.5" style={{color:'#A3A3A3'}}>{monthLabel} · Dùng mũi tên tháng ở trên để chọn tháng khác</p>
+              {/* Header + month selector */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-[17px] font-semibold tracking-tight flex items-center gap-2" style={{color:'#171717'}}>
+                    <BarChart3 size={18} style={{color:'#4F46E5'}}/> Báo cáo tổng hợp
+                  </h3>
+                  <p className="text-[12px] mt-0.5" style={{color:'#A3A3A3'}}>Thống kê hoạt động live tháng {rMonth}/{rYear}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <select className="px-3 py-2 rounded-xl text-[13px] font-medium outline-none" style={{background:'#F5F5F5',border:'1px solid #E5E5E5'}} value={rMonth} onChange={e=>setRMonth(Number(e.target.value))}>
+                    {months2R.map(m=><option key={m} value={m}>Tháng {m}</option>)}
+                  </select>
+                  <select className="px-3 py-2 rounded-xl text-[13px] font-medium outline-none" style={{background:'#F5F5F5',border:'1px solid #E5E5E5'}} value={rYear} onChange={e=>setRYear(Number(e.target.value))}>
+                    {years2R.map(y=><option key={y} value={y}>{y}</option>)}
+                  </select>
+                </div>
               </div>
 
-              {/* KPI summary */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {/* KPI cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {[
-                  {label:'Tổng ca',value:`${totalShiftsMonth}`,sub:'Ca đã lên lịch',color:'#4F46E5'},
-                  {label:'Lượt live',value:`${totalAssignments}`,sub:'Lượt gán streamer',color:'#0891B2'},
-                  {label:'Tổng giờ',value:fmtH(grandHours),sub:'Toàn bộ streamer',color:'#059669'},
-                  {label:'Chi phí live',value:grandCost>0?`${fmt(Math.round(grandCost))}đ`:'—',sub:'Lương streamer tháng này',color:'#D97706'},
+                  {label:'Tổng ca',value:`${totalShifts}`,sub:'ca đã lên lịch',color:'#4F46E5'},
+                  {label:'Lượt live',value:`${totalAssigns}`,sub:`${staffBoard.length} nhân viên`,color:'#0891B2'},
+                  {label:'Tổng giờ',value:fmtH(grandH),sub:'toàn bộ streamer',color:'#059669'},
+                  {label:'Chi phí',value:grandCost>0?`${fmt(Math.round(grandCost/1000))}k`:'—',sub:'lương tháng này',color:'#D97706'},
                 ].map((s,i)=>(
-                  <div key={i} className="p-4 rounded-2xl" style={{background:'#fff',border:'1px solid #F0F0F0',boxShadow:'0 1px 6px rgba(0,0,0,0.04)'}}>
-                    <p className="text-[10px] font-semibold uppercase tracking-widest mb-1" style={{color:s.color}}>{s.label}</p>
-                    <p className="text-[22px] font-bold tabular-nums tracking-tight" style={{color:'#171717'}}>{s.value}</p>
-                    <p className="text-[11px] mt-0.5" style={{color:'#A3A3A3'}}>{s.sub}</p>
+                  <div key={i} className="p-3 rounded-2xl text-center" style={{background:'#fff',border:'1px solid #F0F0F0',boxShadow:'0 1px 4px rgba(0,0,0,0.03)'}}>
+                    <p className="text-[20px] font-bold tabular-nums leading-tight" style={{color:s.color}}>{s.value}</p>
+                    <p className="text-[9px] font-semibold uppercase tracking-widest mt-0.5" style={{color:'#A3A3A3'}}>{s.label}</p>
+                    <p className="text-[9px]" style={{color:'#D4D4D4'}}>{s.sub}</p>
                   </div>
                 ))}
               </div>
 
-              {/* Daily table */}
-              <div className="bg-white rounded-2xl border overflow-hidden" style={{borderColor:'#E5E5E5'}}>
-                <div className="px-5 py-4 flex items-center justify-between" style={{borderBottom:'1px solid #F0F0F0'}}>
-                  <p className="text-[13px] font-semibold" style={{color:'#171717'}}>Chi tiết theo ngày</p>
-                  <span className="text-[11px] px-2 py-1 rounded-full" style={{background:'#F5F5F5',color:'#737373'}}>{dailyRows.length} ngày</span>
+              {/* Bar chart — daily costs */}
+              {dailyRows.length>0 && (
+                <div className="bg-white rounded-2xl border p-4" style={{borderColor:'#E5E5E5'}}>
+                  <p className="text-[11px] font-semibold uppercase tracking-widest mb-3" style={{color:'#A3A3A3'}}>Chi phí theo ngày</p>
+                  <div className="flex items-end gap-[2px]" style={{height:'100px'}}>
+                    {dailyRows.map((r,i)=>{
+                      const pct = maxCost>0?Math.max((r.cost/maxCost)*100,2):2;
+                      const isT = new Date().toDateString()===r.date.toDateString();
+                      return (
+                        <div key={i} className="flex-1 flex flex-col items-center gap-1 group relative" title={`${r.date.getDate()}/${r.date.getMonth()+1}: ${fmt(Math.round(r.cost))}đ`}>
+                          <div className="w-full rounded-t transition-all" style={{height:`${pct}%`,background:isT?'#4F46E5':'#C7D2FE',minHeight:'2px'}}/>
+                          {dailyRows.length<=16 && <span className="text-[7px] tabular-nums" style={{color:isT?'#4F46E5':'#A3A3A3'}}>{r.date.getDate()}</span>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="flex justify-between mt-2">
+                    <span className="text-[9px]" style={{color:'#D4D4D4'}}>{dailyRows[0]?.date.getDate()}/{rMonth}</span>
+                    <span className="text-[9px]" style={{color:'#D4D4D4'}}>{dailyRows[dailyRows.length-1]?.date.getDate()}/{rMonth}</span>
+                  </div>
                 </div>
-                {dailyRows.length===0 ? (
-                  <div className="py-14 text-center" style={{color:'#D4D4D4'}}>
-                    <BarChart3 size={28} className="mx-auto mb-3"/>
-                    <p className="text-[13px]" style={{color:'#A3A3A3'}}>Chưa có dữ liệu tháng {rMonth+1}/{rYear}</p>
+              )}
+
+              {/* Staff leaderboard */}
+              {staffBoard.length>0 && (
+                <div className="bg-white rounded-2xl border overflow-hidden" style={{borderColor:'#E5E5E5'}}>
+                  <div className="px-4 py-3 flex items-center justify-between" style={{borderBottom:'1px solid #F0F0F0'}}>
+                    <p className="text-[11px] font-semibold uppercase tracking-widest" style={{color:'#A3A3A3'}}>Bảng xếp hạng nhân viên</p>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full" style={{background:'#F5F5F5',color:'#737373'}}>{staffBoard.length}</span>
                   </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr style={{background:'#FAFAFA',borderBottom:'1px solid #F0F0F0'}}>
-                          {['Ngày','Thứ','Số ca','Tổng giờ','Chi phí live','Biểu đồ chi phí'].map(h=>(
-                            <th key={h} className="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-widest whitespace-nowrap" style={{color:'#A3A3A3'}}>{h}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {dailyRows.map((row,i)=>{
-                          const isToday2 = new Date().toDateString()===row.date.toDateString();
-                          return (
-                            <tr key={i} style={{borderTop:i>0?'1px solid #F5F5F5':'none',background:isToday2?'#F8FBFF':'transparent'}}>
-                              <td className="px-4 py-3">
-                                <p className="text-[14px] font-bold tabular-nums" style={{color:isToday2?'#2563EB':'#171717'}}>{row.date.getDate()}/{row.date.getMonth()+1}</p>
-                              </td>
-                              <td className="px-4 py-3 text-[12px] font-medium" style={{color:'#737373'}}>{dayNames[row.date.getDay()]}</td>
-                              <td className="px-4 py-3">
-                                <span className="text-[13px] font-semibold tabular-nums px-2 py-1 rounded-lg" style={{background:'#F0F0FF',color:'#4F46E5'}}>{row.shifts}</span>
-                              </td>
-                              <td className="px-4 py-3 text-[13px] font-semibold tabular-nums" style={{color:'#171717'}}>{fmtH(row.hrs)}</td>
-                              <td className="px-4 py-3">
-                                <span className="text-[13px] font-bold tabular-nums" style={{color:row.cost>0?'#059669':'#D4D4D4'}}>
-                                  {row.cost>0?`${fmt(Math.round(row.cost))}đ`:'—'}
-                                </span>
-                              </td>
-                              <td className="px-4 py-3 w-40">
-                                <div className="flex items-center gap-2">
-                                  <div className="flex-1 h-2 rounded-full overflow-hidden" style={{background:'#F0F0F0'}}>
-                                    <div className="h-full rounded-full transition-all" style={{width:`${Math.round((row.cost/maxCost)*100)}%`,background:'#4F46E5'}}/>
-                                  </div>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                      <tfoot>
-                        <tr style={{borderTop:'2px solid #E5E5E5',background:'#FAFAFA'}}>
-                          <td colSpan={2} className="px-4 py-3"><span className="text-[12px] font-semibold" style={{color:'#737373'}}>Tổng tháng</span></td>
-                          <td className="px-4 py-3 text-[13px] font-bold" style={{color:'#4F46E5'}}>{totalShiftsMonth} ca</td>
-                          <td className="px-4 py-3 text-[13px] font-bold" style={{color:'#171717'}}>{fmtH(grandHours)}</td>
-                          <td className="px-4 py-3 text-[14px] font-bold" style={{color:grandCost>0?'#059669':'#D4D4D4'}}>{grandCost>0?`${fmt(Math.round(grandCost))}đ`:'—'}</td>
-                          <td/>
-                        </tr>
-                      </tfoot>
-                    </table>
+                  {staffBoard.map((r,i)=>(
+                    <div key={r.u.id} className="flex items-center gap-2.5 px-4 py-2.5" style={{borderTop:i>0?'1px solid #F5F5F5':'none'}}>
+                      <span className="text-[11px] font-bold w-5 text-center tabular-nums" style={{color:i<3?'#4F46E5':'#D4D4D4'}}>#{i+1}</span>
+                      <img src={r.u.avatar} className="w-7 h-7 rounded-full object-cover flex-shrink-0" style={{border:'1.5px solid #F0F0F0'}} alt=""/>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[12px] font-semibold truncate" style={{color:'#171717'}}>{r.u.name}</p>
+                        <p className="text-[10px]" style={{color:'#A3A3A3'}}>{r.cnt} ca · {fmtH(r.hrs)}{r.otMin>0?` · +${r.otMin}ph OT`:''}</p>
+                      </div>
+                      {/* Progress bar */}
+                      <div className="w-16 h-1.5 rounded-full overflow-hidden flex-shrink-0" style={{background:'#F0F0F0'}}>
+                        <div className="h-full rounded-full" style={{width:`${staffBoard[0]?.hrs>0?Math.round((r.hrs/staffBoard[0].hrs)*100):0}%`,background:'#4F46E5'}}/>
+                      </div>
+                      <span className="text-[11px] font-bold tabular-nums flex-shrink-0 min-w-[60px] text-right" style={{color:r.cost>0?'#059669':'#D4D4D4'}}>{r.cost>0?`${fmt(Math.round(r.cost))}đ`:'—'}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Daily accordion */}
+              {dailyRows.length>0 ? (
+                <div className="bg-white rounded-2xl border overflow-hidden" style={{borderColor:'#E5E5E5'}}>
+                  <div className="px-4 py-3" style={{borderBottom:'1px solid #F0F0F0'}}>
+                    <p className="text-[11px] font-semibold uppercase tracking-widest" style={{color:'#A3A3A3'}}>Chi tiết hàng ngày</p>
                   </div>
-                )}
-              </div>
+                  {dailyRows.map((day,di)=>{
+                    const isT=new Date().toDateString()===day.date.toDateString();
+                    return (
+                      <div key={di} className="flex items-center gap-2.5 px-3 sm:px-4 py-2.5" style={{borderTop:di>0?'1px solid #F0F0F0':'none',borderLeft:isT?'3px solid #4F46E5':'3px solid transparent'}}>
+                        <div className="flex-shrink-0 w-10 text-center">
+                          <p className="text-[14px] font-bold tabular-nums leading-tight" style={{color:isT?'#4F46E5':'#171717'}}>{day.date.getDate()}</p>
+                          <p className="text-[9px] font-semibold uppercase tracking-wider" style={{color:isT?'#6366F1':'#A3A3A3'}}>{dayNames[day.date.getDay()]}</p>
+                        </div>
+                        <div className="w-px h-7 flex-shrink-0" style={{background:'#E5E5E5'}}/>
+                        <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
+                          <span className="text-[11px] font-semibold" style={{color:'#525252'}}>{day.shifts} ca</span>
+                          <span className="text-[10px] tabular-nums" style={{color:'#A3A3A3'}}>{fmtH(day.hrs)}</span>
+                          <div className="flex -space-x-1.5 ml-1">
+                            {day.users.slice(0,3).map((u,ui)=><img key={ui} src={u.avatar} className="w-5 h-5 rounded-full object-cover ring-2 ring-white" alt="" title={u.name}/>)}
+                            {day.users.length>3&&<span className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold ring-2 ring-white" style={{background:'#E5E5E5',color:'#737373'}}>+{day.users.length-3}</span>}
+                          </div>
+                        </div>
+                        <span className="text-[12px] font-bold tabular-nums flex-shrink-0" style={{color:day.cost>0?'#059669':'#D4D4D4'}}>{day.cost>0?`${fmt(Math.round(day.cost))}đ`:'—'}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="bg-white rounded-2xl border py-14 text-center" style={{borderColor:'#E5E5E5'}}>
+                  <BarChart3 size={28} className="mx-auto mb-3" style={{color:'#D4D4D4'}}/>
+                  <p className="text-[13px]" style={{color:'#A3A3A3'}}>Chưa có dữ liệu tháng {rMonth}/{rYear}</p>
+                </div>
+              )}
             </div>
           );
         })()}
+
+
+
 
 
 
