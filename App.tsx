@@ -3160,16 +3160,6 @@ export default function App() {
                   </div>
                 )}
               </div>
-
-              {/* S6: Fixed Bottom-Left Cost Badge */}
-              {staffStats.length>0 && grandCnt>0 && (
-                <div className="fixed bottom-[74px] sm:bottom-5 left-3 z-40">
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{background:'rgba(23,23,23,0.92)',backdropFilter:'blur(20px)',boxShadow:'0 4px 20px rgba(0,0,0,0.15)'}}>
-                    <span className="text-[10px] font-medium" style={{color:'rgba(255,255,255,0.5)'}}>{activeStaff} NV · {grandCnt} ca</span>
-                    <span className="text-[13px] font-bold tabular-nums" style={{color:'#34D399'}}>{fmt(Math.round(grandBase))}đ</span>
-                  </div>
-                </div>
-              )}
             </div>
           );
         })()}
