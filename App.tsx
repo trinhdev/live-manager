@@ -717,7 +717,7 @@ export default function App() {
   const currentWeekSchedule = useMemo(() => platformSchedule, [platformSchedule]);
   const currentWeekAvailabilities = useMemo(() => platformAvailabilities, [platformAvailabilities]);
   const currentWeekRequests = useMemo(() => platformRequests, [platformRequests]);
-  const canManageRequests = currentUser?.role === 'MANAGER' || currentUser?.role === 'SUPER_ADMIN';
+  const canManageRequests = currentUser?.role === 'MANAGER' || currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'OPERATIONS';
   const pendingCount = useMemo(() => requests.filter(r => r.status === 'PENDING' && r.platform === activePlatform).length, [requests, activePlatform]);
   const staffUsers = useMemo(() => users.filter(u => u.role !== 'MANAGER'), [users]);
   const submittedCount = useMemo(() => staffUsers.filter(u => u.isAvailabilitySubmitted).length, [staffUsers]);
@@ -3920,7 +3920,7 @@ export default function App() {
                 {unreadCount > 0 && (
                   <button onClick={markAllNotifsRead} className="flex-1 sm:flex-none text-[12px] font-medium text-center py-2.5 sm:py-0 text-blue-600 bg-blue-50 sm:bg-transparent rounded-lg sm:rounded-none">Đọc tất cả</button>
                 )}
-                {(currentUser?.role === 'MANAGER' || currentUser?.role === 'SUPER_ADMIN') && (
+                {(currentUser?.role === 'MANAGER' || currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'OPERATIONS') && (
                   <button onClick={() => setIsNotifModalOpen(true)} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2.5 sm:py-2.5 rounded-xl text-[12px] font-semibold transition-all hover:bg-slate-800" style={{background:'#171717', color:'#fff'}}>
                     <Plus size={14} /> Gửi Thông báo
                   </button>
