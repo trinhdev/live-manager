@@ -392,6 +392,10 @@ export default function App() {
   const [isOvertimeModalOpen, setIsOvertimeModalOpen] = useState(false);
   const [overtimeData, setOvertimeData] = useState<{ userId: string; minutes: number }>({ userId: '', minutes: 0 });
 
+  // Late Start state (Lên Trễ)
+  const [isLateStartModalOpen, setIsLateStartModalOpen] = useState(false);
+  const [lateStartData, setLateStartData] = useState<{ minutes: number; reason: string }>({ minutes: 0, reason: '' });
+
   // Timekeeping state
   const [timekeepingMonth, setTimekeepingMonth] = useState<number>(new Date().getMonth() + 1);
   const [timekeepingYear, setTimekeepingYear] = useState<number>(new Date().getFullYear());
@@ -750,6 +754,10 @@ export default function App() {
                            if (duration < 0) duration += 24;
                            hours = duration;
                        }
+                   }
+                   // Trừ phút lên trễ (chỉ áp dụng khi không có kẹp ca — kẹp ca đã tự tính giờ thực)
+                   if (hours > 0 && s.lateStartMinutes && s.lateStartMinutes > 0) {
+                       hours = Math.max(0, hours - s.lateStartMinutes / 60);
                    }
                }
                
@@ -1299,6 +1307,38 @@ export default function App() {
       alert('Lỗi lưu thêm giờ: ' + e.message);
     }
   };
+
+  const handleOpenLateStartModal = () => {
+    if (!editingSlot) return;
+    const existingItem = schedule.find(s => s.dayIndex === editingSlot.day && s.shiftId === editingSlot.shiftId && s.platform === activePlatform);
+    setLateStartData({
+      minutes: existingItem?.lateStartMinutes || 0,
+      reason: existingItem?.lateReason || '',
+    });
+    setIsLateStartModalOpen(true);
+    setIsSlotModalOpen(false);
+  };
+
+  const handleSaveLateStart = async () => {
+    if (!editingSlot) return;
+    const existingItem = schedule.find(s => s.dayIndex === editingSlot.day && s.shiftId === editingSlot.shiftId && s.platform === activePlatform);
+    if (!existingItem) { alert('Không tìm thấy ca trực! Hãy gán nhân sự vào ca trước.'); return; }
+    const newItem: ScheduleItem = {
+      ...existingItem,
+      lateStartMinutes: lateStartData.minutes > 0 ? lateStartData.minutes : undefined,
+      lateReason: lateStartData.reason.trim() || undefined,
+    };
+    try {
+      await api.saveScheduleItem(newItem);
+      const saved = await api.getSchedule(currentWeekId, activeBrandSlug || undefined);
+      setSchedule(saved);
+      setIsLateStartModalOpen(false);
+      setIsSlotModalOpen(true);
+    } catch (e: any) {
+      alert('Lỗi lưu lên trễ: ' + e.message);
+    }
+  };
+
   const handleOpenBridgeModal = (uid: string) => { 
       let st = '';
       let et = '';
@@ -1910,6 +1950,7 @@ export default function App() {
                             const today = isToday(weekDates[dayIdx]);
                             const slotHasOT = slot?.streamerAssignments.some(sa => (sa.overtimeMinutes || 0) > 0) ?? false;
                             const slotHasBridge = slot?.streamerAssignments.some(sa => !!sa.timeLabel) ?? false;
+                            const slotIsLate = (slot?.lateStartMinutes || 0) > 0;
                             return (
                               <td key={dayIdx}
                                 onClick={() => {
@@ -1937,8 +1978,11 @@ export default function App() {
                                   }}
                                 >
                                   {/* Slot-level indicators (top-right corner) */}
-                                  {(slotHasOT || slotHasBridge) && (
+                                  {(slotHasOT || slotHasBridge || slotIsLate) && (
                                     <div className="absolute top-1 right-1 flex items-center gap-0.5">
+                                      {slotIsLate && (
+                                        <span title={`Lên trễ ${slot!.lateStartMinutes} phút`} className="w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-extrabold leading-none" style={{background:'#FFF7ED',border:'1px solid #FDBA74',color:'#EA580C'}}>⏰</span>
+                                      )}
                                       {slotHasBridge && (
                                         <span title="Có kẹp ca" className="w-4 h-4 rounded-full flex items-center justify-center" style={{background:'#EFF6FF',border:'1px solid #BFDBFE'}}>
                                           <svg width="8" height="8" viewBox="0 0 12 12" fill="none"><path d="M2 1h3v3H2zM7 1h3v3H7zM2 6h3v3H2zM7 6h3v3H7z" fill="#2563EB"/></svg>
@@ -3317,6 +3361,34 @@ export default function App() {
       {/* Assignment Modal (Manager) */}
       <Modal isOpen={isSlotModalOpen} onClose={() => setIsSlotModalOpen(false)} title="Điều phối nhân sự">
         <div className="space-y-4">
+          {/* Late Start info banner — hiện khi ca đang có lên trễ */}
+          {(() => {
+            const cur = editingSlot ? currentWeekSchedule.find(s => s.dayIndex === editingSlot.day && s.shiftId === editingSlot.shiftId) : null;
+            const lateMin = cur?.lateStartMinutes || 0;
+            return (
+              <div className="flex items-center justify-between gap-2">
+                {lateMin > 0 ? (
+                  <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl" style={{background:'#FFF7ED', border:'1px solid #FDBA74'}}>
+                    <span style={{fontSize:14}}>⏰</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] font-semibold" style={{color:'#EA580C'}}>Lên trễ {lateMin} phút</p>
+                      {cur?.lateReason && <p className="text-[10px] truncate" style={{color:'#C2410C'}}>{cur.lateReason}</p>}
+                    </div>
+                    <button onClick={handleOpenLateStartModal} className="text-[10px] font-semibold px-2 py-1 rounded-lg transition-colors" style={{background:'#FDBA74', color:'#7C2D12'}}>Sửa</button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleOpenLateStartModal}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border-2 border-dashed text-[11px] font-semibold transition-all hover:border-orange-300 hover:text-orange-500"
+                    style={{borderColor:'#E5E5E5', color:'#A3A3A3'}}
+                  >
+                    <span style={{fontSize:12}}>⏰</span> Ghi nhận lên trễ
+                  </button>
+                )}
+              </div>
+            );
+          })()}
+
            <div className="flex bg-slate-100 p-1 rounded-lg">
              <button className={`flex-1 py-1.5 text-[10px] font-semibold uppercase tracking-wider rounded-md transition-all ${slotTab === 'STREAMER' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400'}`} onClick={() => setSlotTab('STREAMER')}>Streamer</button>
              <button className={`flex-1 py-1.5 text-[10px] font-semibold uppercase tracking-wider rounded-md transition-all ${slotTab === 'OPS' ? 'bg-white shadow-sm text-orange-600' : 'text-slate-400'}`} onClick={() => setSlotTab('OPS')}>Vận hành</button>
@@ -3486,6 +3558,101 @@ export default function App() {
                 <div className="flex gap-2">
                   <Button variant="secondary" className="flex-1 font-medium" onClick={() => { setIsOvertimeModalOpen(false); setIsSlotModalOpen(true); }}>Hủy</Button>
                   <Button className="flex-1 font-semibold" onClick={handleSaveOvertime} icon={<Save size={16}/>}>Lưu thêm giờ</Button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+      </Modal>
+
+      {/* Late Start / Lên Trễ Modal */}
+      <Modal isOpen={isLateStartModalOpen} onClose={() => { setIsLateStartModalOpen(false); setIsSlotModalOpen(true); }} title="Ghi nhận lên trễ">
+        {editingSlot && (() => {
+          const shift = shifts.find(s => s.id === editingSlot.shiftId);
+          const cur = currentWeekSchedule.find(s => s.dayIndex === editingSlot.day && s.shiftId === editingSlot.shiftId);
+          const shiftHours = (() => {
+            if (!shift) return 0;
+            const start = parseTimeStrToHours(shift.startTime);
+            const end = parseTimeStrToHours(shift.endTime);
+            let d = end - start; if (d < 0) d += 24; return d;
+          })();
+          const lostHours = lateStartData.minutes / 60;
+          return (
+            <div className="space-y-5">
+              {/* Shift info */}
+              <div className="flex items-center gap-3 p-3 rounded-xl" style={{background:'#FAFAFA', border:'1px solid #F0F0F0'}}>
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{background:'#FFF7ED'}}>
+                  <span style={{fontSize:18}}>⏰</span>
+                </div>
+                <div>
+                  <p className="font-semibold text-[14px]" style={{color:'#171717'}}>{shift?.name}</p>
+                  <p className="text-[11px] font-mono" style={{color:'#A3A3A3'}}>Dự kiến: {shift?.startTime} – {shift?.endTime} · {shiftHours}h</p>
+                </div>
+              </div>
+
+              {/* Quick chips */}
+              <div>
+                <label className="block text-[10px] font-semibold uppercase tracking-widest mb-2" style={{color:'#A3A3A3'}}>Số phút lên trễ</label>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {[15, 30, 45, 60, 90, 120].map(m => (
+                    <button
+                      key={m}
+                      onClick={() => setLateStartData({ ...lateStartData, minutes: m })}
+                      className="flex-1 py-2 rounded-xl text-[12px] font-semibold transition-all"
+                      style={{
+                        minWidth: 44,
+                        background: lateStartData.minutes === m ? '#EA580C' : '#F5F5F5',
+                        color: lateStartData.minutes === m ? '#fff' : '#737373',
+                        border: lateStartData.minutes === m ? '2px solid #EA580C' : '2px solid transparent',
+                      }}
+                    >
+                      {m < 60 ? `${m}ph` : `${m/60}h`}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-3 mt-3">
+                  <input
+                    type="number"
+                    min={0} max={480} step={5}
+                    className="flex-1 px-4 py-3 rounded-xl text-[14px] font-medium"
+                    style={{background:'#F5F5F5', border:'1px solid #E5E5E5', color:'#171717'}}
+                    placeholder="Hoặc nhập số phút..."
+                    value={lateStartData.minutes || ''}
+                    onChange={e => setLateStartData({ ...lateStartData, minutes: Math.max(0, Number(e.target.value)) })}
+                  />
+                  <span className="text-[13px] font-medium" style={{color:'#A3A3A3'}}>phút</span>
+                </div>
+                {lateStartData.minutes > 0 && (
+                  <p className="text-[12px] mt-2 font-medium" style={{color:'#EA580C'}}>
+                    Bắt đầu lúc ~{(() => {
+                      if (!shift) return '?';
+                      const [h,m] = shift.startTime.split(':').map(Number);
+                      const totalMin = h*60 + m + lateStartData.minutes;
+                      return `${String(Math.floor(totalMin/60)%24).padStart(2,'0')}:${String(totalMin%60).padStart(2,'0')}`;
+                    })()} · mất {lostHours.toFixed(1)}h
+                  </p>
+                )}
+              </div>
+
+              {/* Lý do */}
+              <div>
+                <label className="block text-[10px] font-semibold uppercase tracking-widest mb-2" style={{color:'#A3A3A3'}}>Lý do (tùy chọn)</label>
+                <input
+                  type="text"
+                  className="w-full px-4 py-3 rounded-xl text-[13px] font-medium"
+                  style={{background:'#F5F5F5', border:'1px solid #E5E5E5', color:'#171717'}}
+                  placeholder="VD: Sự cố kỹ thuật, khách hàng chưa sẵn sàng..."
+                  value={lateStartData.reason}
+                  onChange={e => setLateStartData({ ...lateStartData, reason: e.target.value })}
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="space-y-2">
+                <button onClick={() => setLateStartData({ minutes: 0, reason: '' })} className="text-[11px] uppercase font-medium block mx-auto" style={{color:'#D4D4D4'}}>Xóa lên trễ</button>
+                <div className="flex gap-2">
+                  <Button variant="secondary" className="flex-1 font-medium" onClick={() => { setIsLateStartModalOpen(false); setIsSlotModalOpen(true); }}>Hủy</Button>
+                  <Button className="flex-1 font-semibold" onClick={handleSaveLateStart} icon={<Save size={16}/>}>Lưu</Button>
                 </div>
               </div>
             </div>

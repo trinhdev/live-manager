@@ -206,6 +206,8 @@ export const api = {
         note: item.note,
         isFinalized: item.is_finalized,
         streamerAssignments: item.streamer_assignments || [],
+        lateStartMinutes: item.late_start_minutes ?? undefined,
+        lateReason: item.late_reason ?? undefined,
       })) as ScheduleItem[];
     } catch (e) {
       console.log('Using empty schedule (Offline/Error)');
@@ -224,6 +226,8 @@ export const api = {
       note: item.note,
       is_finalized: item.isFinalized,
       streamer_assignments: item.streamerAssignments,
+      late_start_minutes: item.lateStartMinutes ?? null,
+      late_reason: item.lateReason ?? null,
     };
     if (item.brandId) payload.brand_id = item.brandId;
     const { data, error } = await supabase.from('schedule').upsert(payload).select().single();

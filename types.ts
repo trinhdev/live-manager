@@ -63,6 +63,8 @@ export interface ScheduleItem {
   opsUserId: string | null;
   note?: string;
   isFinalized?: boolean;
+  lateStartMinutes?: number;  // Số phút lên trễ so với giờ ca gốc
+  lateReason?: string;        // Lý do lên trễ (tùy chọn)
 }
 
 export type RequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
